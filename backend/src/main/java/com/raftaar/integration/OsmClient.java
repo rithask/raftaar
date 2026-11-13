@@ -8,20 +8,22 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
  * OpenStreetMap: fuel pumps from Overpass, and the state a point is in from Nominatim, each used only when its URL
- * is set. Both public services have usage policies (Nominatim: at most one request a second), so callers cache
- * everything (see Places).
+ * is set. Both public services have usage policies (Nominatim: at most one request a second), so each gets one
+ * request at a time with a gap in between (RequestLimiter), and callers cache everything (see Places).
  */
 @Component
 public class OsmClient {
     private final RestClient http;
     private final AppProperties.Osm cfg;
-    private long lastNominatim;
+    private final RequestLimiter overpass = new RequestLimiter("Overpass", Duration.ofMillis(1100), Duration.ofSeconds(15));
+    private final RequestLimiter nominatim = new RequestLimiter("Nominatim", Duration.ofMillis(1100), Duration.ofSeconds(15));
 
     public OsmClient(RestClient outboundClient, AppProperties props) {
         this.http = outboundClient;
@@ -51,8 +53,8 @@ public class OsmClient {
         String query = "[out:json][timeout:25];(node[\"amenity\"=\"fuel\"]" + box + ";way[\"amenity\"=\"fuel\"]" + box + ";);out center tags;";
         var form = new LinkedMultiValueMap<String, String>();
         form.add("data", query);
-        Overpass body = http.post().uri(cfg.overpassUrl()).contentType(MediaType.APPLICATION_FORM_URLENCODED).body(form)
-                .retrieve().body(Overpass.class);
+        Overpass body = overpass.call(() -> http.post().uri(cfg.overpassUrl()).contentType(MediaType.APPLICATION_FORM_URLENCODED).body(form)
+                .retrieve().body(Overpass.class));
         if (body == null || body.elements() == null) return List.of();
         return body.elements().stream().filter(e -> e.lat() != null || e.center() != null).toList();
     }
@@ -63,19 +65,10 @@ public class OsmClient {
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Reverse(Address address) {}
 
-    public synchronized Address reverse(double lat, double lon) {
-        long wait = 1100 - (System.currentTimeMillis() - lastNominatim);
-        if (wait > 0) {
-            try {
-                Thread.sleep(wait);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-        lastNominatim = System.currentTimeMillis();
+    public Address reverse(double lat, double lon) {
         String base = cfg.nominatimUrl().replaceAll("/+$", "");
-        Reverse r = http.get().uri(base + "/reverse?format=jsonv2&zoom=10&addressdetails=1&accept-language=en&lat={lat}&lon={lon}", lat, lon)
-                .retrieve().body(Reverse.class);
+        Reverse r = nominatim.call(() -> http.get().uri(base + "/reverse?format=jsonv2&zoom=10&addressdetails=1&accept-language=en&lat={lat}&lon={lon}", lat, lon)
+                .retrieve().body(Reverse.class));
         return r == null ? null : r.address();
     }
 }

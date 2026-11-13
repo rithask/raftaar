@@ -12,6 +12,9 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
   **Upgrade:** to keep the lookups, set `OVERPASS_URL=https://overpass-api.de/api/interpreter` and
   `NOMINATIM_URL=https://nominatim.openstreetmap.org` (or your own instances) in `.env`.
 
+- Pump and state lookups go to each OpenStreetMap service one at a time, at least a second apart, and lookups
+  for the same area share one request, so a sync with many stops doesn't flood the public servers.
+
 ### Removed
 
 - `OSM_LOOKUPS_ENABLED`: leave the URLs unset instead.
