@@ -5,6 +5,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-13
+
 ### Added
 
 - Sign in with an OpenID Connect provider such as Pocket ID (`OIDC_*` in `.env`). The first sign-in asks to link the
