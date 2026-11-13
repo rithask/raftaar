@@ -4,6 +4,7 @@ import com.raftaar.domain.FuelStation;
 import com.raftaar.domain.Geocode;
 import com.raftaar.domain.MapTile;
 import com.raftaar.integration.OsmClient;
+import com.raftaar.integration.RequestLimiter;
 import com.raftaar.repo.FuelStationRepo;
 import com.raftaar.repo.GeocodeRepo;
 import com.raftaar.repo.MapTileRepo;
@@ -66,7 +67,7 @@ public class Places {
         try {
             once("tile:" + key, () -> fetchTile(key, ty, tx));
         } catch (Exception ex) {
-            log.warn("Couldn't fetch fuel pumps near {},{}: {}", lat, lon, rootMessage(ex));
+            skipped("Fuel pumps near " + lat + "," + lon, ex);
         }
     }
 
@@ -103,7 +104,7 @@ public class Places {
         try {
             return once("cell:" + key, () -> lookUp(key, lat, lon));
         } catch (Exception ex) {
-            log.warn("Couldn't look up the place at {},{}: {}", lat, lon, rootMessage(ex));
+            skipped("Place lookup at " + lat + "," + lon, ex);
             return Optional.empty();
         }
     }
@@ -156,9 +157,13 @@ public class Places {
         }
     }
 
-    private static String rootMessage(Throwable e) {
-        while (e.getCause() != null && e.getCause() != e) e = e.getCause();
-        return e.getMessage();
+    /**
+     * A lookup that didn't happen. While a service is busy or paused (RequestLimiter already said so once) it's only
+     * worth a debug line; other failures are logged as usual.
+     */
+    private static void skipped(String what, Exception e) {
+        if (e instanceof RequestLimiter.Busy) log.debug("{} skipped: {}", what, e.getMessage());
+        else Failures.log(log, what, e);
     }
 
     static String firstNonBlank(String... values) {

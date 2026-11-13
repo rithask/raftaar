@@ -84,6 +84,7 @@ public class AuthController {
         }
         String name = account.username().orElseThrow();
         Sessions.signIn(req, res, contexts, name);
+        log.info("Signed in with password as \"{}\" from {}", name, req.getRemoteAddr());
         return ResponseEntity.ok(Map.of("username", name));
     }
 

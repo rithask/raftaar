@@ -51,7 +51,8 @@ public class GeoPulseSync {
         try {
             log.info("GeoPulse: {}", run());
         } catch (Exception e) {
-            log.warn("GeoPulse sync failed: {}", e.getMessage());
+            // already logged by SyncLog
+            log.debug("GeoPulse sync failed", e);
         }
     }
 
@@ -130,7 +131,7 @@ public class GeoPulseSync {
             }
             return found;
         } catch (Exception e) {
-            log.warn("GeoPulse points for trip {} failed: {}", trip.id, e.getMessage());
+            Failures.log(log, "GeoPulse points for trip " + trip.id, e);
             return 0;
         }
     }
@@ -150,7 +151,7 @@ public class GeoPulseSync {
                 }
             }
         } catch (Exception e) {
-            log.warn("GeoPulse points around a payment failed: {}", e.getMessage());
+            Failures.log(log, "GeoPulse points around a payment", e);
         }
     }
 }

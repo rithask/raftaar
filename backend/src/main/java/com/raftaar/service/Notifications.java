@@ -36,6 +36,15 @@ public class Notifications {
     public record Channel(Long id, String label, String service, String masked, boolean enabled, boolean fromEnvironment,
                           Instant lastSentAt, Boolean lastOk, String lastError) {}
 
+    /** Says at startup when Apprise is missing, since nothing can be sent without it. */
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    public void checkApprise() {
+        String v = apprise.version();
+        if (v != null) log.info("Notifications go out through {}", v);
+        else if (configured()) log.warn("Apprise can't be run ({}), so notifications can't be sent. Use the Docker image, or set APPRISE_BIN.", cfg.binary());
+        else log.info("Apprise isn't available ({}); notifications are off until it is", cfg.binary());
+    }
+
     public boolean configured() {
         return !repo.findByEnabledTrueOrderByIdAsc().isEmpty() || !cfg.envUrls().isEmpty();
     }

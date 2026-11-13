@@ -76,10 +76,10 @@ public class SecurityConfig {
                         }
                         if (who.id().equals(linked)) {
                             Sessions.signIn(req, res, repo, account.username().orElseThrow());
-                            log.info("Signed in with {} as {}", provider, who.email() == null ? who.id() : who.email());
+                            log.info("Signed in with {} as {} from {}", provider, who.email() == null ? who.id() : who.email(), req.getRemoteAddr());
                             res.sendRedirect("/");
                         } else if (linked != null) {
-                            log.warn("{} sign-in refused for {}: a different account is linked", provider, who.email());
+                            log.warn("{} sign-in refused for {} from {}: a different account is linked", provider, who.email(), req.getRemoteAddr());
                             res.sendRedirect(Sessions.loginError("A different " + provider + " account is linked to Raftaar. Unlink it in Settings first."));
                         } else {
                             // An account exists but no provider account is linked yet: ask before linking this one.
@@ -103,7 +103,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/**").hasRole("OWNER")
                         .anyRequest().permitAll())
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-                .logout(l -> l.logoutUrl("/api/auth/logout").logoutSuccessHandler((req, res, auth) -> res.setStatus(200)));
+                .logout(l -> l.logoutUrl("/api/auth/logout").logoutSuccessHandler((req, res, auth) -> {
+                    if (auth != null) log.info("Signed out \"{}\" from {}", auth.getName(), req.getRemoteAddr());
+                    res.setStatus(200);
+                }));
         return http.build();
     }
 

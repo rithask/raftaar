@@ -51,7 +51,7 @@ public class FuelPrices {
                         return Optional.of(quote(p));
                     }
                 } catch (Exception e) {
-                    log.warn("Fuel price lookup for {} failed: {}", region, e.getMessage());
+                    Failures.log(log, "Fuel price lookup for " + region, e);
                 }
             }
             if (stored.isPresent()) return Optional.of(quote(stored.get()));

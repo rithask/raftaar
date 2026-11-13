@@ -10,6 +10,13 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 - With `APP_PASSWORD` set, the account is now created before the app takes requests. Before, the welcome page was
   open for a moment on first start, so someone else could have created the account first.
 
+### Changed
+
+- Clearer logs. A failure caused by an outside service (down, slow, refusing) is one warning saying what happened,
+  e.g. "Hisaab sync failed: Can't connect to http://hisaab:8080"; anything else is logged as an error with its stack
+  trace. A failed "Sync now" is now logged too, password sign-ins and sign-outs are logged like provider ones, and a
+  missing Apprise is reported at startup. Error messages in the app read the same way.
+
 ## [0.3.0] - 2026-11-13
 
 ### Changed

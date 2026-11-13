@@ -60,8 +60,9 @@ public class Files {
         if (name == null) return;
         try {
             java.nio.file.Files.deleteIfExists(resolve(name));
-        } catch (IOException ignored) {
-            // a leftover file is harmless
+        } catch (IOException e) {
+            // a leftover file is harmless, but worth knowing about if the folder isn't writable
+            org.slf4j.LoggerFactory.getLogger(Files.class).warn("Couldn't delete {}: {}", name, Failures.reason(e));
         }
     }
 }

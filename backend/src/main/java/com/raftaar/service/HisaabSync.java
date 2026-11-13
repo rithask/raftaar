@@ -54,7 +54,8 @@ public class HisaabSync {
         try {
             log.info("Hisaab: {}", run());
         } catch (Exception e) {
-            log.warn("Hisaab sync failed: {}", e.getMessage());
+            // already logged by SyncLog
+            log.debug("Hisaab sync failed", e);
         }
     }
 

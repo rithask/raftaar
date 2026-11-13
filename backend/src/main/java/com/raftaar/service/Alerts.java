@@ -62,7 +62,8 @@ public class Alerts {
         try {
             log.info("Alerts: {}", run());
         } catch (Exception e) {
-            log.warn("Alerts failed: {}", e.getMessage());
+            // already logged by SyncLog
+            log.debug("Alerts failed", e);
         }
     }
 
