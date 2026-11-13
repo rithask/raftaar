@@ -5,6 +5,13 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+### Changed
+
+- When a request to Hisaab, GeoPulse or OpenStreetMap breaks off (a reset stream, a dropped connection), the log
+  and Settings now say which request it was and what happened, e.g. "Hisaab sync failed: GET https://…/api/v1/
+  transactions?limit=200: Received RST_STREAM: Internal error", so it can be found in the other side's logs.
+  `LOG_LEVEL=DEBUG` adds the full error chain.
+
 ## [0.3.1] - 2026-11-13
 
 ### Fixed
