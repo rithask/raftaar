@@ -15,6 +15,10 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 - Pump and state lookups go to each OpenStreetMap service one at a time, at least a second apart, and lookups
   for the same area share one request, so a sync with many stops doesn't flood the public servers.
 
+- When an OpenStreetMap service is busy or down (429, 5xx, timeouts), lookups back off: retried after about 1, 2
+  and 4 seconds (longer if it sends Retry-After), then that service is paused for 30 s, 1, 2, 4… minutes (up to an
+  hour) until it answers again. Fill-ups still save meanwhile, without the pump name or state.
+
 ### Removed
 
 - `OSM_LOOKUPS_ENABLED`: leave the URLs unset instead.
