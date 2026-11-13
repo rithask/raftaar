@@ -13,8 +13,9 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * OpenStreetMap: fuel pumps from Overpass, and the state a point is in from Nominatim. Both public services have
- * usage policies (Nominatim: at most one request a second), so callers cache everything (see Places).
+ * OpenStreetMap: fuel pumps from Overpass, and the state a point is in from Nominatim, each used only when its URL
+ * is set. Both public services have usage policies (Nominatim: at most one request a second), so callers cache
+ * everything (see Places).
  */
 @Component
 public class OsmClient {
@@ -27,7 +28,11 @@ public class OsmClient {
         this.cfg = props.osm();
     }
 
-    public boolean enabled() { return cfg.enabled(); }
+    /** Whether fuel pumps can be looked up (OVERPASS_URL is set). */
+    public boolean pumps() { return cfg.pumps(); }
+
+    /** Whether the state of a point can be looked up (NOMINATIM_URL is set). */
+    public boolean places() { return cfg.places(); }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Center(double lat, double lon) {}

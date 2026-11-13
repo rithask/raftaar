@@ -83,11 +83,11 @@ app:
     fuel-categories: ${HISAAB_FUEL_CATEGORIES:Fuel}
     expense-categories: ${HISAAB_EXPENSE_CATEGORIES:}
   osm:
-    # Finding fuel pumps and the state they're in sends coordinates of your stops to these services.
-    # Point them at your own instances, or turn lookups off.
-    enabled: ${OSM_LOOKUPS_ENABLED:true}
-    overpass-url: ${OVERPASS_URL:https://overpass-api.de/api/interpreter}
-    nominatim-url: ${NOMINATIM_URL:https://nominatim.openstreetmap.org}
+    # Each lookup is on only when its URL is set; it sends the coordinates of your stops there.
+    #   Overpass names the fuel pump you stopped at, e.g. https://overpass-api.de/api/interpreter
+    #   Nominatim finds the state, for the fuel price, e.g. https://nominatim.openstreetmap.org
+    overpass-url: ${OVERPASS_URL:}
+    nominatim-url: ${NOMINATIM_URL:}
   fuel-price:
     # Optional: a URL that answers {"price": 102.5} for a state. Placeholders: {state} {district} {fuel}
     url: ${FUEL_PRICE_URL:}

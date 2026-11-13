@@ -10,7 +10,7 @@ const META: Record<Integration['name'], { title: string; icon: ReactNode; off: R
   geopulse: { title: 'GeoPulse', icon: <Path size={20} />, off: <>Set <Code>GEOPULSE_URL</Code> and <Code>GEOPULSE_TOKEN</Code> to connect.</>, what: 'Brings in your trips and spots stops at fuel pumps.', run: 'Sync now' },
   hisaab: { title: 'Hisaab', icon: <Wallet size={20} />, off: <>Set <Code>HISAAB_URL</Code> and <Code>HISAAB_TOKEN</Code> to connect.</>, what: 'Brings in your fuel payments.', run: 'Sync now' },
   alerts: { title: 'Daily reminders', icon: <Bell size={20} />, off: 'Add a notification channel below to turn these on.', what: 'Due services and expiring papers, every morning.', run: 'Check now' },
-  osm: { title: 'Pump & state lookup', icon: <MapPin size={20} />, off: <>Turned off with <Code>OSM_LOOKUPS_ENABLED</Code>.</>, what: 'Uses OpenStreetMap to name the pump and state for a fill-up.' },
+  osm: { title: 'Pump & state lookup', icon: <MapPin size={20} />, off: <>Set <Code>OVERPASS_URL</Code> to name pumps, <Code>NOMINATIM_URL</Code> to find the state.</>, what: 'Uses OpenStreetMap to name the pump and state for a fill-up.' },
 }
 
 function Code({ children }: { children: ReactNode }) {

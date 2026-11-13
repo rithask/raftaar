@@ -52,8 +52,17 @@ public class SettingsController {
                         Map.of("pollInterval", h.pollInterval().toString(), "fuelCategories", h.fuelCategoryList(),
                                 "expenseCategories", h.expenseCategoryList())),
                 new Integration(Alerts.NAME, notifications.configured(), null, syncLog.status(Alerts.NAME), Map.of("cron", props.alerts().cron())),
-                new Integration("osm", props.osm().enabled(), host(props.osm().nominatimUrl()), new SyncLog.Status(null, null, null, null, false),
-                        Map.of("overpass", host(props.osm().overpassUrl()), "priceSource", props.fuelPrice().configured())));
+                new Integration("osm", props.osm().enabled(), osmTarget(), new SyncLog.Status(null, null, null, null, false),
+                        Map.of("pumps", props.osm().pumps(), "places", props.osm().places(), "priceSource", props.fuelPrice().configured())));
+    }
+
+    /** Which OpenStreetMap services are used, e.g. "pumps: overpass-api.de · state: nominatim.openstreetmap.org". */
+    private String osmTarget() {
+        var o = props.osm();
+        var parts = new java.util.ArrayList<String>();
+        if (o.pumps()) parts.add("pumps: " + host(o.overpassUrl()));
+        if (o.places()) parts.add("state: " + host(o.nominatimUrl()));
+        return parts.isEmpty() ? null : String.join(" · ", parts);
     }
 
     @PostMapping("/integrations/{name}/run")

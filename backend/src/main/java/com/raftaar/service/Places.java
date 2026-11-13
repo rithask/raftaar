@@ -53,7 +53,7 @@ public class Places {
     }
 
     private void ensureTile(double lat, double lon) {
-        if (!osm.enabled()) return;
+        if (!osm.pumps()) return;
         long ty = (long) Math.floor(lat / TILE), tx = (long) Math.floor(lon / TILE);
         String key = ty + ":" + tx;
         var tile = tiles.findById(key);
@@ -85,7 +85,7 @@ public class Places {
         if (cached.isPresent() && cached.get().fetchedAt.isAfter(Instant.now().minus(GEOCODE_TTL))) {
             return Optional.ofNullable(cached.get().region).map(r -> new Region(r, cached.get().district));
         }
-        if (!osm.enabled()) return Optional.empty();
+        if (!osm.places()) return Optional.empty();
         try {
             var a = osm.reverse(lat, lon);
             Geocode g = cached.orElseGet(Geocode::new);

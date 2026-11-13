@@ -5,6 +5,17 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+### Changed
+
+- The pump and state lookups are off until you set their URL: `OVERPASS_URL` names the fuel pump,
+  `NOMINATIM_URL` finds the state. Before, they used the public OpenStreetMap servers unless turned off.
+  **Upgrade:** to keep the lookups, set `OVERPASS_URL=https://overpass-api.de/api/interpreter` and
+  `NOMINATIM_URL=https://nominatim.openstreetmap.org` (or your own instances) in `.env`.
+
+### Removed
+
+- `OSM_LOOKUPS_ENABLED`: leave the URLs unset instead.
+
 ## [0.2.0] - 2026-11-13
 
 ### Added

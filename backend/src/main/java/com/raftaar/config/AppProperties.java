@@ -53,7 +53,15 @@ public record AppProperties(Auth auth, Oidc oidc, Storage storage, GeoPulse geop
         public List<String> expenseCategoryList() { return list(expenseCategories); }
     }
 
-    public record Osm(boolean enabled, String overpassUrl, String nominatimUrl) {}
+    /**
+     * OpenStreetMap lookups, each on only when its URL is set: Overpass names the fuel pump you stopped at,
+     * Nominatim finds the state (for the fuel price). Nothing is sent anywhere unless you set one.
+     */
+    public record Osm(String overpassUrl, String nominatimUrl) {
+        public boolean pumps() { return notBlank(overpassUrl); }
+        public boolean places() { return notBlank(nominatimUrl); }
+        public boolean enabled() { return pumps() || places(); }
+    }
 
     public record FuelPriceSource(String url) {
         public boolean configured() { return notBlank(url); }
