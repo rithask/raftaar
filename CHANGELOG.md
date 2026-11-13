@@ -5,6 +5,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-13
+
 ### Changed
 
 - The pump and state lookups are off until you set their URL: `OVERPASS_URL` names the fuel pump,
