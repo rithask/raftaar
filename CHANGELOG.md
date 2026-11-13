@@ -5,6 +5,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-11-13
+
 ### Changed
 
 - When a request to Hisaab, GeoPulse or OpenStreetMap breaks off (a reset stream, a dropped connection), the log
