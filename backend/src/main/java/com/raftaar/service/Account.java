@@ -3,8 +3,6 @@ package com.raftaar.service;
 import com.raftaar.config.AppProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +16,7 @@ import java.util.Optional;
  * signing in with the OIDC provider. At most one provider account is linked to it, identified by issuer + subject.
  */
 @Service
-public class Account {
+public class Account implements org.springframework.beans.factory.SmartInitializingSingleton {
     /** Session attribute: a provider account that signed in but still needs linking. */
     public static final String PENDING = "raftaar.oidc.pending";
 
@@ -117,11 +115,17 @@ public class Account {
     }
 
     /**
-     * On start: create the account from APP_USERNAME/APP_PASSWORD if there's none yet, and apply RESET_PASSWORD.
-     * Both accept a plain password or a pre-encoded one like {bcrypt}$2a$...
+     * On start, before the web server takes any request: create the account from APP_USERNAME/APP_PASSWORD if
+     * there's none yet, and apply RESET_PASSWORD. (Doing it later would leave a moment where the onboarding page is
+     * open and someone else could create the account first.) Both accept a plain password or a pre-encoded one like
+     * {bcrypt}$2a$...
      */
-    @EventListener(ApplicationReadyEvent.class)
-    public void fromEnvironment() {
+    @Override
+    public void afterSingletonsInstantiated() {
+        fromEnvironment();
+    }
+
+    void fromEnvironment() {
         var auth = props.auth();
         if (!exists() && notBlank(auth.password())) {
             create(notBlank(auth.username()) ? auth.username() : "admin", auth.password());
