@@ -1,0 +1,519 @@
+import { ArrowLeft, Bell, CaretRight, GasPump, Path, PencilSimple, Receipt, Scroll, Warning, Wrench } from '@phosphor-icons/react'
+import { useQuery } from '@tanstack/react-query'
+import { AnimatePresence, motion } from 'motion/react'
+import { useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { Link, useParams } from 'react-router-dom'
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { api, imageUrl, type DocView, type Expense, type FuelRow, type ReminderView, type ServiceRow, type Summary, type Trip, type Vehicle } from '../api'
+import { FuelForm } from '../components/FuelForm'
+import { DocumentForm, ExpenseForm, OdometerForm, ReminderForm, ServiceForm } from '../components/Forms'
+import { AddLink, Badge, Button, cx, Empty, ErrorText, listItem, listParent, Loading, rowPress, SectionHeader, softSpring, spring, Tabs } from '../components/ui'
+import { KindIcon, VehicleArt } from '../components/VehicleArt'
+import { VehicleForm } from '../components/VehicleForm'
+import { date, dateTime, docLabel, economyUnit, expenseLabel, fuelLabel, kindLabel, km, money, money2, n1, n2 } from '../format'
+import { useSave } from '../hooks'
+
+type Tab = 'fuel' | 'upkeep' | 'papers' | 'spend' | 'trips'
+const TABS: Tab[] = ['fuel', 'upkeep', 'papers', 'spend', 'trips']
+const SOURCE = { MANUAL: '', HISAAB: 'Hisaab', GEOPULSE: 'GeoPulse', HISAAB_GEOPULSE: 'Hisaab + GeoPulse' } as const
+type Open =
+  | { kind: 'vehicle' } | { kind: 'fuel'; row?: FuelRow } | { kind: 'service'; row?: ServiceRow } | { kind: 'reminder'; r?: ReminderView }
+  | { kind: 'doc'; d?: DocView } | { kind: 'expense'; e?: Expense } | { kind: 'odometer' } | null
+
+export function VehiclePage() {
+  const id = Number(useParams().id)
+  const summary = useQuery({ queryKey: ['vehicle', id], queryFn: () => api<Summary>(`/vehicles/${id}`) })
+  const vehicles = useQuery({ queryKey: ['vehicles'], queryFn: () => api<Vehicle[]>('/vehicles') })
+  const [tab, setTab] = useState<Tab>('fuel')
+  // tab content slides in from the side you moved towards
+  const tabDir = useRef(0)
+  const pickTab = (t: Tab) => {
+    tabDir.current = TABS.indexOf(t) > TABS.indexOf(tab) ? 1 : -1
+    setTab(t)
+  }
+  const [open, setOpen] = useState<Open>(null)
+  const close = () => setOpen(null)
+
+  if (summary.isLoading) return <Loading />
+  if (summary.error) return <ErrorText error={summary.error} />
+  const s = summary.data!
+  const v = s.vehicle
+  const odo = s.odometer.estimated ?? s.odometer.known
+  const activeVehicles = (vehicles.data ?? [v]).filter((x) => !x.archived || x.id === v.id)
+  const due = s.reminders.filter((r) => r.status.state === 'OVERDUE' || r.status.state === 'DUE_SOON')
+  const papers = s.documents.filter((d) => d.state === 'EXPIRED' || d.state === 'EXPIRING')
+  const worst = (bad: boolean, any: boolean) => (bad ? 'bad' : any ? 'warn' : undefined)
+
+  return (
+    <div className="space-y-5 pb-20 sm:pb-0">
+      <Header vehicle={v} onEdit={() => setOpen({ kind: 'vehicle' })} onFuel={() => setOpen({ kind: 'fuel' })} />
+
+      {/* the three numbers that matter, and one quiet line under them */}
+      <div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-stone-900/5 dark:bg-stone-900 dark:ring-white/10">
+        <div className="grid grid-cols-3 divide-x divide-stone-900/5 dark:divide-white/10">
+          <div className="min-w-0 pr-2">
+            <button type="button" onClick={() => setOpen({ kind: 'odometer' })} aria-label="Update odometer"
+              className="-m-2 w-[calc(100%+1rem)] rounded-xl p-2 text-left transition active:scale-[0.97] active:bg-stone-100 dark:active:bg-stone-800">
+              <Figure label="Odometer" value={odo != null ? `${s.odometer.estimated != null ? '≈' : ''}${Math.round(odo).toLocaleString('en-IN')}` : '—'} unit="km" edit />
+            </button>
+          </div>
+          <div className="min-w-0 px-3">
+            <Figure label="Mileage" value={s.averageEconomy != null ? n1(s.averageEconomy) : '—'} unit={s.averageEconomy != null ? economyUnit(s.unit) : undefined} />
+          </div>
+          <div className="min-w-0 pl-3">
+            <Figure label="Per km" value={s.costs.perKm != null ? money2(s.costs.perKm) : '—'} />
+          </div>
+        </div>
+        <p className="num mt-3 border-t border-stone-900/5 pt-3 text-xs text-stone-500 dark:border-white/10">
+          {[
+            s.odometer.kmPerDay != null ? `${n1(s.odometer.kmPerDay)} km a day` : null,
+            `${money(s.costs.thisMonth)} this month`,
+            s.lastEconomy != null && s.averageEconomy != null && s.lastEconomy !== s.averageEconomy ? `last tank ${n1(s.lastEconomy)}` : null,
+            s.averageEconomy == null ? 'mileage after two full tanks' : null,
+          ].filter(Boolean).join('  ·  ')}
+        </p>
+      </div>
+
+      {(due.length > 0 || papers.length > 0) && (
+        <section className="space-y-2">
+          <SectionHeader title="Coming up" />
+          <div className="divide-y divide-stone-900/5 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-900/5 dark:divide-white/5 dark:bg-stone-900 dark:ring-white/10">
+            {due.map((r) => (
+              <AttentionRow key={`r${r.reminder.id}`} bad={r.status.state === 'OVERDUE'} icon={<Wrench size={16} />} title={r.reminder.title}
+                detail={r.status.summary.replace(/^Due /, '')} onClick={() => setOpen({ kind: 'service' })} />
+            ))}
+            {papers.map((d) => (
+              <AttentionRow key={`d${d.document.id}`} bad={d.state === 'EXPIRED'} icon={<Scroll size={16} />} title={d.document.title}
+                detail={d.state === 'EXPIRED' ? `expired ${date(d.document.expiresOn, false)}` : d.daysLeft === 0 ? 'today' : `in ${d.daysLeft} days`}
+                onClick={() => setOpen({ kind: 'doc', d })} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <Tabs value={tab} onChange={pickTab} options={[
+        { value: 'fuel', label: 'Fuel' },
+        { value: 'upkeep', label: 'Upkeep', dot: worst(due.some((r) => r.status.state === 'OVERDUE'), due.length > 0) },
+        { value: 'papers', label: 'Papers', dot: worst(papers.some((d) => d.state === 'EXPIRED'), papers.length > 0) },
+        { value: 'spend', label: 'Spend' },
+        { value: 'trips', label: 'Trips' },
+      ]} />
+
+      <AnimatePresence mode="popLayout" initial={false} custom={tabDir.current}>
+        <motion.div
+          key={tab}
+          custom={tabDir.current}
+          variants={{
+            enter: (d: number) => ({ opacity: 0, x: d * 32 }),
+            show: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 420, damping: 38 } },
+            leave: (d: number) => ({ opacity: 0, x: d * -24, transition: { duration: 0.12 } }),
+          }}
+          initial="enter"
+          animate="show"
+          exit="leave"
+          className="space-y-6"
+        >
+          {tab === 'fuel' && <FuelTab id={id} summary={s} onOpen={(row) => setOpen({ kind: 'fuel', row })} />}
+          {tab === 'upkeep' && (
+            <>
+              <RemindersSection id={id} onOpen={(r) => setOpen({ kind: 'reminder', r })} onAdd={() => setOpen({ kind: 'reminder' })} />
+              <ServicesSection id={id} onOpen={(row) => setOpen({ kind: 'service', row })} onAdd={() => setOpen({ kind: 'service' })} />
+            </>
+          )}
+          {tab === 'papers' && <PapersSection docs={s.documents} onOpen={(d) => setOpen({ kind: 'doc', d })} onAdd={() => setOpen({ kind: 'doc' })} />}
+          {tab === 'spend' && <SpendTab id={id} summary={s} onOpen={(e) => setOpen({ kind: 'expense', e })} onAdd={() => setOpen({ kind: 'expense' })} />}
+          {tab === 'trips' && <TripsTab id={id} />}
+        </motion.div>
+      </AnimatePresence>
+
+      <FuelFab onClick={() => setOpen({ kind: 'fuel' })} hidden={open !== null} />
+
+      <AnimatePresence>
+        {open?.kind === 'vehicle' && <VehicleForm key="vehicle" open onClose={close} vehicle={v} />}
+        {open?.kind === 'fuel' && <FuelForm key="fuel" open onClose={close} vehicles={activeVehicles} vehicleId={id} entry={open.row?.entry} lastOdometer={s.odometer.known} estimatedOdometer={s.odometer.estimated} />}
+        {open?.kind === 'service' && <ServiceForm key="service" open onClose={close} vehicleId={id} row={open.row} reminders={s.reminders} odometer={odo} />}
+        {open?.kind === 'reminder' && <ReminderForm key="reminder" open onClose={close} vehicleId={id} reminder={open.r?.reminder} odometer={odo} />}
+        {open?.kind === 'doc' && <DocumentForm key="doc" open onClose={close} vehicles={activeVehicles} vehicleId={id} doc={open.d?.document} />}
+        {open?.kind === 'expense' && <ExpenseForm key="expense" open onClose={close} vehicles={activeVehicles} vehicleId={id} expense={open.e} />}
+        {open?.kind === 'odometer' && <OdometerForm key="odometer" open onClose={close} vehicleId={id} current={s.odometer.known} />}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ---- header -----------------------------------------------------------------------------------------------
+
+const glass = 'rounded-full p-2.5 backdrop-blur transition active:scale-90'
+
+function Header({ vehicle: v, onEdit, onFuel }: { vehicle: Vehicle; onEdit: () => void; onFuel: () => void }) {
+  const subtitle = [v.make, v.model, v.year].filter(Boolean).join(' ')
+  const facts = [kindLabel[v.kind], fuelLabel[v.fuelType]].join(' · ')
+  const plate = v.registration && (
+    <span className="inline-block whitespace-nowrap rounded-md bg-white px-1.5 py-0.5 font-mono text-[11px] font-bold tracking-wider text-stone-900 ring-1 ring-stone-900/15">
+      {v.registration}
+    </span>
+  )
+  const desktopFuel = (
+    <div className="hidden shrink-0 sm:block">
+      <Button variant="primary" onClick={onFuel}><GasPump size={16} /> Add fuel</Button>
+    </div>
+  )
+
+  // With a photo: the photo leads, the name sits on it.
+  if (imageUrl(v)) {
+    return (
+      <div className="-mx-4 -mt-4 sm:mx-0 sm:mt-0">
+        <div className="relative overflow-hidden sm:rounded-3xl">
+          <VehicleArt vehicle={v} className="h-56 w-full sm:h-72" />
+          <div className="absolute inset-x-0 top-0 flex justify-between p-3">
+            <Link to="/" className={cx(glass, 'bg-black/35 text-white active:bg-black/55')} aria-label="Back to garage"><ArrowLeft size={20} /></Link>
+            <button onClick={onEdit} className={cx(glass, 'bg-black/35 text-white active:bg-black/55')} aria-label="Edit vehicle"><PencilSimple size={20} /></button>
+          </div>
+          <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pt-20 pb-4 text-white">
+            <div className="min-w-0">
+              <h1 className="truncate text-[26px] leading-tight font-bold tracking-tight">{v.name}</h1>
+              <p className="truncate text-sm text-white/75">{subtitle || facts}</p>
+              {plate && <div className="mt-2">{plate}</div>}
+            </div>
+            {desktopFuel}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // No photo: a calm profile-style header instead of a big grey block.
+  return (
+    <div>
+      <div className="-mx-1 mb-3 flex items-center justify-between">
+        <Link to="/" className={cx(glass, 'text-stone-600 active:bg-stone-200 dark:text-stone-300 dark:active:bg-stone-800')} aria-label="Back to garage"><ArrowLeft size={22} /></Link>
+        <button onClick={onEdit} className={cx(glass, 'text-stone-600 active:bg-stone-200 dark:text-stone-300 dark:active:bg-stone-800')} aria-label="Edit vehicle"><PencilSimple size={22} /></button>
+      </div>
+      <div className="flex items-center gap-4">
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={spring}
+          className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent-strong ring-1 ring-accent-strong/15">
+          <KindIcon kind={v.kind} size={34} />
+        </motion.div>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-[26px] leading-tight font-bold tracking-tight">{v.name}</h1>
+          <p className="truncate text-sm text-stone-500">{subtitle ? `${subtitle} · ${fuelLabel[v.fuelType]}` : facts}</p>
+          {plate && <div className="mt-1.5">{plate}</div>}
+        </div>
+        {desktopFuel}
+      </div>
+    </div>
+  )
+}
+
+function Figure({ label, value, unit, edit }: { label: string; value: string; unit?: string; edit?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-1 text-[11px] font-medium tracking-wide text-stone-500 uppercase">
+        {label}
+        {edit && <PencilSimple size={11} className="text-stone-400" aria-label="update" />}
+      </div>
+      <div className="num mt-0.5 truncate text-xl leading-tight font-semibold tracking-tight">{value}</div>
+      {unit && <div className="text-xs text-stone-500">{unit}</div>}
+    </div>
+  )
+}
+
+function AttentionRow({ bad, icon, title, detail, onClick }: { bad: boolean; icon: ReactNode; title: string; detail: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className={`flex w-full items-center gap-3 px-4 py-3 text-left ${rowPress}`}>
+      <span className={cx('flex size-8 shrink-0 items-center justify-center rounded-full', bad ? 'bg-red-500/12 text-red-600' : 'bg-amber-500/15 text-amber-600')}>{icon}</span>
+      <span className="min-w-0 flex-1 truncate text-sm font-medium">{title}</span>
+      <span className={cx('num shrink-0 text-sm', bad ? 'font-medium text-red-600' : 'text-stone-500')}>{detail}</span>
+      <CaretRight size={14} className="shrink-0 text-stone-300" />
+    </button>
+  )
+}
+
+/** The main action on a phone: a round Fuel button above the tab bar, within reach of the thumb. */
+function FuelFab({ onClick, hidden }: { onClick: () => void; hidden: boolean }) {
+  return createPortal(
+    <AnimatePresence>
+      {!hidden && (
+        <motion.button
+          key="fab"
+          type="button"
+          onClick={onClick}
+          aria-label="Add fuel"
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1, transition: { ...spring, delay: 0.15 } }}
+          exit={{ scale: 0.6, opacity: 0, transition: { duration: 0.12 } }}
+          whileTap={{ scale: 0.9 }}
+          className="fixed right-4 bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+4.75rem)] z-40 flex items-center gap-2 rounded-full bg-accent py-3.5 pr-5 pl-4 font-semibold text-on-accent shadow-lg shadow-black/25 sm:hidden"
+        >
+          <GasPump size={22} weight="bold" /> Fuel
+        </motion.button>
+      )}
+    </AnimatePresence>,
+    document.body,
+  )
+}
+
+// ---- lists ------------------------------------------------------------------------------------------------
+
+function List({ children }: { children: ReactNode }) {
+  return <motion.div variants={listParent} initial="hidden" animate="show" className="divide-y divide-stone-900/5 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-900/5 dark:divide-white/5 dark:bg-stone-900 dark:ring-white/10">{children}</motion.div>
+}
+
+function Row({ onClick, children }: { onClick?: () => void; children: ReactNode }) {
+  return <motion.button variants={listItem} onClick={onClick} className={`flex w-full items-center gap-3 px-4 py-3 text-left ${rowPress}`}>{children}</motion.button>
+}
+
+function Small({ children }: { children: ReactNode }) {
+  return <div className="num mt-0.5 truncate text-[13px] text-stone-500">{children}</div>
+}
+
+function FuelTab({ id, summary, onOpen }: { id: number; summary: Summary; onOpen: (r: FuelRow) => void }) {
+  const rows = useQuery({ queryKey: ['fuel', id], queryFn: () => api<FuelRow[]>(`/vehicles/${id}/fuel`) })
+  const resolve = useSave((fid: number) => api(`/fuel/${fid}/resolve`, { method: 'POST' }), undefined, 'Marked as checked')
+  if (rows.isLoading) return <Loading />
+  const list = rows.data ?? []
+  if (!list.length) return <Empty icon={<GasPump size={40} />} title="No fill-ups yet">Add each fill-up with the odometer reading. Mileage shows after two full tanks.</Empty>
+  const byId = new Map(list.map((r) => [r.entry.id, r.entry]))
+  const chart = summary.economyHistory.map((st) => ({ when: date(byId.get(st.endId)?.filledAt, false), kmpl: st.kmPerUnit }))
+  const unit = summary.unit
+  const spent = list.reduce((t, r) => t + r.entry.totalCost, 0)
+  return (
+    <>
+      {chart.length >= 2 && (
+        <section className="space-y-2">
+          <SectionHeader title="Mileage per tank" meta={economyUnit(unit)} />
+          <div className="h-40 rounded-2xl bg-white p-3 pt-4 ring-1 ring-stone-900/5 dark:bg-stone-900 dark:ring-white/10">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chart} margin={{ top: 4, right: 8, bottom: 0, left: -24 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-stone-200 dark:text-stone-800" vertical={false} />
+                <XAxis dataKey="when" tick={{ fontSize: 11, fill: 'currentColor' }} className="text-stone-500" tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: 'currentColor' }} className="text-stone-500" tickLine={false} axisLine={false} allowDecimals={false}
+                  domain={[(min: number) => Math.max(0, Math.floor(min - 2)), (max: number) => Math.ceil(max + 2)]} />
+                <Tooltip formatter={(val) => [`${n1(Number(val))} ${economyUnit(unit)}`, 'Mileage']} contentStyle={{ borderRadius: 12, border: 'none', fontSize: 12 }} />
+                <Line type="monotone" dataKey="kmpl" stroke="var(--color-accent-strong)" strokeWidth={2.5} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+      )}
+      <section className="space-y-2">
+        <SectionHeader title="Fill-ups" meta={`${list.length} · ${money(spent)}`} />
+        <List>
+          {list.map((r) => (
+            <div key={r.entry.id}>
+              <Row onClick={() => onOpen(r)}>
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong"><GasPump size={18} /></span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">{dateTime(r.entry.filledAt)}</div>
+                  <Small>
+                    {km(r.entry.odometer)} · {n2(r.entry.volume)} {unit}
+                    {!r.entry.fullTank ? ' · partial' : ''}
+                    {r.entry.missedPrevious ? ' · after a skipped one' : ''}
+                    {r.entry.source !== 'MANUAL' ? ` · ${SOURCE[r.entry.source]}` : r.entry.stationName ? ` · ${r.entry.stationName}` : ''}
+                  </Small>
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className="num font-semibold">{money(r.entry.totalCost)}</div>
+                  <div className="num mt-0.5 text-[13px] text-stone-500">{r.kmPerUnit != null ? `${n1(r.kmPerUnit)} ${economyUnit(unit)}` : `@ ${money2(r.entry.pricePerUnit)}`}</div>
+                </div>
+              </Row>
+              {r.entry.sourceIssue && (
+                <div className="flex items-center gap-2 bg-amber-500/10 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">
+                  <Warning size={16} /> <span className="flex-1">{r.entry.sourceIssue}</span>
+                  <Button variant="ghost" className="!py-1" onClick={() => resolve.mutate(r.entry.id)}>Checked</Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </List>
+      </section>
+    </>
+  )
+}
+
+/** When a reminder is due, compactly: km left on top, days below (whichever exist), coloured by urgency. */
+function DueSoonest({ status: st }: { status: ReminderView['status'] }) {
+  const kmLine = st.kmLeft == null ? null : st.kmLeft >= 0 ? `${km(st.kmLeft)} left` : `${km(-st.kmLeft)} over`
+  const dayLine = st.daysLeft == null ? null
+    : st.daysLeft > 1 ? `${st.daysLeft} days` : st.daysLeft === 1 ? 'tomorrow' : st.daysLeft === 0 ? 'today' : `${-st.daysLeft} days late`
+  const color = st.state === 'OVERDUE' ? 'text-red-600' : st.state === 'DUE_SOON' ? 'text-amber-600' : 'text-emerald-600'
+  if (!kmLine && !dayLine) return <Badge className="shrink-0">set last done</Badge>
+  return (
+    <div className="num shrink-0 text-right">
+      <div className={cx('text-sm font-semibold', color)}>{kmLine ?? dayLine}</div>
+      {kmLine && dayLine && <div className="mt-0.5 text-[13px] text-stone-500">or {dayLine}</div>}
+    </div>
+  )
+}
+
+function RemindersSection({ id, onOpen, onAdd }: { id: number; onOpen: (r: ReminderView) => void; onAdd: () => void }) {
+  const rows = useQuery({ queryKey: ['reminders', id], queryFn: () => api<ReminderView[]>(`/vehicles/${id}/reminders`) })
+  const list = rows.data ?? []
+  return (
+    <section className="space-y-2">
+      <SectionHeader title="Reminders" action={<AddLink label="Add" onClick={onAdd} />} />
+      {rows.isLoading ? <Loading /> : !list.length ? (
+        <Empty icon={<Bell size={36} />} title="No reminders">Oil changes, chain lube, services: by km, by date, or both.</Empty>
+      ) : (
+        <List>
+          {list.map((r) => (
+            <Row key={r.reminder.id} onClick={() => onOpen(r)}>
+              <div className={`min-w-0 flex-1 ${r.reminder.active ? '' : 'opacity-50'}`}>
+                <div className="flex items-center gap-2">
+                  <span className="truncate font-medium">{r.reminder.title}</span>
+                  {!r.reminder.active && <Badge>done</Badge>}
+                </div>
+                <Small>
+                  {[r.reminder.intervalKm ? `every ${km(r.reminder.intervalKm)}` : null, r.reminder.intervalMonths ? `${r.reminder.intervalMonths} mo` : null].filter(Boolean).join(' / ') || 'once'}
+                  {r.status.dueOdometer != null && r.status.kmLeft == null && ` · at ${km(r.status.dueOdometer)}`}
+                </Small>
+              </div>
+              {r.reminder.active && <DueSoonest status={r.status} />}
+            </Row>
+          ))}
+        </List>
+      )}
+    </section>
+  )
+}
+
+function ServicesSection({ id, onOpen, onAdd }: { id: number; onOpen: (r: ServiceRow) => void; onAdd: () => void }) {
+  const rows = useQuery({ queryKey: ['services', id], queryFn: () => api<ServiceRow[]>(`/vehicles/${id}/services`) })
+  const list = rows.data ?? []
+  return (
+    <section className="space-y-2">
+      <SectionHeader title="Service history" meta={list.length ? `${list.length} · ${money(list.reduce((t, r) => t + r.record.cost, 0))}` : undefined}
+        action={<AddLink label="Log service" onClick={onAdd} />} />
+      {rows.isLoading ? <Loading /> : !list.length ? (
+        <Empty icon={<Wrench size={36} />} title="No services yet">Logging a service also resets the reminders it covers.</Empty>
+      ) : (
+        <List>
+          {list.map((r) => (
+            <Row key={r.record.id} onClick={() => onOpen(r)}>
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sky-500/12 text-sky-600"><Wrench size={18} /></span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-medium">{r.record.title}</div>
+                <Small>{date(r.record.servicedOn)}{r.record.odometer != null ? ` · ${km(r.record.odometer)}` : ''}{r.record.workshop ? ` · ${r.record.workshop}` : ''}</Small>
+              </div>
+              <div className="num shrink-0 font-semibold">{money(r.record.cost)}</div>
+            </Row>
+          ))}
+        </List>
+      )}
+    </section>
+  )
+}
+
+export function PapersSection({ docs, onOpen, onAdd }: { docs: DocView[]; onOpen: (d: DocView) => void; onAdd: () => void }) {
+  return (
+    <section className="space-y-2">
+      <SectionHeader title="Papers" action={<AddLink label="Add" onClick={onAdd} />} />
+      {!docs.length ? (
+        <Empty icon={<Scroll size={36} />} title="No papers">Add insurance, PUC, RC and road tax to be reminded before they expire.</Empty>
+      ) : (
+        <List>
+          {docs.map((d) => (
+            <Row key={d.document.id} onClick={() => onOpen(d)}>
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-violet-500/12 text-violet-600"><Scroll size={18} /></span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-medium">{d.document.title}</div>
+                <Small>{docLabel[d.document.type]}{d.document.number ? ` · ${d.document.number}` : ''}</Small>
+              </div>
+              <DocBadge d={d} />
+            </Row>
+          ))}
+        </List>
+      )}
+    </section>
+  )
+}
+
+export function DocBadge({ d }: { d: DocView }) {
+  if (d.state === 'NO_EXPIRY') return <Badge className="shrink-0">no expiry</Badge>
+  if (d.state === 'EXPIRED') return <Badge tone="bad" className="shrink-0">expired</Badge>
+  if (d.state === 'EXPIRING') return <Badge tone="warn" className="shrink-0">{d.daysLeft === 0 ? 'today' : `${d.daysLeft} days`}</Badge>
+  return <Badge tone="ok" className="shrink-0">till {date(d.document.expiresOn, false)}</Badge>
+}
+
+/** Where the money went, then the expenses list. */
+function SpendTab({ id, summary, onOpen, onAdd }: { id: number; summary: Summary; onOpen: (e: Expense) => void; onAdd: () => void }) {
+  const rows = useQuery({ queryKey: ['expenses', id], queryFn: () => api<Expense[]>(`/vehicles/${id}/expenses`) })
+  const c = summary.costs
+  const parts = [
+    { label: 'Fuel', value: c.fuel, color: 'bg-accent' },
+    { label: 'Service', value: c.service, color: 'bg-sky-500' },
+    { label: 'Other', value: c.expenses, color: 'bg-violet-500' },
+  ]
+  const list = rows.data ?? []
+  return (
+    <>
+      <section className="space-y-2">
+        <SectionHeader title="Where it went" />
+        <div className="rounded-2xl bg-white p-4 ring-1 ring-stone-900/5 dark:bg-stone-900 dark:ring-white/10">
+          <div className="flex items-baseline justify-between">
+            <span className="num text-2xl font-bold tracking-tight">{money(c.total)}</span>
+            {c.perKm != null && <span className="num text-sm text-stone-500">{money2(c.perKm)} per km</span>}
+          </div>
+          <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+            {c.total > 0 && parts.map((p) => (
+              <motion.div key={p.label} className={p.color} initial={{ width: 0 }} animate={{ width: `${(p.value / c.total) * 100}%` }} transition={{ ...softSpring, delay: 0.1 }} />
+            ))}
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {parts.map((p) => (
+              <div key={p.label} className="min-w-0">
+                <div className="flex items-center gap-1.5 text-xs text-stone-500"><span className={cx('size-2 rounded-full', p.color)} /> {p.label}</div>
+                <div className="num truncate text-sm font-semibold">{money(p.value)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      <section className="space-y-2">
+        <SectionHeader title="Expenses" meta={list.length ? `${list.length} · ${money(c.expenses)}` : undefined} action={<AddLink label="Add" onClick={onAdd} />} />
+        {rows.isLoading ? <Loading /> : !list.length ? (
+          <Empty icon={<Receipt size={36} />} title="No expenses">Upgrades, accessories, riding gear, tolls and parking.</Empty>
+        ) : (
+          <List>
+            {list.map((e) => (
+              <Row key={e.id} onClick={() => onOpen(e)}>
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-violet-500/12 text-violet-600"><Receipt size={18} /></span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">{e.title}</div>
+                  <Small>{expenseLabel[e.category]} · {date(e.spentOn, false)}{e.hisaabTxnId ? ' · Hisaab' : e.vendor ? ` · ${e.vendor}` : ''}</Small>
+                </div>
+                <div className="num shrink-0 font-semibold">{money(e.amount)}</div>
+              </Row>
+            ))}
+          </List>
+        )}
+      </section>
+    </>
+  )
+}
+
+function TripsTab({ id }: { id: number }) {
+  const rows = useQuery({ queryKey: ['trips', id], queryFn: () => api<Trip[]>(`/vehicles/${id}/trips`) })
+  const unassign = useSave((tid: number) => api(`/trips/${tid}/unassign`, { method: 'POST' }), undefined, 'Moved back to Inbox')
+  if (rows.isLoading) return <Loading />
+  if (!rows.data?.length) return <Empty icon={<Path size={40} />} title="No trips">Trips you assign to this vehicle in the Inbox show up here.</Empty>
+  const total = rows.data.reduce((t, x) => t + x.distanceM, 0) / 1000
+  return (
+    <section className="space-y-2">
+      <SectionHeader title="Trips" meta={`${rows.data.length} · ≈ ${km(total)}`} />
+      <List>
+        {rows.data.map((t) => (
+          <motion.div variants={listItem} key={t.id} className="flex items-center gap-3 px-4 py-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/12 text-emerald-600"><Path size={18} /></span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-medium">{dateTime(t.startedAt)}</div>
+              <Small>{km(t.distanceM / 1000)} · {Math.round((new Date(t.endedAt).getTime() - new Date(t.startedAt).getTime()) / 60000)} min</Small>
+            </div>
+            <Button variant="ghost" className="shrink-0 !px-2.5 !py-1 text-xs" busy={unassign.isPending && unassign.variables === t.id} onClick={() => unassign.mutate(t.id)}>Remove</Button>
+          </motion.div>
+        ))}
+      </List>
+    </section>
+  )
+}

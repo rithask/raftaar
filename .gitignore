@@ -1,0 +1,19 @@
+# local configuration and data
+.env
+data/
+backend/data/
+
+# build output
+backend/target/
+frontend/dist/
+frontend/node_modules/
+*.tsbuildinfo
+
+# editors and OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# project notes, not published
+instructions.md

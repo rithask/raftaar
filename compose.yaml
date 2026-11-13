@@ -1,0 +1,78 @@
+# Raftaar. Configure everything in .env (copy .env.example); this file doesn't need editing.
+#   docker compose pull && docker compose up -d     # use a published image (APP_IMAGE:APP_VERSION)
+#   docker compose up -d --build                    # or build it from this checkout
+name: raftaar
+
+services:
+  app:
+    image: ${APP_IMAGE:-ghcr.io/rithask/raftaar}:${APP_VERSION:-latest}
+    build:
+      context: .
+      args:
+        VERSION: ${APP_VERSION:-dev}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-8080}:8080"
+    environment:
+      TZ: ${TZ:-Asia/Kolkata}
+      PUID: ${PUID:-10001}
+      PGID: ${PGID:-10001}
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75}
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-raftaar}
+      DB_USERNAME: ${POSTGRES_USER:-raftaar}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      APP_USERNAME: ${APP_USERNAME:-admin}
+      APP_PASSWORD: ${APP_PASSWORD:?Set APP_PASSWORD in .env}
+      GEOPULSE_URL: ${GEOPULSE_URL:-}
+      GEOPULSE_TOKEN: ${GEOPULSE_TOKEN:-}
+      GEOPULSE_POLL_INTERVAL: ${GEOPULSE_POLL_INTERVAL:-PT30M}
+      GEOPULSE_IMPORT_DAYS: ${GEOPULSE_IMPORT_DAYS:-30}
+      GEOPULSE_MOVEMENT_TYPES: ${GEOPULSE_MOVEMENT_TYPES:-CAR,MOTORCYCLE,UNKNOWN}
+      GEOPULSE_AUTO_ASSIGN: ${GEOPULSE_AUTO_ASSIGN:-false}
+      HISAAB_URL: ${HISAAB_URL:-}
+      HISAAB_TOKEN: ${HISAAB_TOKEN:-}
+      HISAAB_POLL_INTERVAL: ${HISAAB_POLL_INTERVAL:-PT15M}
+      HISAAB_IMPORT_DAYS: ${HISAAB_IMPORT_DAYS:-30}
+      HISAAB_FUEL_CATEGORIES: ${HISAAB_FUEL_CATEGORIES:-Fuel}
+      HISAAB_EXPENSE_CATEGORIES: ${HISAAB_EXPENSE_CATEGORIES:-}
+      OSM_LOOKUPS_ENABLED: ${OSM_LOOKUPS_ENABLED:-true}
+      OVERPASS_URL: ${OVERPASS_URL:-https://overpass-api.de/api/interpreter}
+      NOMINATIM_URL: ${NOMINATIM_URL:-https://nominatim.openstreetmap.org}
+      FUEL_PRICE_URL: ${FUEL_PRICE_URL:-}
+      APPRISE_URLS: ${APPRISE_URLS:-}
+      ALERT_CRON: ${ALERT_CRON:-0 0 9 * * *}
+      LOGGING_LEVEL_COM_RAFTAAR: ${LOG_LEVEL:-INFO}
+    # Everything lives in folders next to this file (created on first start), so it's easy to see, copy and
+    # back up: ./data/files (vehicle photos, document scans) and ./data/db (the database).
+    volumes:
+      - ./data/files:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  db:
+    image: postgres:${POSTGRES_VERSION:-18}-alpine
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Kolkata}
+      POSTGRES_DB: ${POSTGRES_DB:-raftaar}
+      POSTGRES_USER: ${POSTGRES_USER:-raftaar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      # PostgreSQL 18 images keep their data in a versioned subfolder of /var/lib/postgresql
+      - ./data/db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

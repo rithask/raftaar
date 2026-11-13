@@ -1,0 +1,11 @@
+.git
+.github
+.env
+data
+**/node_modules
+frontend/dist
+backend/target
+backend/data
+docs
+*.md
+**/.DS_Store

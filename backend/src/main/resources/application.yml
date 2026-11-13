@@ -1,0 +1,90 @@
+spring:
+  application:
+    name: raftaar
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/raftaar}
+    username: ${DB_USERNAME:${USER:postgres}}
+    password: ${DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+  jackson:
+    deserialization:
+      fail-on-null-for-primitives: false
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 15MB
+  threads:
+    virtual:
+      enabled: true
+  web:
+    resources:
+      static-locations: classpath:/static/, file:${APP_STATIC_DIR:../frontend/dist}/
+
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: native
+  mime-mappings:
+    webmanifest: application/manifest+json
+  servlet:
+    session:
+      timeout: 30d
+      cookie:
+        name: RAFTAAR_SESSION
+        http-only: true
+        same-site: lax
+        max-age: 30d
+
+app:
+  # set by the Docker image (the release tag); "dev" when run from a checkout
+  version: ${APP_VERSION:dev}
+  auth:
+    username: ${APP_USERNAME:admin}
+    password: ${APP_PASSWORD:}
+  storage:
+    dir: ${STORAGE_DIR:./data}
+  geopulse:
+    # e.g. https://geopulse.example.com — a token with the "read" scope is enough
+    url: ${GEOPULSE_URL:}
+    token: ${GEOPULSE_TOKEN:}
+    poll-interval: ${GEOPULSE_POLL_INTERVAL:PT30M}
+    import-days: ${GEOPULSE_IMPORT_DAYS:30}
+    # GeoPulse movement types that could be one of your vehicles
+    movement-types: ${GEOPULSE_MOVEMENT_TYPES:CAR,MOTORCYCLE,UNKNOWN}
+    # Assign a trip without asking when exactly one vehicle fits its movement type
+    auto-assign: ${GEOPULSE_AUTO_ASSIGN:false}
+  hisaab:
+    # e.g. https://money.example.com — a "Read transactions" token, money out only
+    url: ${HISAAB_URL:}
+    token: ${HISAAB_TOKEN:}
+    poll-interval: ${HISAAB_POLL_INTERVAL:PT15M}
+    import-days: ${HISAAB_IMPORT_DAYS:30}
+    # Category names or ids. Fuel ones become fill-up suggestions, expense ones become expense suggestions.
+    fuel-categories: ${HISAAB_FUEL_CATEGORIES:Fuel}
+    expense-categories: ${HISAAB_EXPENSE_CATEGORIES:}
+  osm:
+    # Finding fuel pumps and the state they're in sends coordinates of your stops to these services.
+    # Point them at your own instances, or turn lookups off.
+    enabled: ${OSM_LOOKUPS_ENABLED:true}
+    overpass-url: ${OVERPASS_URL:https://overpass-api.de/api/interpreter}
+    nominatim-url: ${NOMINATIM_URL:https://nominatim.openstreetmap.org}
+  fuel-price:
+    # Optional: a URL that answers {"price": 102.5} for a state. Placeholders: {state} {district} {fuel}
+    url: ${FUEL_PRICE_URL:}
+  apprise:
+    # Notifications go out through the Apprise CLI, which ships inside Raftaar's image.
+    # Add where to send them in Settings → Notifications. APPRISE_URLS adds fixed ones (comma separated).
+    binary: ${APPRISE_BIN:apprise}
+    urls: ${APPRISE_URLS:}
+  alerts:
+    cron: ${ALERT_CRON:0 0 9 * * *}
+
+logging:
+  level:
+    com.raftaar: INFO
