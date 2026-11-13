@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation, useOutlet } from 'react-router-dom'
-import { api, imageUrl, type Garage as GarageData } from '../api'
+import { api, imageUrl, signOut, type Garage as GarageData } from '../api'
 import { cx, spring } from './ui'
 import { Logo } from './Logo'
 import { KindIcon } from './VehicleArt'
@@ -110,8 +110,8 @@ function Sidebar({ garage, waiting, collapsed, onToggle }: { garage?: GarageData
   const qc = useQueryClient()
   const current = pathname
   const vehicles = (garage?.vehicles ?? []).filter((c) => !c.vehicle.archived)
-  const signOut = async () => {
-    await api('/auth/logout', { method: 'POST' })
+  const leave = async () => {
+    await signOut()
     qc.setQueryData(['me'], { username: null })
   }
   // "wide" styles only apply on large screens, and only when not collapsed
@@ -196,7 +196,7 @@ function Sidebar({ garage, waiting, collapsed, onToggle }: { garage?: GarageData
           </motion.span>
           <span className={label}>Collapse</span>
         </button>
-        <button type="button" onClick={signOut} title="Sign out" className={cx(item, quiet, 'transition active:scale-95')}>
+        <button type="button" onClick={leave} title="Sign out" className={cx(item, quiet, 'transition active:scale-95')}>
           <SignOut size={20} /> <span className={label}>Sign out</span>
         </button>
       </div>

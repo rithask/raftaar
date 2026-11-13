@@ -1,7 +1,7 @@
-import { ArrowsClockwise, Bell, CheckCircle, GasPump, MapPin, Path, Plus, SignOut, Trash, Wallet, XCircle } from '@phosphor-icons/react'
+import { ArrowsClockwise, Bell, CheckCircle, GasPump, LinkSimple, MapPin, Path, Plus, SignOut, Trash, UserCircle, Wallet, XCircle } from '@phosphor-icons/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
-import { api, type Channel, type ChannelList, type FuelPrice, type FuelType, type Integration } from '../api'
+import { api, signOut, type AccountView, type Channel, type ChannelList, type FuelPrice, type FuelType, type Integration } from '../api'
 import { Badge, Button, ErrorText, Field, Input, Loading, Panel, Select, Toggle } from '../components/ui'
 import { ago, date, fuelLabel, money2, num } from '../format'
 import { INDIAN_STATES, useSave } from '../hooks'
@@ -22,7 +22,7 @@ export function SettingsPage() {
   const integrations = useQuery({ queryKey: ['integrations'], queryFn: () => api<Integration[]>('/integrations'), refetchInterval: 10_000 })
   const run = useSave((name: string) => api<{ result: string }>(`/integrations/${name}/run`, { method: 'POST' }), undefined, (r) => r.result)
   const logout = async () => {
-    await api('/auth/logout', { method: 'POST' })
+    await signOut()
     qc.setQueryData(['me'], null)
   }
 
@@ -68,6 +68,8 @@ export function SettingsPage() {
       <NotificationChannels />
 
       <FuelPrices />
+
+      <AccountSection />
 
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" onClick={logout}><SignOut size={16} /> Sign out</Button>
@@ -185,6 +187,81 @@ function NotificationChannels() {
       )}
       {data?.apprise && <p className="text-xs text-stone-500">{data.apprise}</p>}
       <ErrorText error={test.error ?? toggle.error ?? del.error} />
+    </section>
+  )
+}
+
+/** Your username and password, and the identity-provider account you sign in with. */
+function AccountSection() {
+  const acc = useQuery({ queryKey: ['account'], queryFn: () => api<AccountView>('/account') })
+  const [name, setName] = useState<string | null>(null)
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [again, setAgain] = useState('')
+  const rename = useSave(() => api('/account/username', { method: 'PUT', body: { username: name } }), () => setName(null), 'Username changed')
+  const password = useSave(() => {
+    if (next !== again) return Promise.reject(new Error("The new passwords don't match"))
+    return api('/account/password', { method: 'PUT', body: { current, password: next } })
+  }, () => {
+    setCurrent('')
+    setNext('')
+    setAgain('')
+  }, 'Password changed')
+  const unlink = useSave(() => api('/account/oidc-link', { method: 'DELETE' }), undefined, 'Unlinked')
+  const a = acc.data
+  if (!a) return acc.isLoading ? <Loading /> : null
+  const username = name ?? a.username
+
+  return (
+    <section className="space-y-3">
+      <h2 className="flex items-center gap-2 text-sm font-medium text-stone-500"><UserCircle size={16} /> Account</h2>
+      <Panel className="space-y-4">
+        <div className="flex items-end gap-2">
+          <Field label="Username" className="flex-1">
+            <Input value={username} onChange={(e) => setName(e.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} />
+          </Field>
+          {name != null && name.trim() !== a.username && (
+            <Button variant="primary" busy={rename.isPending} disabled={!name.trim()} onClick={() => rename.mutate(undefined)}>Save</Button>
+          )}
+        </div>
+        <ErrorText error={rename.error} />
+
+        <form onSubmit={(e) => { e.preventDefault(); password.mutate(undefined) }} className="space-y-3 border-t border-stone-900/5 pt-4 dark:border-white/10">
+          <p className="text-sm font-medium">{a.hasPassword ? 'Change password' : 'Set a password'}</p>
+          {!a.hasPassword && <p className="text-xs text-stone-500">You signed up with {a.provider ?? 'your identity provider'}. A password gives you a second way in.</p>}
+          {!a.passwordLogin && <p className="text-xs text-stone-500">Password sign-in is turned off with <Code>PASSWORD_LOGIN=false</Code>, so this only matters if you turn it back on.</p>}
+          <div className="grid gap-3 sm:grid-cols-3">
+            {a.hasPassword && (
+              <Field label="Current password"><Input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} required /></Field>
+            )}
+            <Field label="New password"><Input type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} required minLength={8} /></Field>
+            <Field label="New password again"><Input type="password" autoComplete="new-password" value={again} onChange={(e) => setAgain(e.target.value)} required /></Field>
+          </div>
+          <ErrorText error={password.error} />
+          <Button type="submit" busy={password.isPending} disabled={next.length < 8 || !again || (a.hasPassword && !current)}>{a.hasPassword ? 'Change password' : 'Set password'}</Button>
+        </form>
+
+        {a.provider && (
+          <div className="flex items-center gap-3 border-t border-stone-900/5 pt-4 dark:border-white/10">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-strong"><LinkSimple size={18} /></span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                {a.provider} {a.link.linked ? <Badge tone="ok"><CheckCircle size={12} /> linked</Badge> : <Badge>not linked</Badge>}
+              </div>
+              <p className="truncate text-xs text-stone-500">
+                {a.link.linked ? `${a.link.email || 'Account'}${a.link.linkedAt ? ` · since ${date(a.link.linkedAt.slice(0, 10))}` : ''}` : `You'll be asked to link it the first time you sign in with ${a.provider}.`}
+              </p>
+            </div>
+            {a.link.linked && (
+              <Button variant="ghost" className="shrink-0 !py-1.5 text-xs" busy={unlink.isPending}
+                onClick={() => confirm(`Unlink this ${a.provider} account? Signing in with ${a.provider} will ask to link again.`) && unlink.mutate(undefined)}>
+                Unlink
+              </Button>
+            )}
+          </div>
+        )}
+        <ErrorText error={unlink.error} />
+      </Panel>
     </section>
   )
 }

@@ -45,8 +45,22 @@ app:
   # set by the Docker image (the release tag); "dev" when run from a checkout
   version: ${APP_VERSION:dev}
   auth:
+    # The account is created on the onboarding page the first time the app is opened. Setting these instead
+    # creates it on start (only when there's no account yet; afterwards they're ignored).
     username: ${APP_USERNAME:admin}
     password: ${APP_PASSWORD:}
+    # Offer the username/password form. Only honoured when OIDC is set up (so you can't lock yourself out).
+    password-login: ${PASSWORD_LOGIN:true}
+    # Locked out? Set this, restart, sign in with it, then remove it. It replaces the account's password on start.
+    reset-password: ${RESET_PASSWORD:}
+  oidc:
+    # OpenID Connect sign-in, e.g. Pocket ID. Leave OIDC_ISSUER_URI empty to turn it off.
+    # Callback URL to register at the provider: https://<this app>/login/oauth2/code/oidc
+    issuer-uri: ${OIDC_ISSUER_URI:}
+    client-id: ${OIDC_CLIENT_ID:}
+    client-secret: ${OIDC_CLIENT_SECRET:}
+    provider-name: ${OIDC_PROVIDER_NAME:Pocket ID}
+    auto-redirect: ${OIDC_AUTO_REDIRECT:true}
   storage:
     dir: ${STORAGE_DIR:./data}
   geopulse:

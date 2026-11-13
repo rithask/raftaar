@@ -21,7 +21,7 @@ export async function api<T = unknown>(path: string, opts: Opts = {}): Promise<T
   } catch {
     throw new ApiError(0, navigator.onLine ? "Can't reach Raftaar. Try again in a moment." : "You're offline.")
   }
-  if (res.status === 401 && path !== '/auth/login') window.dispatchEvent(new Event('raftaar:unauthorized'))
+  if (res.status === 401 && !path.startsWith('/auth/')) window.dispatchEvent(new Event('raftaar:unauthorized'))
   const text = await res.text()
   let data: unknown = null
   try {
@@ -31,6 +31,57 @@ export async function api<T = unknown>(path: string, opts: Opts = {}): Promise<T
   }
   if (!res.ok) throw new ApiError(res.status, (data as { error?: string } | null)?.error ?? `Request failed (${res.status})`)
   return data as T
+}
+
+// ---- signing out --------------------------------------------------------------------------------------
+
+/** Set on sign-out so the sign-in page doesn't go straight back to the identity provider. */
+const SIGNED_OUT = 'raftaar:signed-out'
+
+export function wasSignedOut() {
+  try {
+    return sessionStorage.getItem(SIGNED_OUT) != null
+  } catch {
+    return false
+  }
+}
+
+export function clearSignedOut() {
+  try {
+    sessionStorage.removeItem(SIGNED_OUT)
+  } catch {
+    // storage unavailable: nothing to clear
+  }
+}
+
+/** Keeps the sign-in page from going straight to the provider (after signing out, or declining to link). */
+export function markSignedOut() {
+  try {
+    sessionStorage.setItem(SIGNED_OUT, '1')
+  } catch {
+    // storage unavailable: the sign-in page may go straight to the provider again
+  }
+}
+
+export async function signOut() {
+  await api('/auth/logout', { method: 'POST' }).catch(() => undefined)
+  markSignedOut()
+}
+
+/** What the sign-in page offers; `setup` means there's no account yet (onboarding). */
+export interface AuthOptions {
+  setup: boolean
+  passwordLogin: boolean
+  oidc?: { name: string; startUrl: string }
+  autoRedirect: boolean
+}
+
+export interface AccountView {
+  username: string
+  hasPassword: boolean
+  passwordLogin: boolean
+  provider?: string
+  link: { linked: boolean; email?: string; linkedAt?: string }
 }
 
 // ---- types (mirror the backend) ------------------------------------------------------------------------

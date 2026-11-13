@@ -14,11 +14,11 @@ and papers (insurance, PUC, RC, road tax, licence) with expiry alerts. It can pu
 mkdir raftaar && cd raftaar
 curl -LO https://raw.githubusercontent.com/rithask/raftaar/main/compose.yaml
 curl -L -o .env https://raw.githubusercontent.com/rithask/raftaar/main/.env.example
-# edit .env: set APP_PASSWORD and POSTGRES_PASSWORD (and pin APP_VERSION)
+# edit .env: set POSTGRES_PASSWORD (and pin APP_VERSION)
 docker compose up -d
 ```
 
-Open http://localhost:8080 and sign in as `admin`. Everything is configured in `.env`; `compose.yaml` never needs
+Open http://localhost:8080 and create your account on the welcome page. Everything is configured in `.env`; `compose.yaml` never needs
 editing. From a checkout you can also build the image yourself: `docker compose up -d --build`.
 
 **Your data stays in folders next to `compose.yaml`**, created on first start:
@@ -38,7 +38,7 @@ notifications the Apprise CLI (`pipx install apprise==2.1.0`).
 
 ```sh
 cd backend
-APP_PASSWORD=choose-a-password PORT=8090 ./mvnw spring-boot:run    # 8090, so it doesn't clash with Hisaab on 8080
+PORT=8090 ./mvnw spring-boot:run    # 8090, so it doesn't clash with Hisaab on 8080
 
 cd frontend
 npm install && npm run dev                                         # http://localhost:5174, proxies /api to 8090
@@ -52,9 +52,26 @@ skipped instead of showing a wrong figure. Of price, volume and total paid, any 
 
 ## Configuration
 
-Every setting, with what it does, is in [`.env.example`](.env.example). Only `APP_PASSWORD` and `POSTGRES_PASSWORD`
-are required; GeoPulse, Hisaab, the pump lookup and notifications are all optional. Notification channels are easiest
-to add in Settings → Notifications.
+Every setting, with what it does, is in [`.env.example`](.env.example). Only `POSTGRES_PASSWORD` is required;
+sign-in with an identity provider, GeoPulse, Hisaab, the pump lookup and notifications are all optional. Notification
+channels are easiest to add in Settings → Notifications.
+
+## Signing in
+
+The first time you open Raftaar, a welcome page asks you to create your account. Until you do, anyone who can reach
+it could, so do it right after starting (the default `APP_BIND=127.0.0.1` keeps it to this machine).
+
+To sign in with an OpenID Connect provider such as Pocket ID, set the `OIDC_*` values in `.env` (the callback URL
+to register is `https://<this app>/login/oauth2/code/oidc`). Then:
+
+- On a fresh install, *Continue with Pocket ID* creates the account from your provider account.
+- On an existing one, the first provider sign-in asks to link it; your password confirms it's you. After that only
+  that account can sign in with the provider. Settings → Account shows it and can unlink it.
+- `OIDC_AUTO_REDIRECT=true` (the default) skips the sign-in page and goes straight to the provider, except right
+  after you sign out. Add `?password` to the address to see the sign-in page anyway.
+- `PASSWORD_LOGIN=false` hides the password form. It's ignored until OIDC is set up, so you can't lock yourself out.
+
+Locked out? Set `RESET_PASSWORD` in `.env`, restart, sign in with it, then remove it.
 
 ## Fuel prices
 

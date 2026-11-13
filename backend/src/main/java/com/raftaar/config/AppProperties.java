@@ -7,10 +7,38 @@ import java.util.Arrays;
 import java.util.List;
 
 @ConfigurationProperties("app")
-public record AppProperties(Auth auth, Storage storage, GeoPulse geopulse, Hisaab hisaab, Osm osm,
+public record AppProperties(Auth auth, Oidc oidc, Storage storage, GeoPulse geopulse, Hisaab hisaab, Osm osm,
                             FuelPriceSource fuelPrice, Apprise apprise, Alerts alerts) {
 
-    public record Auth(String username, String password) {}
+    /**
+     * The account itself lives in the database: it's created on the onboarding page the first time the app is
+     * opened. {@code username}/{@code password} only pre-create it instead (when there's no account yet).
+     *
+     * @param passwordLogin  false hides password sign-in; only honoured once OIDC is set up, so there's always a way in
+     * @param resetPassword  a way back in: on start, sets the account's password to this (remove it afterwards)
+     */
+    public record Auth(String username, String password, Boolean passwordLogin, String resetPassword) {
+        public boolean passwordLoginRequested() {
+            return passwordLogin == null || passwordLogin;
+        }
+    }
+
+    /**
+     * Sign-in with an OpenID Connect provider such as Pocket ID. Who may sign in is decided at the provider; the app
+     * links exactly one account by issuer + subject, the identifier OIDC guarantees is stable.
+     *
+     * @param providerName  shown on the sign-in button
+     * @param autoRedirect  go straight to the provider from the sign-in page
+     */
+    public record Oidc(String issuerUri, String clientId, String clientSecret, String providerName, Boolean autoRedirect) {
+        public boolean configured() {
+            return notBlank(issuerUri) && notBlank(clientId);
+        }
+
+        public String name() {
+            return notBlank(providerName) ? providerName.trim() : "Pocket ID";
+        }
+    }
 
     public record Storage(String dir) {}
 
