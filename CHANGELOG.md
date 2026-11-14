@@ -5,6 +5,11 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+### Fixed
+
+- A part of the app that fails to show (a tab, a page) now shows a message with Try again in its place, instead of
+  blanking the whole app, navigation included.
+
 ## [0.5.0] - 2026-11-14
 
 ### Added

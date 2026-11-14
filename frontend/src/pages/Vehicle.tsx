@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
 import { Bar, BarChart, Line, LineChart, ReferenceArea, Tooltip, XAxis, YAxis } from 'recharts'
 import { api, imageUrl, type DocView, type Expense, type FuelRow, type ReminderView, type ServiceRow, type Summary, type Trip, type Vehicle } from '../api'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import { FuelForm } from '../components/FuelForm'
 import { axis, ChartCard, grid, margin, monthLabel, short, Swatch, tooltipStyle, usualRange } from '../components/charts'
 import { DocumentForm, ExpenseForm, OdometerForm, ReminderForm, ServiceForm } from '../components/Forms'
@@ -115,6 +116,7 @@ export function VehiclePage() {
           exit="leave"
           className="space-y-6"
         >
+          <ErrorBoundary resetKey={tab} fallback="section">
           {tab === 'fuel' && <FuelTab id={id} summary={s} onOpen={(row) => setOpen({ kind: 'fuel', row })} />}
           {tab === 'upkeep' && (
             <>
@@ -125,6 +127,7 @@ export function VehiclePage() {
           {tab === 'papers' && <PapersSection docs={s.documents} onOpen={(d) => setOpen({ kind: 'doc', d })} onAdd={() => setOpen({ kind: 'doc' })} />}
           {tab === 'spend' && <SpendTab id={id} summary={s} onOpen={(e) => setOpen({ kind: 'expense', e })} onAdd={() => setOpen({ kind: 'expense' })} />}
           {tab === 'trips' && <TripsTab id={id} />}
+          </ErrorBoundary>
         </motion.div>
       </AnimatePresence>
 

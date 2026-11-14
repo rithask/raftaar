@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation, useOutlet } from 'react-router-dom'
 import { api, imageUrl, signOut, type Garage as GarageData } from '../api'
 import { cx, spring } from './ui'
+import { ErrorBoundary } from './ErrorBoundary'
 import { Logo } from './Logo'
 import { KindIcon } from './VehicleArt'
 
@@ -47,7 +48,8 @@ export function Layout() {
             animate={{ opacity: 1, x: 0, y: 0, transition: { type: 'spring', stiffness: 380, damping: 36 } }}
             exit={{ opacity: 0, transition: { duration: 0.12 } }}
           >
-            {outlet}
+            {/* a page that fails shows a message in its place; the navigation around it keeps working */}
+            <ErrorBoundary resetKey={location.pathname}>{outlet}</ErrorBoundary>
           </motion.div>
         </AnimatePresence>
       </main>
