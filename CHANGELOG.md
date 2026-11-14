@@ -5,6 +5,11 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+### Added
+
+- Mileage chart: your usual range (the middle half of your tanks) is shaded, and the heading says what it is. A tank
+  clearly worse than usual shows as an amber dot.
+
 ## [0.4.0] - 2026-11-14
 
 ### Added

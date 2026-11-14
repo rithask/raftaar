@@ -4,9 +4,10 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Line, LineChart, ReferenceArea, Tooltip, XAxis, YAxis } from 'recharts'
 import { api, imageUrl, type DocView, type Expense, type FuelRow, type ReminderView, type ServiceRow, type Summary, type Trip, type Vehicle } from '../api'
 import { FuelForm } from '../components/FuelForm'
+import { axis, ChartCard, grid, margin, tooltipStyle, usualRange } from '../components/charts'
 import { DocumentForm, ExpenseForm, OdometerForm, ReminderForm, ServiceForm } from '../components/Forms'
 import { AddLink, Badge, Button, cx, Empty, ErrorText, listItem, listParent, Loading, rowPress, SectionHeader, softSpring, spring, Tabs } from '../components/ui'
 import { KindIcon, VehicleArt } from '../components/VehicleArt'
@@ -277,24 +278,27 @@ function FuelTab({ id, summary, onOpen }: { id: number; summary: Summary; onOpen
   const byId = new Map(list.map((r) => [r.entry.id, r.entry]))
   const chart = summary.economyHistory.map((st) => ({ when: date(byId.get(st.endId)?.filledAt, false), kmpl: st.kmPerUnit }))
   const unit = summary.unit
+  const usual = usualRange(chart.map((c) => c.kmpl))
   const spent = list.reduce((t, r) => t + r.entry.totalCost, 0)
   return (
     <>
       {chart.length >= 2 && (
         <section className="space-y-2">
-          <SectionHeader title="Mileage per tank" meta={economyUnit(unit)} />
-          <div className="h-40 rounded-2xl bg-white p-3 pt-4 ring-1 ring-stone-900/5 dark:bg-stone-900 dark:ring-white/10">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chart} margin={{ top: 4, right: 8, bottom: 0, left: -24 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-stone-200 dark:text-stone-800" vertical={false} />
-                <XAxis dataKey="when" tick={{ fontSize: 11, fill: 'currentColor' }} className="text-stone-500" tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: 'currentColor' }} className="text-stone-500" tickLine={false} axisLine={false} allowDecimals={false}
-                  domain={[(min: number) => Math.max(0, Math.floor(min - 2)), (max: number) => Math.ceil(max + 2)]} />
-                <Tooltip formatter={(val) => [`${n1(Number(val))} ${economyUnit(unit)}`, 'Mileage']} contentStyle={{ borderRadius: 12, border: 'none', fontSize: 12 }} />
-                <Line type="monotone" dataKey="kmpl" stroke="var(--color-accent-strong)" strokeWidth={2.5} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          <SectionHeader title="Mileage per tank" meta={usual ? `${economyUnit(unit)} · usually ${n1(usual.low)}–${n1(usual.high)}` : economyUnit(unit)} />
+          <ChartCard>
+            <LineChart data={chart} margin={margin}>
+              {grid}
+              {usual && <ReferenceArea y1={usual.low} y2={usual.high} fill="var(--color-accent-strong)" fillOpacity={0.08} stroke="none" ifOverflow="extendDomain" />}
+              <XAxis dataKey="when" {...axis} />
+              <YAxis {...axis} allowDecimals={false} tickCount={4} domain={[(min: number) => Math.max(0, Math.floor(min - 2)), (max: number) => Math.ceil(max + 2)]} />
+              <Tooltip formatter={(val) => [`${n1(Number(val))} ${economyUnit(unit)}`, 'Mileage']} {...tooltipStyle} />
+              <Line type="monotone" dataKey="kmpl" stroke="var(--color-accent-strong)" strokeWidth={2.5} isAnimationActive={false}
+                dot={({ cx, cy, payload, index }: { cx?: number; cy?: number; payload?: { kmpl: number }; index?: number }) => {
+                  const low = usual != null && payload != null && payload.kmpl < usual.poor
+                  return <circle key={index} cx={cx} cy={cy} r={low ? 4 : 3} fill={low ? 'var(--color-amber-500, #f59e0b)' : 'var(--color-accent-strong)'} stroke="none" />
+                }} />
+            </LineChart>
+          </ChartCard>
         </section>
       )}
       <section className="space-y-2">
