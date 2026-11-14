@@ -13,6 +13,9 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -80,6 +83,32 @@ public class FuelPrices {
         var latest = prices.findFirstByRegionIgnoreCaseAndFuelTypeOrderByEffectiveAtDesc(e.region, type);
         if (latest.isPresent() && latest.get().effectiveAt.isAfter(e.filledAt)) return;
         record(e.region, e.district, type, e.pricePerUnit, e.filledAt, FuelPrice.Source.FILL_UP);
+    }
+
+    /**
+     * The published price (looked up or entered, not learned from a fill-up) where and when each fill-up happened:
+     * the newest one from up to a week before it, matching the district if it can, else the state. Null when there's none.
+     */
+    public Map<Long, BigDecimal> publishedAt(List<FuelEntry> fills, FuelType type) {
+        if (type == null) type = FuelType.PETROL;
+        List<FuelPrice> known = prices.findByFuelTypeAndSourceNotOrderByEffectiveAtAsc(type, FuelPrice.Source.FILL_UP);
+        Map<Long, BigDecimal> out = new HashMap<>();
+        if (known.isEmpty()) return out;
+        for (FuelEntry f : fills) {
+            if (f.region == null) continue;
+            Instant from = f.filledAt.minus(Duration.ofDays(7));
+            FuelPrice inDistrict = null, inRegion = null, anyInRegion = null;
+            for (FuelPrice p : known) {
+                if (p.effectiveAt.isAfter(f.filledAt)) break;
+                if (p.effectiveAt.isBefore(from) || !p.region.equalsIgnoreCase(f.region)) continue;
+                anyInRegion = p;
+                if (p.district == null) inRegion = p;
+                else if (f.district != null && p.district.equalsIgnoreCase(f.district)) inDistrict = p;
+            }
+            FuelPrice best = inDistrict != null ? inDistrict : inRegion != null ? inRegion : anyInRegion;
+            if (best != null) out.put(f.id, best.price);
+        }
+        return out;
     }
 
     private static Quote quote(FuelPrice p) {

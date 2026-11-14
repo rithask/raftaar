@@ -152,6 +152,8 @@ export interface FuelRow {
   entry: FuelEntry
   kmPerUnit: number | null
   distance: number | null
+  /** The going rate there and then, when one was looked up or entered */
+  publishedPrice: number | null
 }
 
 export type ReminderStateName = 'OK' | 'DUE_SOON' | 'OVERDUE' | 'UNKNOWN'

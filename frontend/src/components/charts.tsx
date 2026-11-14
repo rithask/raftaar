@@ -34,3 +34,12 @@ export function usualRange(values: number[]): { low: number; high: number; poor:
   const high = q(0.75)
   return { low, high, poor: low - Math.max(1.5 * (high - low), 0.05 * q(0.5)) }
 }
+
+/** A short line for a chart key, solid or dashed like the series it names. */
+export function Swatch({ color, dashed }: { color: string; dashed?: boolean }) {
+  return (
+    <svg width="14" height="6" aria-hidden className="shrink-0">
+      <line x1="1" y1="3" x2="13" y2="3" stroke={color} strokeWidth="2" strokeLinecap="round" strokeDasharray={dashed ? '3 2.5' : undefined} />
+    </svg>
+  )
+}

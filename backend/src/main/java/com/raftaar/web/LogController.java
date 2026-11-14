@@ -3,6 +3,7 @@ package com.raftaar.web;
 import com.raftaar.domain.*;
 import com.raftaar.repo.*;
 import com.raftaar.service.FuelEntries;
+import com.raftaar.service.FuelPrices;
 import com.raftaar.service.VehicleStats;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -24,9 +25,11 @@ public class LogController {
     private final OdometerReadingRepo readings;
     private final VehicleRepo vehicles;
     private final VehicleStats stats;
+    private final FuelPrices fuelPrices;
 
     public LogController(FuelEntryRepo fuel, FuelEntries fuelEntries, ServiceRecordRepo services, ReminderRepo reminders,
-                         ExpenseRepo expenses, OdometerReadingRepo readings, VehicleRepo vehicles, VehicleStats stats) {
+                         ExpenseRepo expenses, OdometerReadingRepo readings, VehicleRepo vehicles, VehicleStats stats,
+                         FuelPrices fuelPrices) {
         this.fuel = fuel;
         this.fuelEntries = fuelEntries;
         this.services = services;
@@ -35,21 +38,24 @@ public class LogController {
         this.readings = readings;
         this.vehicles = vehicles;
         this.stats = stats;
+        this.fuelPrices = fuelPrices;
     }
 
     // ---- fuel -------------------------------------------------------------------------------------------------
 
-    public record FuelRow(FuelEntry entry, BigDecimal kmPerUnit, BigDecimal distance) {}
+    /** {@code publishedPrice}: the going rate there and then, when one was looked up or entered; null otherwise. */
+    public record FuelRow(FuelEntry entry, BigDecimal kmPerUnit, BigDecimal distance, BigDecimal publishedPrice) {}
 
     /** Newest first, each full tank with the mileage of the stretch it closed. */
     @GetMapping("/vehicles/{id}/fuel")
     public List<FuelRow> fuel(@PathVariable Long id) {
-        vehicle(id);
+        Vehicle v = vehicle(id);
         var fills = fuel.findByVehicleIdOrderByFilledAtAscIdAsc(id);
         var eco = stats.economy(fills);
+        var published = fuelPrices.publishedAt(fills, v.fuelType);
         return fills.reversed().stream().map(f -> {
             var s = eco.byEndId().get(f.id);
-            return new FuelRow(f, s == null ? null : s.kmPerUnit(), s == null ? null : s.distance());
+            return new FuelRow(f, s == null ? null : s.kmPerUnit(), s == null ? null : s.distance(), published.get(f.id));
         }).toList();
     }
 

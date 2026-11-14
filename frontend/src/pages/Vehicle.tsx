@@ -7,7 +7,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Line, LineChart, ReferenceArea, Tooltip, XAxis, YAxis } from 'recharts'
 import { api, imageUrl, type DocView, type Expense, type FuelRow, type ReminderView, type ServiceRow, type Summary, type Trip, type Vehicle } from '../api'
 import { FuelForm } from '../components/FuelForm'
-import { axis, ChartCard, grid, margin, tooltipStyle, usualRange } from '../components/charts'
+import { axis, ChartCard, grid, margin, Swatch, tooltipStyle, usualRange } from '../components/charts'
 import { DocumentForm, ExpenseForm, OdometerForm, ReminderForm, ServiceForm } from '../components/Forms'
 import { AddLink, Badge, Button, cx, Empty, ErrorText, listItem, listParent, Loading, rowPress, SectionHeader, softSpring, spring, Tabs } from '../components/ui'
 import { KindIcon, VehicleArt } from '../components/VehicleArt'
@@ -279,6 +279,8 @@ function FuelTab({ id, summary, onOpen }: { id: number; summary: Summary; onOpen
   const chart = summary.economyHistory.map((st) => ({ when: date(byId.get(st.endId)?.filledAt, false), kmpl: st.kmPerUnit }))
   const unit = summary.unit
   const usual = usualRange(chart.map((c) => c.kmpl))
+  const prices = [...list].reverse().map((r) => ({ when: date(r.entry.filledAt, false), paid: r.entry.pricePerUnit, published: r.publishedPrice }))
+  const hasPublished = prices.some((p) => p.published != null)
   const spent = list.reduce((t, r) => t + r.entry.totalCost, 0)
   return (
     <>
@@ -297,6 +299,27 @@ function FuelTab({ id, summary, onOpen }: { id: number; summary: Summary; onOpen
                   const low = usual != null && payload != null && payload.kmpl < usual.poor
                   return <circle key={index} cx={cx} cy={cy} r={low ? 4 : 3} fill={low ? 'var(--color-amber-500, #f59e0b)' : 'var(--color-accent-strong)'} stroke="none" />
                 }} />
+            </LineChart>
+          </ChartCard>
+        </section>
+      )}
+      {prices.length >= 2 && (
+        <section className="space-y-2">
+          <SectionHeader title="Price paid" meta={hasPublished ? (
+            <span className="inline-flex items-center gap-3">
+              <span>₹/{unit}</span>
+              <span className="inline-flex items-center gap-1"><Swatch color="var(--color-accent-strong)" /> you</span>
+              <span className="inline-flex items-center gap-1"><Swatch color="var(--color-stone-400, #a8a29e)" dashed /> published</span>
+            </span>
+          ) : `₹/${unit}`} />
+          <ChartCard>
+            <LineChart data={prices} margin={margin}>
+              {grid}
+              <XAxis dataKey="when" {...axis} />
+              <YAxis {...axis} allowDecimals={false} tickCount={4} domain={[(min: number) => Math.floor(min - 1), (max: number) => Math.ceil(max + 1)]} />
+              <Tooltip formatter={(val, name) => [money2(Number(val)), name === 'paid' ? 'You paid' : 'Published']} {...tooltipStyle} />
+              {hasPublished && <Line type="monotone" dataKey="published" stroke="var(--color-stone-400, #a8a29e)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} connectNulls isAnimationActive={false} />}
+              <Line type="monotone" dataKey="paid" stroke="var(--color-accent-strong)" strokeWidth={2.5} dot={{ r: 2.5 }} isAnimationActive={false} />
             </LineChart>
           </ChartCard>
         </section>

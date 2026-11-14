@@ -9,6 +9,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 - Mileage chart: your usual range (the middle half of your tanks) is shaded, and the heading says what it is. A tank
   clearly worse than usual shows as an amber dot.
+- Price paid chart on the Fuel tab: what you paid per litre at each fill-up. Where a published price was looked up
+  (`FUEL_PRICE_URL`) or entered for that place, it's drawn as a dashed line beside yours.
 
 ## [0.4.0] - 2026-11-14
 
