@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, GasPump, Gauge, Plus, Path, PencilSimple, Receipt, Scroll, Warning, Wrench } from '@phosphor-icons/react'
+import { ArrowLeft, Bell, CloudArrowUp, GasPump, Gauge, Plus, Path, PencilSimple, Receipt, Scroll, Warning, Wrench } from '@phosphor-icons/react'
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
@@ -15,6 +15,7 @@ import { KindIcon, VehicleArt } from '../components/VehicleArt'
 import { VehicleForm } from '../components/VehicleForm'
 import { date, dateTime, docLabel, economyUnit, expenseLabel, fuelLabel, kindLabel, km, money, money2, n1, n2 } from '../format'
 import { useSave } from '../hooks'
+import { amounts, useOutbox } from '../outbox'
 
 type Tab = 'fuel' | 'upkeep' | 'papers' | 'spend' | 'trips'
 const TABS: Tab[] = ['fuel', 'upkeep', 'papers', 'spend', 'trips']
@@ -381,9 +382,10 @@ function Small({ children }: { children: ReactNode }) {
 function FuelTab({ id, summary, onOpen }: { id: number; summary: Summary; onOpen: (r: FuelRow) => void }) {
   const rows = useQuery({ queryKey: ['fuel', id], queryFn: () => api<FuelRow[]>(`/vehicles/${id}/fuel`) })
   const resolve = useSave((fid: number) => api(`/fuel/${fid}/resolve`, { method: 'POST' }), undefined, 'Marked as checked')
-  if (rows.isLoading) return <Loading />
+  const waiting = useOutbox().filter((w) => w.vehicleId === id)
+  if (rows.isLoading && !waiting.length) return <Loading />
   const list = rows.data ?? []
-  if (!list.length) return <Empty icon={<GasPump size={40} />} title="No fill-ups yet">Add each fill-up with the odometer reading. Mileage shows after two full tanks.</Empty>
+  if (!list.length && !waiting.length) return <Empty icon={<GasPump size={40} />} title="No fill-ups yet">Add each fill-up with the odometer reading. Mileage shows after two full tanks.</Empty>
   const byId = new Map(list.map((r) => [r.entry.id, r.entry]))
   const chart = summary.economyHistory.map((st) => ({ when: date(byId.get(st.endId)?.filledAt, false), kmpl: st.kmPerUnit }))
   const unit = summary.unit
@@ -436,6 +438,20 @@ function FuelTab({ id, summary, onOpen }: { id: number; summary: Summary; onOpen
       <section className="space-y-2">
         <SectionHeader title="Fill-ups" meta={`${list.length} · ${money(spent)}`} />
         <List>
+          {waiting.map((w) => (
+            // saved on this phone, not sent yet
+            <motion.div variants={listItem} key={w.key} className="flex items-center gap-3 px-4 py-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sky-500/12 text-sky-600"><CloudArrowUp size={18} /></span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-medium">{dateTime(w.body.filledAt)}</div>
+                <Small>{w.body.odometer != null ? km(w.body.odometer) : '—'}{amounts(w.body).volume != null ? ` · ${n2(amounts(w.body).volume!)} ${unit}` : ''}</Small>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="num font-semibold">{amounts(w.body).total != null ? money(amounts(w.body).total!) : '—'}</div>
+                <Badge tone={w.error ? 'bad' : 'info'} className="mt-0.5">{w.error ? 'not saved' : 'not sent yet'}</Badge>
+              </div>
+            </motion.div>
+          ))}
           {list.map((r) => (
             <div key={r.entry.id}>
               <Row onClick={() => onOpen(r)}>

@@ -9,7 +9,15 @@ import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Toasts } from './components/toast'
 
-const client = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: true } } })
+// Offline is handled by the app itself: data loads are still tried (the service worker answers from what it
+// kept), and saves always run (a fill-up goes to the outbox; others say there's no connection) instead of
+// waiting silently for the network.
+const client = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: true, networkMode: 'offlineFirst' },
+    mutations: { networkMode: 'always' },
+  },
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -25,3 +33,9 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>,
 )
+
+// Lets the app open without a connection, so a fill-up can be logged at a pump with no signal (public/sw.js).
+// Production builds only: in development it would serve stale files over the live reload.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => undefined))
+}

@@ -9,6 +9,10 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 - Quick add on the vehicle page: a + next to the Fuel button (and next to Add fuel on larger screens) to log a
   service, add an expense, update the odometer, or add a paper or reminder, without finding the right tab first.
+- Fill-ups work offline. Saved with no connection (a pump with no signal), a fill-up is kept on the phone, shown as
+  "not sent yet", and sent by itself when you're back online; a bar says how many are waiting. The app also opens
+  offline, showing what was last seen. Signing out clears what was kept. A fill-up sent twice (a lost reply, a
+  double tap) is saved once.
 
 ### Changed
 

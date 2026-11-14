@@ -12,4 +12,5 @@ public interface FuelEntryRepo extends JpaRepository<FuelEntry, Long> {
     Optional<FuelEntry> findByHisaabTxnId(String id);
     List<FuelEntry> findByHisaabTxnIdNotNullAndFilledAtAfter(Instant after);
     Optional<FuelEntry> findFirstByVehicleIdOrderByFilledAtDescIdDesc(Long vehicleId);
+    Optional<FuelEntry> findFirstByVehicleIdAndFilledAtAndOdometer(Long vehicleId, java.time.Instant filledAt, java.math.BigDecimal odometer);
 }

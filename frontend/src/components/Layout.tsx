@@ -6,6 +6,7 @@ import { Link, NavLink, useLocation, useOutlet } from 'react-router-dom'
 import { api, imageUrl, signOut, type Garage as GarageData } from '../api'
 import { cx, spring } from './ui'
 import { ErrorBoundary } from './ErrorBoundary'
+import { OutboxBar } from './OutboxBar'
 import { Logo } from './Logo'
 import { KindIcon } from './VehicleArt'
 
@@ -42,6 +43,7 @@ export function Layout() {
       {/* vehicle pages use the width for a second column; collapsing the sidebar gives the page the room */}
       <main className={cx('mx-auto max-w-4xl px-4 pt-4 sm:px-8 sm:pt-6 2xl:max-w-6xl', collapsed && 'lg:max-w-5xl',
         location.pathname.startsWith('/vehicles/') && 'xl:max-w-6xl')}>
+        <OutboxBar />
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
             key={location.pathname}

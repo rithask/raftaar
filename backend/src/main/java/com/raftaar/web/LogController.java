@@ -59,9 +59,17 @@ public class LogController {
         }).toList();
     }
 
+    /**
+     * Adds a fill-up. The same fill-up sent again (same vehicle, time and odometer: a phone re-sending one it saved
+     * while offline after the first reply got lost, or a double tap) returns the one already saved instead of a copy.
+     */
     @PostMapping("/vehicles/{id}/fuel")
     public FuelEntry addFuel(@PathVariable Long id, @RequestBody FuelEntries.Input in) {
         vehicle(id);
+        if (in.filledAt() != null && in.odometer() != null) {
+            var same = fuel.findFirstByVehicleIdAndFilledAtAndOdometer(id, in.filledAt(), in.odometer());
+            if (same.isPresent()) return same.get();
+        }
         return fuelEntries.save(new FuelEntry(), withVehicle(in, id));
     }
 

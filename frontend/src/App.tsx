@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { api } from './api'
+import { startOutbox } from './outbox'
 import { Layout } from './components/Layout'
 import { Loading } from './components/ui'
 import { GaragePage } from './pages/Garage'
@@ -19,6 +20,10 @@ export function App() {
     window.addEventListener('raftaar:unauthorized', off)
     return () => window.removeEventListener('raftaar:unauthorized', off)
   }, [qc])
+
+  // fill-ups saved offline are sent once signed in (and whenever the connection comes back)
+  const signedIn = !!me.data?.username
+  useEffect(() => (signedIn ? startOutbox(qc) : undefined), [signedIn, qc])
 
   if (me.isLoading) return <Loading />
   if (!me.data?.username) return <Login />

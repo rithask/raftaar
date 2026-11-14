@@ -66,6 +66,8 @@ export function markSignedOut() {
 export async function signOut() {
   await api('/auth/logout', { method: 'POST' }).catch(() => undefined)
   markSignedOut()
+  // forget the data kept for opening offline (public/sw.js)
+  navigator.serviceWorker?.controller?.postMessage('clear-data')
 }
 
 /** What the sign-in page offers; `setup` means there's no account yet (onboarding). */

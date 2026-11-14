@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, type FuelEntry, type Quote, type Suggestion, type Vehicle } from '../api'
 import { fromLocalInput, fuelUnit, km, money2, num, toLocalInput } from '../format'
 import { INDIAN_STATES, useSave } from '../hooks'
+import { queueFill, unreachable } from '../outbox'
 import { DateTimeInput } from './DateField'
 import { Badge, Button, ErrorText, Field, FormScreen, Input, Select, TextArea, Toggle } from './ui'
 
@@ -160,12 +161,25 @@ export function FuelForm({
     }
   }
 
-  const save = useSave(() => {
+  const save = useSave(async (): Promise<{ queued?: boolean }> => {
     if (!vid) throw new Error('Pick a vehicle')
     if (suggestion) return api(`/suggestions/${suggestion.id}/fuel`, { body: body() })
     if (entry) return api(`/fuel/${entry.id}`, { method: 'PUT', body: body() })
-    return api(`/vehicles/${vid}/fuel`, { body: body() })
-  }, onClose, suggestion ? 'Fill-up added' : entry ? 'Fill-up updated' : 'Fill-up saved')
+    // A new fill-up with no connection (at the pump): keep it on this phone and send it later.
+    const b = body()
+    if (num(odometer) == null) throw new Error('Odometer reading is required')
+    if (!navigator.onLine) {
+      queueFill(vid, vehicle?.name ?? 'vehicle', b)
+      return { queued: true }
+    }
+    try {
+      return await api(`/vehicles/${vid}/fuel`, { body: b })
+    } catch (e) {
+      if (!unreachable(e)) throw e
+      queueFill(vid, vehicle?.name ?? 'vehicle', b)
+      return { queued: true }
+    }
+  }, onClose, (r) => (r?.queued ? "Saved on this phone. It'll be sent when you're back online." : suggestion ? 'Fill-up added' : entry ? 'Fill-up updated' : 'Fill-up saved'))
   const del = useSave(() => api(`/fuel/${entry!.id}`, { method: 'DELETE' }), onClose, 'Fill-up deleted')
 
   const odo = num(odometer)
