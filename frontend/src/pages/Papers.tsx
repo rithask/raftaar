@@ -4,22 +4,27 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
 import { api, type DocView, type Vehicle } from '../api'
 import { DocumentForm } from '../components/Forms'
-import { Button, Empty, listItem, listParent, Loading, rowPress } from '../components/ui'
-import { docLabel } from '../format'
-import { DocBadge } from './Vehicle'
+import { needsRenewal, PaperRow, paperSub } from '../components/PaperRow'
+import { Button, Empty, listParent, Loading, SectionHeader } from '../components/ui'
 
-/** Every certificate and paper in one place, soonest to expire first. */
+/** Every certificate and paper in one place: what needs attention first (expired, then expiring), then the rest. */
 export function PapersPage() {
   const docs = useQuery({ queryKey: ['documents'], queryFn: () => api<DocView[]>('/documents') })
   const vehicles = useQuery({ queryKey: ['vehicles'], queryFn: () => api<Vehicle[]>('/vehicles') })
-  const [open, setOpen] = useState<{ d?: DocView } | null>(null)
+  const [open, setOpen] = useState<{ d?: DocView; renewing?: boolean } | null>(null)
   if (docs.isLoading) return <Loading />
   const list = docs.data ?? []
   const vs = (vehicles.data ?? []).filter((v) => !v.archived)
   const name = (id: number | null) => (id == null ? 'You' : (vehicles.data ?? []).find((v) => v.id === id)?.name ?? '—')
+  const byExpiry = (a: DocView, b: DocView) => (a.document.expiresOn ?? '').localeCompare(b.document.expiresOn ?? '')
+  const groups = [
+    { title: 'Needs attention', items: list.filter(needsRenewal).sort((a, b) => Number(b.state === 'EXPIRED') - Number(a.state === 'EXPIRED') || byExpiry(a, b)) },
+    { title: 'Valid', items: list.filter((d) => d.state === 'VALID').sort(byExpiry) },
+    { title: 'No expiry', items: list.filter((d) => d.state === 'NO_EXPIRY') },
+  ].filter((g) => g.items.length)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-[28px] leading-none font-bold tracking-tight">Papers</h1>
         <Button onClick={() => setOpen({})}><Plus size={16} /> Add</Button>
@@ -27,20 +32,20 @@ export function PapersPage() {
       {list.length === 0 ? (
         <Empty icon={<Scroll size={48} />} title="No papers yet">Insurance, PUC, RC, road tax and your driving licence. You'll be reminded before they expire.</Empty>
       ) : (
-        <motion.div variants={listParent} initial="hidden" animate="show" className="divide-y divide-stone-900/5 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-900/5 dark:divide-white/5 dark:bg-stone-900 dark:ring-white/10">
-          {list.map((d) => (
-            <motion.button variants={listItem} key={d.document.id} onClick={() => setOpen({ d })} className={`flex w-full items-center gap-3 px-4 py-3 text-left ${rowPress}`}>
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{d.document.title}</div>
-                <div className="truncate text-sm text-stone-500">{name(d.document.vehicleId)} · {docLabel[d.document.type]}{d.document.number ? ` · ${d.document.number}` : ''}</div>
-              </div>
-              <DocBadge d={d} />
-            </motion.button>
-          ))}
-        </motion.div>
+        groups.map((g) => (
+          <section key={g.title} className="space-y-2">
+            <SectionHeader title={g.title} meta={String(g.items.length)} />
+            <motion.div variants={listParent} initial="hidden" animate="show" className="divide-y divide-stone-900/5 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-900/5 dark:divide-white/5 dark:bg-stone-900 dark:ring-white/10">
+              {g.items.map((d) => (
+                <PaperRow key={d.document.id} d={d} icon={false} sub={paperSub(d, name(d.document.vehicleId))}
+                  onOpen={() => setOpen({ d })} onRenew={() => setOpen({ d, renewing: true })} />
+              ))}
+            </motion.div>
+          </section>
+        ))
       )}
       <AnimatePresence>
-        {open && <DocumentForm key="doc" open onClose={() => setOpen(null)} vehicles={vs} doc={open.d?.document} vehicleId={open.d ? open.d.document.vehicleId : null} />}
+        {open && <DocumentForm key="doc" open onClose={() => setOpen(null)} vehicles={vs} doc={open.d?.document} vehicleId={open.d ? open.d.document.vehicleId : null} renewing={open.renewing} />}
       </AnimatePresence>
     </div>
   )

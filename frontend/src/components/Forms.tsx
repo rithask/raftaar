@@ -148,15 +148,33 @@ export function ReminderForm({ open, onClose, vehicleId, reminder, odometer }: {
 
 // ---- documents --------------------------------------------------------------------------------------------
 
-export function DocumentForm({ open, onClose, vehicles, vehicleId, doc }: { open: boolean; onClose: () => void; vehicles: Vehicle[]; vehicleId?: number | null; doc?: Doc }) {
+/**
+ * The next term of a paper: it starts the day after the old one ends (or today, if that's already past) and runs as
+ * long as the last term did, or a year when that isn't known.
+ */
+export function nextTerm(issuedOn?: string | null, expiresOn?: string | null): { issuedOn: string; expiresOn: string } {
+  const day = 86_400_000
+  const todayStart = new Date(today() + 'T00:00:00')
+  const after = expiresOn ? new Date(new Date(expiresOn + 'T00:00:00').getTime() + day) : todayStart
+  const start = after < todayStart ? todayStart : after
+  if (issuedOn && expiresOn) {
+    const span = new Date(expiresOn + 'T00:00:00').getTime() - new Date(issuedOn + 'T00:00:00').getTime()
+    if (span > 0) return { issuedOn: toLocalDate(start), expiresOn: toLocalDate(new Date(start.getTime() + span)) }
+  }
+  return { issuedOn: toLocalDate(start), expiresOn: plusMonths(toLocalDate(new Date(start.getTime() - day)), 12) }
+}
+
+export function DocumentForm({ open, onClose, vehicles, vehicleId, doc, renewing = false }: { open: boolean; onClose: () => void; vehicles: Vehicle[]; vehicleId?: number | null; doc?: Doc; renewing?: boolean }) {
+  // Renewing: the same paper with its dates moved to the next term, asking for the new certificate.
+  const term = renewing && doc ? nextTerm(doc.issuedOn, doc.expiresOn) : null
   const [f, setF] = useState({
     vehicleId: doc ? doc.vehicleId : vehicleId ?? null,
     type: (doc?.type ?? 'INSURANCE') as DocType,
     title: doc?.title ?? '',
     number: doc?.number ?? '',
     provider: doc?.provider ?? '',
-    issuedOn: doc?.issuedOn ?? '',
-    expiresOn: doc?.expiresOn ?? '',
+    issuedOn: term?.issuedOn ?? doc?.issuedOn ?? '',
+    expiresOn: term?.expiresOn ?? doc?.expiresOn ?? '',
     remindDaysBefore: String(doc?.remindDaysBefore ?? 30),
     cost: doc?.cost?.toString() ?? '',
     notes: doc?.notes ?? '',
@@ -173,21 +191,21 @@ export function DocumentForm({ open, onClose, vehicles, vehicleId, doc }: { open
       form.append('file', file)
       await api(`/documents/${saved.id}/file`, { method: 'PUT', form })
     }
-  }, onClose, 'Saved')
+  }, onClose, renewing ? 'Renewed. Reminders start over for the new date.' : 'Saved')
   const del = useSave(() => api(`/documents/${doc!.id}`, { method: 'DELETE' }), onClose, 'Deleted')
-  const renew = () => {
-    // A renewal usually runs as long as the last one did.
-    if (!f.issuedOn || !f.expiresOn) return
-    const span = new Date(f.expiresOn).getTime() - new Date(f.issuedOn).getTime()
-    const issued = new Date(f.expiresOn)
-    issued.setDate(issued.getDate() + 1)
-    setF((o) => ({ ...o, issuedOn: toLocalDate(issued), expiresOn: toLocalDate(new Date(issued.getTime() + span)) }))
-  }
+  const renew = () => setF((o) => ({ ...o, ...nextTerm(o.issuedOn || null, o.expiresOn || null) }))
   const from = f.issuedOn || undefined
 
   return (
-    <FormScreen open={open} onClose={onClose} title={doc ? doc.title : 'Add a paper'} onSave={() => save.mutate(undefined)} saving={save.isPending} onDelete={doc ? () => confirm('Delete this paper?') && del.mutate(undefined) : undefined} deleting={del.isPending}>
+    <FormScreen open={open} onClose={onClose} title={renewing && doc ? `Renew ${doc.title}` : doc ? doc.title : 'Add a paper'} onSave={() => save.mutate(undefined)} saving={save.isPending}
+      saveLabel={renewing ? 'Save renewal' : 'Save'}
+      onDelete={doc && !renewing ? () => confirm('Delete this paper?') && del.mutate(undefined) : undefined} deleting={del.isPending}>
       <div className="space-y-4">
+        {renewing && (
+          <p className="rounded-xl bg-accent-soft px-3 py-2.5 text-sm text-stone-700 dark:text-stone-200">
+            The dates are moved to the next term. Check them, update the number if it changed, and attach the new certificate.
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Type">
             <Select value={f.type} onChange={(e) => set('type', e.target.value as DocType)}>
@@ -217,13 +235,13 @@ export function DocumentForm({ open, onClose, vehicles, vehicleId, doc }: { open
               ]} />
           </Field>
         </div>
-        {doc && f.issuedOn && f.expiresOn && <Button variant="secondary" className="w-full" onClick={renew}>Renewed? Move dates to the next term</Button>}
+        {doc && !renewing && f.expiresOn && <Button variant="secondary" className="w-full" onClick={renew}>Renewed? Move dates to the next term</Button>}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Remind me (days before)"><Input inputMode="numeric" value={f.remindDaysBefore} onChange={(e) => set('remindDaysBefore', e.target.value)} /></Field>
           <Field label="Cost (₹)"><Input inputMode="decimal" value={f.cost} onChange={(e) => set('cost', e.target.value)} /></Field>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={() => fileRef.current?.click()}><Paperclip size={16} /> {file ? file.name : doc?.fileOriginalName ? 'Replace file' : 'Attach a photo or PDF'}</Button>
+          <Button variant="secondary" onClick={() => fileRef.current?.click()}><Paperclip size={16} /> {file ? file.name : renewing ? 'Attach the new certificate' : doc?.fileOriginalName ? 'Replace file' : 'Attach a photo or PDF'}</Button>
           {doc?.fileOriginalName && !file && <a className="truncate text-sm text-sky-600 underline active:opacity-60" href={`/api/documents/${doc.id}/file`} target="_blank" rel="noreferrer">{doc.fileOriginalName}</a>}
           <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </div>

@@ -27,6 +27,10 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
   phones, Save is a big button at the bottom (just above the keyboard on Android).
 - An empty Inbox now says what would fill it: how to connect GeoPulse or Hisaab when neither is (with Open
   Settings), what comes from the connected ones and when they last checked, or that a connection is failing and why.
+- Papers are grouped into Needs attention (expired first, then expiring), Valid and No expiry. Expired and expiring
+  papers have a Renew button (on the Papers page and a vehicle's Papers tab) that opens the paper with its dates
+  moved to the next term and asks for the new certificate; saving updates the paper, so reminders start over for the
+  new date.
 
 ### Fixed
 

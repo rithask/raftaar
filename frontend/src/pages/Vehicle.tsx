@@ -7,13 +7,14 @@ import { Link, useParams } from 'react-router-dom'
 import { Bar, BarChart, Line, LineChart, ReferenceArea, Tooltip, XAxis, YAxis } from 'recharts'
 import { api, imageUrl, type DocView, type Expense, type FuelRow, type ReminderView, type ServiceRow, type Summary, type Trip, type Vehicle } from '../api'
 import { ErrorBoundary } from '../components/ErrorBoundary'
+import { PaperRow, paperSub } from '../components/PaperRow'
 import { FuelForm } from '../components/FuelForm'
 import { axis, ChartCard, grid, margin, monthLabel, short, Swatch, tooltipStyle, usualRange } from '../components/charts'
 import { DocumentForm, ExpenseForm, OdometerForm, ReminderForm, ServiceForm } from '../components/Forms'
 import { AddLink, Badge, Button, cx, Empty, ErrorText, listItem, listParent, Loading, rowPress, SectionHeader, softSpring, spring, Tabs } from '../components/ui'
 import { KindIcon, VehicleArt } from '../components/VehicleArt'
 import { VehicleForm } from '../components/VehicleForm'
-import { date, dateTime, docLabel, economyUnit, expenseLabel, fuelLabel, kindLabel, km, money, money2, n1, n2 } from '../format'
+import { date, dateTime, economyUnit, expenseLabel, fuelLabel, kindLabel, km, money, money2, n1, n2 } from '../format'
 import { useSave } from '../hooks'
 import { amounts, useOutbox } from '../outbox'
 
@@ -22,7 +23,7 @@ const TABS: Tab[] = ['fuel', 'upkeep', 'papers', 'spend', 'trips']
 const SOURCE = { MANUAL: '', HISAAB: 'Hisaab', GEOPULSE: 'GeoPulse', HISAAB_GEOPULSE: 'Hisaab + GeoPulse' } as const
 type Open =
   | { kind: 'vehicle' } | { kind: 'fuel'; row?: FuelRow } | { kind: 'service'; row?: ServiceRow } | { kind: 'reminder'; r?: ReminderView }
-  | { kind: 'doc'; d?: DocView } | { kind: 'expense'; e?: Expense } | { kind: 'odometer' } | null
+  | { kind: 'doc'; d?: DocView; renewing?: boolean } | { kind: 'expense'; e?: Expense } | { kind: 'odometer' } | null
 
 export function VehiclePage() {
   const id = Number(useParams().id)
@@ -133,7 +134,7 @@ export function VehiclePage() {
               <ServicesSection id={id} onOpen={(row) => setOpen({ kind: 'service', row })} onAdd={() => setOpen({ kind: 'service' })} />
             </>
           )}
-          {tab === 'papers' && <PapersSection docs={s.documents} onOpen={(d) => setOpen({ kind: 'doc', d })} onAdd={() => setOpen({ kind: 'doc' })} />}
+          {tab === 'papers' && <PapersSection docs={s.documents} onOpen={(d) => setOpen({ kind: 'doc', d })} onRenew={(d) => setOpen({ kind: 'doc', d, renewing: true })} onAdd={() => setOpen({ kind: 'doc' })} />}
           {tab === 'spend' && <SpendTab id={id} summary={s} onOpen={(e) => setOpen({ kind: 'expense', e })} onAdd={() => setOpen({ kind: 'expense' })} />}
           {tab === 'trips' && <TripsTab id={id} />}
           </ErrorBoundary>
@@ -149,7 +150,7 @@ export function VehiclePage() {
         {open?.kind === 'fuel' && <FuelForm key="fuel" open onClose={close} vehicles={activeVehicles} vehicleId={id} entry={open.row?.entry} lastOdometer={s.odometer.known} estimatedOdometer={s.odometer.estimated} />}
         {open?.kind === 'service' && <ServiceForm key="service" open onClose={close} vehicleId={id} row={open.row} reminders={s.reminders} odometer={odo} />}
         {open?.kind === 'reminder' && <ReminderForm key="reminder" open onClose={close} vehicleId={id} reminder={open.r?.reminder} odometer={odo} />}
-        {open?.kind === 'doc' && <DocumentForm key="doc" open onClose={close} vehicles={activeVehicles} vehicleId={id} doc={open.d?.document} />}
+        {open?.kind === 'doc' && <DocumentForm key="doc" open onClose={close} vehicles={activeVehicles} vehicleId={id} doc={open.d?.document} renewing={open.renewing} />}
         {open?.kind === 'expense' && <ExpenseForm key="expense" open onClose={close} vehicles={activeVehicles} vehicleId={id} expense={open.e} />}
         {open?.kind === 'odometer' && <OdometerForm key="odometer" open onClose={close} vehicleId={id} current={s.odometer.known} odometer={s.odometer} />}
       </AnimatePresence>
@@ -557,7 +558,7 @@ function ServicesSection({ id, onOpen, onAdd }: { id: number; onOpen: (r: Servic
   )
 }
 
-export function PapersSection({ docs, onOpen, onAdd }: { docs: DocView[]; onOpen: (d: DocView) => void; onAdd: () => void }) {
+function PapersSection({ docs, onOpen, onRenew, onAdd }: { docs: DocView[]; onOpen: (d: DocView) => void; onRenew: (d: DocView) => void; onAdd: () => void }) {
   return (
     <section className="space-y-2">
       <SectionHeader title="Papers" action={<AddLink label="Add" onClick={onAdd} />} />
@@ -565,27 +566,11 @@ export function PapersSection({ docs, onOpen, onAdd }: { docs: DocView[]; onOpen
         <Empty icon={<Scroll size={36} />} title="No papers">Add insurance, PUC, RC and road tax to be reminded before they expire.</Empty>
       ) : (
         <List>
-          {docs.map((d) => (
-            <Row key={d.document.id} onClick={() => onOpen(d)}>
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-violet-500/12 text-violet-600"><Scroll size={18} /></span>
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{d.document.title}</div>
-                <Small>{docLabel[d.document.type]}{d.document.number ? ` · ${d.document.number}` : ''}</Small>
-              </div>
-              <DocBadge d={d} />
-            </Row>
-          ))}
+          {docs.map((d) => <PaperRow key={d.document.id} d={d} sub={paperSub(d)} onOpen={() => onOpen(d)} onRenew={() => onRenew(d)} />)}
         </List>
       )}
     </section>
   )
-}
-
-export function DocBadge({ d }: { d: DocView }) {
-  if (d.state === 'NO_EXPIRY') return <Badge className="shrink-0">no expiry</Badge>
-  if (d.state === 'EXPIRED') return <Badge tone="bad" className="shrink-0">expired</Badge>
-  if (d.state === 'EXPIRING') return <Badge tone="warn" className="shrink-0">{d.daysLeft === 0 ? 'today' : `${d.daysLeft} days`}</Badge>
-  return <Badge tone="ok" className="shrink-0">till {date(d.document.expiresOn, false)}</Badge>
 }
 
 /** Where the money went, then the expenses list. */
