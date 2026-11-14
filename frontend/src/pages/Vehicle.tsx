@@ -137,7 +137,7 @@ export function VehiclePage() {
         {open?.kind === 'reminder' && <ReminderForm key="reminder" open onClose={close} vehicleId={id} reminder={open.r?.reminder} odometer={odo} />}
         {open?.kind === 'doc' && <DocumentForm key="doc" open onClose={close} vehicles={activeVehicles} vehicleId={id} doc={open.d?.document} />}
         {open?.kind === 'expense' && <ExpenseForm key="expense" open onClose={close} vehicles={activeVehicles} vehicleId={id} expense={open.e} />}
-        {open?.kind === 'odometer' && <OdometerForm key="odometer" open onClose={close} vehicleId={id} current={s.odometer.known} />}
+        {open?.kind === 'odometer' && <OdometerForm key="odometer" open onClose={close} vehicleId={id} current={s.odometer.known} odometer={s.odometer} />}
       </AnimatePresence>
     </div>
   )

@@ -52,3 +52,9 @@ export function monthLabel(month: string, withYear = false) {
 
 /** Axis numbers: 1.5k rather than 1500, so they stay narrow. */
 export const short = (v: number) => (Math.abs(v) >= 1000 ? `${n1(v / 1000)}k` : String(Math.round(v)))
+
+/** {@code count} evenly spaced ticks from the first value to the last. */
+export function evenTicks(min: number, max: number, count = 4) {
+  if (max <= min) return [min]
+  return Array.from({ length: count }, (_, i) => min + ((max - min) * i) / (count - 1))
+}

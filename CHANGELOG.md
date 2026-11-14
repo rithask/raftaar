@@ -13,6 +13,12 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
   (`FUEL_PRICE_URL`) or entered for that place, it's drawn as a dashed line beside yours.
 - Spending by month on the Spend tab: fuel, service and other costs stacked for each of the last twelve months, with
   the monthly average.
+- Odometer history: a small chart of your readings over time, and each reading shows how far you rode since the one
+  before and how many km a day that was. A reading lower than the one before is shown in amber.
+
+### Changed
+
+- Odometer history dates now include the year, and the button to remove a reading you entered is a small bin icon.
 
 ## [0.4.0] - 2026-11-14
 

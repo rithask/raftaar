@@ -1,11 +1,13 @@
-import { Paperclip } from '@phosphor-icons/react'
+import { Paperclip, Trash } from '@phosphor-icons/react'
 import { useQuery } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { api, type DocType, type Doc, type Expense, type ExpenseCategory, type OdometerReading, type Reminder, type ReminderView, type ServiceRow, type Suggestion, type Vehicle } from '../api'
-import { date, dateTime, docLabel, expenseLabel, fromLocalInput, km, num, toLocalInput, today, toLocalDate } from '../format'
+import { Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts'
+import { api, type DocType, type Doc, type Expense, type ExpenseCategory, type Odometer, type OdometerReading, type Reminder, type ReminderView, type ServiceRow, type Suggestion, type Vehicle } from '../api'
+import { date, docLabel, expenseLabel, fromLocalInput, km, n1, num, time, toLocalInput, today, toLocalDate } from '../format'
 import { useSave } from '../hooks'
 import { DateInput, DateTimeInput, plusMonths } from './DateField'
-import { Button, Chip, ErrorText, Field, FormScreen, Input, Segmented, Select, TextArea, Toggle } from './ui'
+import { axis, ChartCard, evenTicks, grid, margin, short, tooltipStyle } from './charts'
+import { Button, Chip, ErrorText, Field, FormScreen, Input, SectionHeader, Segmented, Select, TextArea, Toggle } from './ui'
 
 // ---- service ----------------------------------------------------------------------------------------------
 
@@ -289,7 +291,9 @@ export function ExpenseForm({ open, onClose, vehicles, vehicleId, expense, sugge
 
 // ---- odometer ---------------------------------------------------------------------------------------------
 
-export function OdometerForm({ open, onClose, vehicleId, current }: { open: boolean; onClose: () => void; vehicleId: number; current?: number | null }) {
+export function OdometerForm({ open, onClose, vehicleId, current, odometer }: {
+  open: boolean; onClose: () => void; vehicleId: number; current?: number | null; odometer?: Odometer
+}) {
   const [when, setWhen] = useState(toLocalInput())
   const [value, setValue] = useState('')
   const save = useSave(() => api(`/vehicles/${vehicleId}/odometer`, { body: { readAt: fromLocalInput(when), odometer: num(value) } }), onClose, 'Reading saved')
@@ -299,37 +303,81 @@ export function OdometerForm({ open, onClose, vehicleId, current }: { open: bool
         <Field label="Reading (km)" hint={current ? `Last reading ${km(current)}` : undefined}><Input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} autoFocus /></Field>
         <Field label="When"><DateTimeInput value={when} onChange={setWhen} /></Field>
         <ErrorText error={save.error} />
-        <OdometerHistory vehicleId={vehicleId} />
+        <OdometerHistory vehicleId={vehicleId} odometer={odometer} />
       </div>
     </FormScreen>
   )
 }
 
 const READING_FROM: Record<OdometerReading['source'], string> = {
-  PURCHASE: 'At purchase', FUEL: 'Fill-up', SERVICE: 'Service', EXPENSE: 'Expense', MANUAL: 'Entered by hand',
+  PURCHASE: 'Purchase', FUEL: 'Fill-up', SERVICE: 'Service', EXPENSE: 'Expense', MANUAL: 'By hand',
 }
 
-/** Every reading the vehicle has, newest first. Only the ones entered here can be removed; the rest belong to their fill-up, service or expense. */
-function OdometerHistory({ vehicleId }: { vehicleId: number }) {
+const DAY = 86_400_000
+
+/** Fill-ups and hand readings have a time; services, expenses and the purchase only a day. */
+const readAt = (r: OdometerReading) => (r.source === 'FUEL' || r.source === 'MANUAL' ? `${date(r.at)}, ${time(r.at)}` : date(r.at))
+
+/**
+ * Every reading the vehicle has, newest first, each with how far it went since the one before and how fast.
+ * Only the ones entered here can be removed; the rest belong to their fill-up, service or expense.
+ */
+function OdometerHistory({ vehicleId, odometer }: { vehicleId: number; odometer?: Odometer }) {
   const rows = useQuery({ queryKey: ['odometer', vehicleId], queryFn: () => api<OdometerReading[]>(`/vehicles/${vehicleId}/odometer`) })
   const remove = useSave((id: number) => api(`/odometer/${id}`, { method: 'DELETE' }), undefined, 'Reading removed')
-  if (!rows.data?.length) return null
+  const list = rows.data ?? []
+  if (!list.length) return null
+  const chart = [...list].reverse().map((r) => ({ t: new Date(r.at).getTime(), km: r.odometer }))
+  const spansTime = chart.length >= 2 && chart[chart.length - 1].t - chart[0].t >= DAY
+  const yearTicks = chart.length && new Date(chart[0].t).getFullYear() !== new Date(chart[chart.length - 1].t).getFullYear()
+  const meta = [
+    odometer?.kmPerDay != null ? `${n1(odometer.kmPerDay)} km a day` : null,
+    odometer?.tripKmSince != null ? `≈ ${km(odometer.tripKmSince)} since the last reading` : null,
+  ].filter(Boolean).join(' · ')
   return (
     <section className="space-y-2 pt-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500">History</h3>
+      <SectionHeader title="History" meta={meta || undefined} />
+      {spansTime && (
+        <ChartCard className="h-32">
+          <LineChart data={chart} margin={{ ...margin, left: -4 }}>
+            {grid}
+            <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} {...axis} ticks={evenTicks(chart[0].t, chart[chart.length - 1].t)}
+              tickFormatter={(t: number) => new Date(t).toLocaleDateString('en-IN', yearTicks ? { month: 'short', year: '2-digit' } : { day: 'numeric', month: 'short' })} />
+            <YAxis {...axis} domain={['auto', 'auto']} tickCount={3} tickFormatter={short} />
+            <Tooltip labelFormatter={(t) => date(new Date(Number(t)).toISOString())} formatter={(v) => [km(Number(v)), 'Odometer']} {...tooltipStyle} />
+            <Line type="linear" dataKey="km" stroke="var(--color-accent-strong)" strokeWidth={2} dot={{ r: 2.5 }} isAnimationActive={false} />
+          </LineChart>
+        </ChartCard>
+      )}
       <div className="divide-y divide-stone-900/5 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-900/5 dark:divide-white/5 dark:bg-stone-900 dark:ring-white/10">
-        {rows.data.map((r, i) => (
-          <div key={`${r.source}${r.id ?? ''}${r.at}${i}`} className="flex items-center gap-3 px-4 py-2.5">
-            <div className="min-w-0 flex-1">
-              <div className="num font-medium">{km(r.odometer)}</div>
-              <div className="num truncate text-[13px] text-stone-500">{r.source === 'FUEL' || r.source === 'MANUAL' ? dateTime(r.at) : date(r.at)} · {READING_FROM[r.source]}</div>
+        {list.map((r, i) => {
+          const prev = list[i + 1]
+          const gone = prev ? r.odometer - prev.odometer : null
+          const days = prev ? (new Date(r.at).getTime() - new Date(prev.at).getTime()) / DAY : 0
+          return (
+            <div key={`${r.source}${r.id ?? ''}${r.at}${i}`} className="flex items-center gap-3 py-2.5 pr-2 pl-4">
+              <div className="min-w-0 flex-1">
+                <div className="num font-medium">{km(r.odometer)}</div>
+                <div className="num truncate text-[13px] text-stone-500">{readAt(r)} · {READING_FROM[r.source]}</div>
+              </div>
+              {gone != null && (
+                <div className="num shrink-0 text-right">
+                  <div className={gone < 0 ? 'text-sm font-medium text-amber-600' : 'text-sm text-stone-700 dark:text-stone-300'}>
+                    {gone < 0 ? `−${km(-gone)}` : `+${km(gone)}`}
+                  </div>
+                  {gone > 0 && days >= 1 && <div className="text-[13px] text-stone-500">{n1(gone / days)} km/day</div>}
+                </div>
+              )}
+              {r.id != null ? (
+                <button type="button" aria-label="Remove reading" disabled={remove.isPending}
+                  onClick={() => remove.mutate(r.id!)}
+                  className="shrink-0 rounded-full p-2 text-stone-400 transition hover:bg-stone-100 hover:text-red-600 active:scale-90 disabled:opacity-50 dark:hover:bg-stone-800">
+                  <Trash size={16} />
+                </button>
+              ) : <span className="w-8 shrink-0" />}
             </div>
-            {r.id != null && (
-              <Button type="button" variant="ghost" className="shrink-0 !px-2.5 !py-1 text-xs" busy={remove.isPending && remove.variables === r.id}
-                onClick={() => remove.mutate(r.id!)}>Remove</Button>
-            )}
-          </div>
-        ))}
+          )
+        })}
       </div>
     </section>
   )
