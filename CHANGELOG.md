@@ -25,6 +25,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
   unless you change it; the vehicle is a line (with Change) when you start from its page; the skipped-fill-up
   switch, the pump and place, and notes are under More details, open by themselves when they have something. On
   phones, Save is a big button at the bottom (just above the keyboard on Android).
+- An empty Inbox now says what would fill it: how to connect GeoPulse or Hisaab when neither is (with Open
+  Settings), what comes from the connected ones and when they last checked, or that a connection is failing and why.
 
 ### Fixed
 

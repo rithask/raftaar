@@ -3,12 +3,12 @@ import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, type Inbox, type Trip, type Vehicle } from '../api'
+import { api, type Inbox, type Integration, type Trip, type Vehicle } from '../api'
 import { FuelForm } from '../components/FuelForm'
 import { ExpenseForm } from '../components/Forms'
 import { Badge, Button, Chip, Empty, ErrorText, Loading, Panel, softSpring } from '../components/ui'
 import { KindIcon } from '../components/VehicleArt'
-import { date, dateTime, km, money, money2, n2, time } from '../format'
+import { ago, date, dateTime, km, money, money2, n2, time } from '../format'
 import { useSave } from '../hooks'
 
 type Pending = Inbox['suggestions'][number]
@@ -37,7 +37,7 @@ export function InboxPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-[28px] leading-none font-bold tracking-tight">Inbox</h1>
-      {empty && <Empty icon={<Tray size={48} />} title="All caught up">New trips from GeoPulse and fuel payments from Hisaab show up here.</Empty>}
+      {empty && <InboxEmpty />}
 
       {data.suggestions.length > 0 && (
         <section className="space-y-3">
@@ -199,3 +199,45 @@ function Trips({ trips, vehicles }: { trips: Trip[]; vehicles: Vehicle[] }) {
     </section>
   )
 }
+
+/**
+ * An empty Inbox says what would fill it, going by what's connected: nothing (how to connect), one or both
+ * (what comes from each, and when it last looked), or a connection that's failing.
+ */
+function InboxEmpty() {
+  const integrations = useQuery({ queryKey: ['integrations'], queryFn: () => api<Integration[]>('/integrations') })
+  if (integrations.isLoading) return <Loading />
+  const on = (integrations.data ?? []).filter((i) => (i.name === 'geopulse' || i.name === 'hisaab') && i.configured)
+  const failing = on.filter((i) => i.status.lastError)
+  const what = { geopulse: 'trips from GeoPulse', hisaab: 'fuel payments from Hisaab' } as const
+  const settings = (
+    <Link to="/settings" className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-on-accent transition active:scale-95">
+      Open Settings
+    </Link>
+  )
+  if (!on.length) {
+    return (
+      <Empty icon={<Tray size={48} />} title="Nothing to sort">
+        Connect GeoPulse to bring in your trips, or Hisaab to bring in fuel payments, and they'll show up here to confirm.
+        <div>{settings}</div>
+      </Empty>
+    )
+  }
+  if (failing.length) {
+    const f = failing[0]
+    return (
+      <Empty icon={<Warning size={48} />} title={`${f.name === 'geopulse' ? 'GeoPulse' : 'Hisaab'} isn't syncing`}>
+        {f.status.lastError}{/[.!?]$/.test(f.status.lastError ?? '') ? '' : '.'} Nothing new can arrive until it does.
+        <div>{settings}</div>
+      </Empty>
+    )
+  }
+  const lastRun = on.map((i) => i.status.lastRun).filter(Boolean).sort().at(-1)
+  return (
+    <Empty icon={<Tray size={48} />} title="All caught up">
+      New {on.map((i) => what[i.name as 'geopulse' | 'hisaab']).join(' and ')} show up here.
+      {lastRun && <span className="mt-1 block text-xs">Last checked {ago(lastRun)}.</span>}
+    </Empty>
+  )
+}
+
