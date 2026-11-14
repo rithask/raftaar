@@ -1,7 +1,7 @@
-import { ArrowLeft, Bell, CaretRight, GasPump, Path, PencilSimple, Receipt, Scroll, Warning, Wrench } from '@phosphor-icons/react'
+import { ArrowLeft, Bell, GasPump, Path, PencilSimple, Receipt, Scroll, Warning, Wrench } from '@phosphor-icons/react'
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
 import { Bar, BarChart, Line, LineChart, ReferenceArea, Tooltip, XAxis, YAxis } from 'recharts'
@@ -36,6 +36,8 @@ export function VehiclePage() {
   }
   const [open, setOpen] = useState<Open>(null)
   const close = () => setOpen(null)
+  const headRef = useRef<HTMLDivElement>(null)
+  const headInView = useInView(headRef, !summary.isLoading)
 
   if (summary.isLoading) return <Loading />
   if (summary.error) return <ErrorText error={summary.error} />
@@ -48,8 +50,11 @@ export function VehiclePage() {
   const worst = (bad: boolean, any: boolean) => (bad ? 'bad' : any ? 'warn' : undefined)
 
   return (
-    <div className="space-y-5 pb-20 sm:pb-0">
-      <Header vehicle={v} onEdit={() => setOpen({ kind: 'vehicle' })} onFuel={() => setOpen({ kind: 'fuel' })} />
+    <div className="space-y-5 pb-20 [--sticky-top:3.25rem] sm:pb-0 sm:[--sticky-top:0px]">
+      <div ref={headRef}>
+        <Header vehicle={v} onEdit={() => setOpen({ kind: 'vehicle' })} onFuel={() => setOpen({ kind: 'fuel' })} />
+      </div>
+      <CompactBar vehicle={v} visible={!headInView} onEdit={() => setOpen({ kind: 'vehicle' })} />
 
       {/* the three numbers that matter, and one quiet line under them */}
       <div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-stone-900/5 dark:bg-stone-900 dark:ring-white/10">
@@ -78,19 +83,17 @@ export function VehiclePage() {
       </div>
 
       {(due.length > 0 || papers.length > 0) && (
-        <section className="space-y-2">
-          <SectionHeader title="Coming up" />
-          <div className="divide-y divide-stone-900/5 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-900/5 dark:divide-white/5 dark:bg-stone-900 dark:ring-white/10">
-            {due.map((r) => (
-              <AttentionRow key={`r${r.reminder.id}`} bad={r.status.state === 'OVERDUE'} icon={<Wrench size={16} />} title={r.reminder.title}
-                detail={r.status.summary.replace(/^Due /, '')} onClick={() => setOpen({ kind: 'service' })} />
-            ))}
-            {papers.map((d) => (
-              <AttentionRow key={`d${d.document.id}`} bad={d.state === 'EXPIRED'} icon={<Scroll size={16} />} title={d.document.title}
-                detail={d.state === 'EXPIRED' ? `expired ${date(d.document.expiresOn, false)}` : d.daysLeft === 0 ? 'today' : `in ${d.daysLeft} days`}
-                onClick={() => setOpen({ kind: 'doc', d })} />
-            ))}
-          </div>
+        // what needs doing soon, as one row of chips (the tabs below have the details)
+        <section aria-label="Coming up" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
+          {due.map((r) => (
+            <AttentionChip key={`r${r.reminder.id}`} bad={r.status.state === 'OVERDUE'} icon={<Wrench size={14} />} title={r.reminder.title}
+              detail={r.status.summary.replace(/^Due /, '')} onClick={() => setOpen({ kind: 'service' })} />
+          ))}
+          {papers.map((d) => (
+            <AttentionChip key={`d${d.document.id}`} bad={d.state === 'EXPIRED'} icon={<Scroll size={14} />} title={d.document.title}
+              detail={d.state === 'EXPIRED' ? 'expired' : d.daysLeft === 0 ? 'today' : `${d.daysLeft} days`}
+              onClick={() => setOpen({ kind: 'doc', d })} />
+          ))}
         </section>
       )}
 
@@ -148,6 +151,42 @@ export function VehiclePage() {
 
 // ---- header -----------------------------------------------------------------------------------------------
 
+/** Whether the element is on screen; true until it's known. Re-checks once {@code ready} (the element exists). */
+function useInView(ref: React.RefObject<HTMLElement | null>, ready: boolean) {
+  const [inView, setInView] = useState(true)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { rootMargin: '-56px 0px 0px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [ref, ready])
+  return inView
+}
+
+/**
+ * On a phone, once the header has scrolled away: a slim bar with back, the vehicle's name and edit, so you
+ * always know where you are and can get back. The tabs stick right under it (--sticky-top on the page).
+ */
+function CompactBar({ vehicle: v, visible, onEdit }: { vehicle: Vehicle; visible: boolean; onEdit: () => void }) {
+  return createPortal(
+    <AnimatePresence>
+      {visible && (
+        <motion.div key="bar" initial={{ y: -56, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -56, opacity: 0 }} transition={{ duration: 0.18 }}
+          className="fixed inset-x-0 top-0 z-30 flex h-[3.25rem] items-center gap-1 border-b border-stone-900/10 bg-stone-100/90 px-2 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:hidden dark:border-white/10 dark:bg-stone-950/90">
+          <Link to="/" className="rounded-full p-2.5 text-stone-700 transition active:scale-90 active:bg-stone-200 dark:text-stone-200 dark:active:bg-stone-800" aria-label="Back to garage"><ArrowLeft size={20} /></Link>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[15px] leading-tight font-semibold">{v.name}</div>
+            {v.registration && <div className="truncate font-mono text-[11px] leading-tight text-stone-500">{v.registration}</div>}
+          </div>
+          <button type="button" onClick={onEdit} className="rounded-full p-2.5 text-stone-700 transition active:scale-90 active:bg-stone-200 dark:text-stone-200 dark:active:bg-stone-800" aria-label="Edit vehicle"><PencilSimple size={20} /></button>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
+  )
+}
+
 const glass = 'rounded-full p-2.5 backdrop-blur transition active:scale-90'
 
 function Header({ vehicle: v, onEdit, onFuel }: { vehicle: Vehicle; onEdit: () => void; onFuel: () => void }) {
@@ -169,16 +208,16 @@ function Header({ vehicle: v, onEdit, onFuel }: { vehicle: Vehicle; onEdit: () =
     return (
       <div className="-mx-4 -mt-4 sm:mx-0 sm:mt-0">
         <div className="relative overflow-hidden sm:rounded-3xl">
-          <VehicleArt vehicle={v} className="h-56 w-full sm:h-72" />
+          <VehicleArt vehicle={v} className="h-44 w-full sm:h-72" />
           <div className="absolute inset-x-0 top-0 flex justify-between p-3">
             <Link to="/" className={cx(glass, 'bg-black/35 text-white active:bg-black/55')} aria-label="Back to garage"><ArrowLeft size={20} /></Link>
             <button onClick={onEdit} className={cx(glass, 'bg-black/35 text-white active:bg-black/55')} aria-label="Edit vehicle"><PencilSimple size={20} /></button>
           </div>
-          <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pt-20 pb-4 text-white">
+          <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pt-14 pb-3.5 text-white sm:pt-20 sm:pb-4">
             <div className="min-w-0">
-              <h1 className="truncate text-[26px] leading-tight font-bold tracking-tight">{v.name}</h1>
+              <h1 className="truncate text-2xl leading-tight font-bold tracking-tight sm:text-[26px]">{v.name}</h1>
               <p className="truncate text-sm text-white/75">{subtitle || facts}</p>
-              {plate && <div className="mt-2">{plate}</div>}
+              {plate && <div className="mt-1.5">{plate}</div>}
             </div>
             {desktopFuel}
           </div>
@@ -223,13 +262,14 @@ function Figure({ label, value, unit, edit }: { label: string; value: string; un
   )
 }
 
-function AttentionRow({ bad, icon, title, detail, onClick }: { bad: boolean; icon: ReactNode; title: string; detail: string; onClick: () => void }) {
+function AttentionChip({ bad, icon, title, detail, onClick }: { bad: boolean; icon: ReactNode; title: string; detail: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`flex w-full items-center gap-3 px-4 py-3 text-left ${rowPress}`}>
-      <span className={cx('flex size-8 shrink-0 items-center justify-center rounded-full', bad ? 'bg-red-500/12 text-red-600' : 'bg-amber-500/15 text-amber-600')}>{icon}</span>
-      <span className="min-w-0 flex-1 truncate text-sm font-medium">{title}</span>
-      <span className={cx('num shrink-0 text-sm', bad ? 'font-medium text-red-600' : 'text-stone-500')}>{detail}</span>
-      <CaretRight size={14} className="shrink-0 text-stone-300" />
+    <button type="button" onClick={onClick}
+      className={cx('flex shrink-0 items-center gap-2 rounded-full py-1.5 pr-3 pl-2 text-sm ring-1 transition active:scale-95',
+        bad ? 'bg-red-500/10 text-red-700 ring-red-500/20 dark:text-red-400' : 'bg-amber-500/10 text-amber-800 ring-amber-500/25 dark:text-amber-300')}>
+      <span className={cx('flex size-6 items-center justify-center rounded-full', bad ? 'bg-red-500/15' : 'bg-amber-500/20')}>{icon}</span>
+      <span className="max-w-[11rem] truncate font-medium">{title}</span>
+      <span className="num whitespace-nowrap opacity-80">· {detail}</span>
     </button>
   )
 }

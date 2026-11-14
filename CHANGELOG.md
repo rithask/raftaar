@@ -5,6 +5,12 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+### Changed
+
+- Vehicle page on phones: a shorter photo, and what's due soon as a row of chips instead of a card, so the first
+  fill-ups are on the first screen. Once the photo scrolls away, a slim bar keeps the name, back and edit at the
+  top, with the tabs just under it.
+
 ### Fixed
 
 - A part of the app that fails to show (a tab, a page) now shows a message with Try again in its place, instead of

@@ -372,7 +372,7 @@ export function Tabs<T extends string>({ value, onChange, options }: {
   return (
     <div
       role="tablist"
-      className="sticky top-0 z-20 -mx-4 flex border-b border-stone-900/10 bg-stone-100/85 px-1 backdrop-blur-md sm:mx-0 sm:px-0 dark:border-white/10 dark:bg-stone-950/85"
+      className="sticky top-[var(--sticky-top,0px)] z-20 -mx-4 flex border-b border-stone-900/10 bg-stone-100/85 px-1 backdrop-blur-md sm:mx-0 sm:px-0 dark:border-white/10 dark:bg-stone-950/85"
     >
       {options.map((o) => {
         const on = value === o.value
