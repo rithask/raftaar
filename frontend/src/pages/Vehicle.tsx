@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, CloudArrowUp, GasPump, Gauge, Plus, Path, PencilSimple, Receipt, Scroll, Warning, Wrench } from '@phosphor-icons/react'
+import { ArrowLeft, Bell, Check, CloudArrowUp, GasPump, Gauge, Plus, Path, PencilSimple, Receipt, Scroll, Warning, Wrench } from '@phosphor-icons/react'
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
@@ -14,7 +14,7 @@ import { DocumentForm, ExpenseForm, OdometerForm, ReminderForm, ServiceForm } fr
 import { AddLink, Badge, Button, cx, Empty, ErrorText, listItem, listParent, Loading, rowPress, SectionHeader, softSpring, spring, Tabs } from '../components/ui'
 import { KindIcon, VehicleArt } from '../components/VehicleArt'
 import { VehicleForm } from '../components/VehicleForm'
-import { date, dateTime, economyUnit, expenseLabel, fuelLabel, kindLabel, km, money, money2, n1, n2 } from '../format'
+import { date, dateTime, economyUnit, today, expenseLabel, fuelLabel, kindLabel, km, money, money2, n1, n2 } from '../format'
 import { useSave } from '../hooks'
 import { amounts, useOutbox } from '../outbox'
 
@@ -130,7 +130,7 @@ export function VehiclePage() {
           {tab === 'fuel' && <FuelTab id={id} summary={s} onOpen={(row) => setOpen({ kind: 'fuel', row })} />}
           {tab === 'upkeep' && (
             <>
-              <RemindersSection id={id} onOpen={(r) => setOpen({ kind: 'reminder', r })} onAdd={() => setOpen({ kind: 'reminder' })} />
+              <RemindersSection id={id} odometer={odo} onOpen={(r) => setOpen({ kind: 'reminder', r })} onAdd={() => setOpen({ kind: 'reminder' })} />
               <ServicesSection id={id} onOpen={(row) => setOpen({ kind: 'service', row })} onAdd={() => setOpen({ kind: 'service' })} />
             </>
           )}
@@ -500,9 +500,16 @@ function DueSoonest({ status: st }: { status: ReminderView['status'] }) {
   )
 }
 
-function RemindersSection({ id, onOpen, onAdd }: { id: number; onOpen: (r: ReminderView) => void; onAdd: () => void }) {
+function RemindersSection({ id, odometer, onOpen, onAdd }: { id: number; odometer: number | null; onOpen: (r: ReminderView) => void; onAdd: () => void }) {
   const rows = useQuery({ queryKey: ['reminders', id], queryFn: () => api<ReminderView[]>(`/vehicles/${id}/reminders`) })
+  const [asking, setAsking] = useState<number | null>(null)
+  const atKm = odometer != null ? Math.round(odometer) : null
+  // Done: logs the service today (at the current odometer) and restarts this reminder from there.
+  const done = useSave((r: ReminderView) => api(`/vehicles/${id}/services`, {
+    body: { servicedOn: today(), odometer: atKm, title: r.reminder.title, cost: 0, completes: [r.reminder.id] },
+  }), () => setAsking(null), 'Done. Add the cost or workshop in Service history if you like.')
   const list = rows.data ?? []
+  const due = (r: ReminderView) => r.reminder.active && (r.status.state === 'OVERDUE' || r.status.state === 'DUE_SOON')
   return (
     <section className="space-y-2">
       <SectionHeader title="Reminders" action={<AddLink label="Add" onClick={onAdd} />} />
@@ -511,19 +518,43 @@ function RemindersSection({ id, onOpen, onAdd }: { id: number; onOpen: (r: Remin
       ) : (
         <List>
           {list.map((r) => (
-            <Row key={r.reminder.id} onClick={() => onOpen(r)}>
-              <div className={`min-w-0 flex-1 ${r.reminder.active ? '' : 'opacity-50'}`}>
-                <div className="flex items-center gap-2">
-                  <span className="truncate font-medium">{r.reminder.title}</span>
-                  {!r.reminder.active && <Badge>done</Badge>}
-                </div>
-                <Small>
-                  {[r.reminder.intervalKm ? `every ${km(r.reminder.intervalKm)}` : null, r.reminder.intervalMonths ? `${r.reminder.intervalMonths} mo` : null].filter(Boolean).join(' / ') || 'once'}
-                  {r.status.dueOdometer != null && r.status.kmLeft == null && ` · at ${km(r.status.dueOdometer)}`}
-                </Small>
+            <motion.div variants={listItem} key={r.reminder.id}>
+              <div className="flex items-center">
+                <button type="button" onClick={() => onOpen(r)} className={cx('flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 text-left', due(r) ? 'pr-2' : 'pr-4', rowPress)}>
+                  <div className={`min-w-0 flex-1 ${r.reminder.active ? '' : 'opacity-50'}`}>
+                    <div className="flex items-center gap-2">
+                      <span className="truncate font-medium">{r.reminder.title}</span>
+                      {!r.reminder.active && <Badge>done</Badge>}
+                    </div>
+                    <Small>
+                      {[r.reminder.intervalKm ? `every ${km(r.reminder.intervalKm)}` : null, r.reminder.intervalMonths ? `${r.reminder.intervalMonths} mo` : null].filter(Boolean).join(' / ') || 'once'}
+                      {r.status.dueOdometer != null && r.status.kmLeft == null && ` · at ${km(r.status.dueOdometer)}`}
+                    </Small>
+                  </div>
+                  {r.reminder.active && <DueSoonest status={r.status} />}
+                </button>
+                {due(r) && asking !== r.reminder.id && (
+                  <button type="button" onClick={() => setAsking(r.reminder.id)} aria-label={`Mark ${r.reminder.title} done`}
+                    className="mr-3 flex shrink-0 items-center gap-1.5 rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-on-accent transition active:scale-95">
+                    <Check size={14} weight="bold" /> Done
+                  </button>
+                )}
               </div>
-              {r.reminder.active && <DueSoonest status={r.status} />}
-            </Row>
+              <AnimatePresence initial={false}>
+                {asking === r.reminder.id && (
+                  <motion.div key="ask" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={softSpring} className="overflow-hidden">
+                    <div className="flex flex-wrap items-center gap-2 bg-accent-soft/60 px-4 py-3 text-sm dark:bg-accent-soft/40">
+                      <span className="min-w-0 flex-1">
+                        Done today{atKm != null && <> at <span className="whitespace-nowrap">{km(atKm)}</span></>}? {r.reminder.intervalKm || r.reminder.intervalMonths ? 'The countdown starts again from there.' : "It'll be marked finished."}
+                      </span>
+                      <Button variant="ghost" className="!px-3 !py-1.5" onClick={() => setAsking(null)}>Cancel</Button>
+                      <Button variant="primary" className="!px-3 !py-1.5" busy={done.isPending} onClick={() => done.mutate(r)}><Check size={14} /> Yes, done</Button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {done.error && done.variables?.reminder.id === r.reminder.id && <div className="px-4 pb-3"><ErrorText error={done.error} /></div>}
+            </motion.div>
           ))}
         </List>
       )}

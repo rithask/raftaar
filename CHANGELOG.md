@@ -13,6 +13,9 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
   "not sent yet", and sent by itself when you're back online; a bar says how many are waiting. The app also opens
   offline, showing what was last seen. Signing out clears what was kept. A fill-up sent twice (a lost reply, a
   double tap) is saved once.
+- Reminders that are due or overdue have a Done button in the Upkeep tab. After a quick "Done today at 1,460 km?" it
+  logs the service and restarts the countdown, without opening a form; the cost or workshop can be added to the
+  service later.
 
 ### Changed
 
