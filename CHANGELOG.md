@@ -10,6 +10,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 - Vehicle page on phones: a shorter photo, and what's due soon as a row of chips instead of a card, so the first
   fill-ups are on the first screen. Once the photo scrolls away, a slim bar keeps the name, back and edit at the
   top, with the tabs just under it.
+- Vehicle page on wide screens (1280 px and up): two columns, with the tabs on the left and the numbers and what's
+  due soon in a column on the right that stays in view as you scroll.
 
 ### Fixed
 

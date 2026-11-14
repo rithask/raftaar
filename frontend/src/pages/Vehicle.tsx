@@ -56,6 +56,9 @@ export function VehiclePage() {
       </div>
       <CompactBar vehicle={v} visible={!headInView} onEdit={() => setOpen({ kind: 'vehicle' })} />
 
+      {/* phones and tablets: one column. Wide screens: tabs on the left, the numbers and what's due in a column on the right. */}
+      <div className="space-y-5 xl:grid xl:grid-cols-[minmax(0,1fr)_19rem] xl:items-start xl:gap-6 xl:space-y-0">
+      <aside className="space-y-5 xl:sticky xl:top-6 xl:col-start-2 xl:row-start-1">
       {/* the three numbers that matter, and one quiet line under them */}
       <div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-stone-900/5 dark:bg-stone-900 dark:ring-white/10">
         <div className="grid grid-cols-3 divide-x divide-stone-900/5 dark:divide-white/10">
@@ -84,7 +87,7 @@ export function VehiclePage() {
 
       {(due.length > 0 || papers.length > 0) && (
         // what needs doing soon, as one row of chips (the tabs below have the details)
-        <section aria-label="Coming up" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
+        <section aria-label="Coming up" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 xl:flex-col xl:items-stretch">
           {due.map((r) => (
             <AttentionChip key={`r${r.reminder.id}`} bad={r.status.state === 'OVERDUE'} icon={<Wrench size={14} />} title={r.reminder.title}
               detail={r.status.summary.replace(/^Due /, '')} onClick={() => setOpen({ kind: 'service' })} />
@@ -96,7 +99,9 @@ export function VehiclePage() {
           ))}
         </section>
       )}
+      </aside>
 
+      <div className="min-w-0 space-y-5 xl:col-start-1 xl:row-start-1">
       <Tabs value={tab} onChange={pickTab} options={[
         { value: 'fuel', label: 'Fuel' },
         { value: 'upkeep', label: 'Upkeep', dot: worst(due.some((r) => r.status.state === 'OVERDUE'), due.length > 0) },
@@ -133,6 +138,8 @@ export function VehiclePage() {
           </ErrorBoundary>
         </motion.div>
       </AnimatePresence>
+      </div>
+      </div>
 
       <FuelFab onClick={() => setOpen({ kind: 'fuel' })} hidden={open !== null} />
 
@@ -265,10 +272,10 @@ function Figure({ label, value, unit, edit }: { label: string; value: string; un
 function AttentionChip({ bad, icon, title, detail, onClick }: { bad: boolean; icon: ReactNode; title: string; detail: string; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick}
-      className={cx('flex shrink-0 items-center gap-2 rounded-full py-1.5 pr-3 pl-2 text-sm ring-1 transition active:scale-95',
+      className={cx('flex shrink-0 items-center gap-2 rounded-full py-1.5 pr-3 pl-2 text-sm ring-1 transition active:scale-95 xl:rounded-2xl xl:py-2',
         bad ? 'bg-red-500/10 text-red-700 ring-red-500/20 dark:text-red-400' : 'bg-amber-500/10 text-amber-800 ring-amber-500/25 dark:text-amber-300')}>
       <span className={cx('flex size-6 items-center justify-center rounded-full', bad ? 'bg-red-500/15' : 'bg-amber-500/20')}>{icon}</span>
-      <span className="max-w-[11rem] truncate font-medium">{title}</span>
+      <span className="max-w-[11rem] truncate font-medium xl:max-w-none xl:flex-1 xl:text-left">{title}</span>
       <span className="num whitespace-nowrap opacity-80">· {detail}</span>
     </button>
   )

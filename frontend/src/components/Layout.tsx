@@ -39,8 +39,9 @@ export function Layout() {
   return (
     <div className={cx('min-h-dvh overflow-x-clip pb-28 transition-[padding] duration-300 ease-out sm:pb-10 sm:pl-[92px]', !collapsed && 'lg:pl-[280px]')}>
       <Sidebar garage={garage.data} waiting={waiting} collapsed={collapsed} onToggle={toggle} />
-      {/* collapsing the sidebar gives the page the room */}
-      <main className={cx('mx-auto max-w-4xl px-4 pt-4 sm:px-8 sm:pt-6 2xl:max-w-6xl', collapsed && 'lg:max-w-5xl')}>
+      {/* vehicle pages use the width for a second column; collapsing the sidebar gives the page the room */}
+      <main className={cx('mx-auto max-w-4xl px-4 pt-4 sm:px-8 sm:pt-6 2xl:max-w-6xl', collapsed && 'lg:max-w-5xl',
+        location.pathname.startsWith('/vehicles/') && 'xl:max-w-6xl')}>
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
             key={location.pathname}
