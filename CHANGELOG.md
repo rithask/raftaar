@@ -5,6 +5,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-14
+
 ### Added
 
 - Mileage chart: your usual range (the middle half of your tanks) is shaded, and the heading says what it is. A tank
