@@ -34,6 +34,9 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
   papers have a Renew button (on the Papers page and a vehicle's Papers tab) that opens the paper with its dates
   moved to the next term and asks for the new certificate; saving updates the paper, so reminders start over for the
   new date.
+- Settings is a short list (Connections, Notifications, Fuel prices, Account), each with a one-line summary. On a
+  phone each opens on its own page, and back returns to the list; on larger screens the list stays on the left with
+  the section beside it.
 
 ### Fixed
 

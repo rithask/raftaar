@@ -211,7 +211,7 @@ function InboxEmpty() {
   const failing = on.filter((i) => i.status.lastError)
   const what = { geopulse: 'trips from GeoPulse', hisaab: 'fuel payments from Hisaab' } as const
   const settings = (
-    <Link to="/settings" className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-on-accent transition active:scale-95">
+    <Link to="/settings/connections" className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-on-accent transition active:scale-95">
       Open Settings
     </Link>
   )

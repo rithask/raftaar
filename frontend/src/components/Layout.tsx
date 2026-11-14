@@ -46,7 +46,7 @@ export function Layout() {
         <OutboxBar />
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
-            key={location.pathname}
+            key={location.pathname.startsWith('/settings') ? '/settings' : location.pathname}
             initial={enter}
             animate={{ opacity: 1, x: 0, y: 0, transition: { type: 'spring', stiffness: 380, damping: 36 } }}
             exit={{ opacity: 0, transition: { duration: 0.12 } }}
@@ -113,7 +113,7 @@ function Highlight() {
 function Sidebar({ garage, waiting, collapsed, onToggle }: { garage?: GarageData; waiting: number; collapsed: boolean; onToggle: () => void }) {
   const { pathname } = useLocation()
   const qc = useQueryClient()
-  const current = pathname
+  const current = pathname.startsWith('/settings') ? '/settings' : pathname
   const vehicles = (garage?.vehicles ?? []).filter((c) => !c.vehicle.archived)
   const leave = async () => {
     await signOut()
@@ -218,7 +218,7 @@ function BottomBar({ waiting }: { waiting: number }) {
   const hidden = useHideOnScroll()
   const { pathname } = useLocation()
   // a vehicle's page belongs to the Garage
-  const current = pathname.startsWith('/vehicles/') ? '/' : pathname
+  const current = pathname.startsWith('/vehicles/') ? '/' : pathname.startsWith('/settings') ? '/settings' : pathname
   return (
     <motion.nav
       aria-label="Sections"

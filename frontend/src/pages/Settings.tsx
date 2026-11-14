@@ -1,8 +1,9 @@
-import { ArrowsClockwise, Bell, CheckCircle, GasPump, LinkSimple, MapPin, Path, Plus, SignOut, Trash, UserCircle, Wallet, XCircle } from '@phosphor-icons/react'
+import { ArrowsClockwise, Bell, CaretLeft, CaretRight, CheckCircle, GasPump, LinkSimple, MapPin, Path, Plus, SignOut, Trash, UserCircle, Wallet, XCircle } from '@phosphor-icons/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 import { api, signOut, type AccountView, type Channel, type ChannelList, type FuelPrice, type FuelType, type Integration } from '../api'
-import { Badge, Button, ErrorText, Field, Input, Loading, Panel, Select, Toggle } from '../components/ui'
+import { Link, Navigate, useParams } from 'react-router-dom'
+import { Badge, Button, cx, ErrorText, Field, Input, Loading, Panel, rowPress, Select, Toggle } from '../components/ui'
 import { ago, date, fuelLabel, money2, num } from '../format'
 import { INDIAN_STATES, useSave } from '../hooks'
 
@@ -17,65 +18,129 @@ function Code({ children }: { children: ReactNode }) {
   return <code className="rounded bg-stone-100 px-1 text-[11px] dark:bg-stone-800">{children}</code>
 }
 
+type Key = 'connections' | 'notifications' | 'fuel-prices' | 'account'
+const SECTIONS: { key: Key; title: string; icon: ReactNode }[] = [
+  { key: 'connections', title: 'Connections', icon: <LinkSimple size={20} /> },
+  { key: 'notifications', title: 'Notifications', icon: <Bell size={20} /> },
+  { key: 'fuel-prices', title: 'Fuel prices', icon: <GasPump size={20} /> },
+  { key: 'account', title: 'Account', icon: <UserCircle size={20} /> },
+]
+
+/**
+ * Settings as a short list. On a phone each section opens on its own (/settings/notifications), so the back
+ * gesture returns to the list; on larger screens the list stays on the left and the section shows beside it.
+ */
 export function SettingsPage() {
+  const { section } = useParams()
+  const active = SECTIONS.find((x) => x.key === section)
+  if (section && !active) return <Navigate to="/settings" replace />
+  const open = active ?? SECTIONS[0]
+  return (
+    <div className="sm:grid sm:grid-cols-[15rem_minmax(0,1fr)] sm:items-start sm:gap-8">
+      {/* the list: the whole page on a phone with no section open; always on the left on larger screens */}
+      <div className={cx('space-y-5 sm:sticky sm:top-6', active && 'max-sm:hidden')}>
+        <h1 className="text-[28px] leading-none font-bold tracking-tight">Settings</h1>
+        <SectionList active={active?.key} />
+      </div>
+      <div className={cx('min-w-0', !active && 'max-sm:hidden')}>
+        {active && (
+          <Link to="/settings" className="-ml-2 mb-3 inline-flex items-center gap-1 rounded-full py-1.5 pr-3 pl-2 text-sm font-medium text-stone-600 transition active:scale-95 active:bg-stone-200 sm:hidden dark:text-stone-300 dark:active:bg-stone-800">
+            <CaretLeft size={16} /> Settings
+          </Link>
+        )}
+        <h2 className="mb-4 text-2xl font-bold tracking-tight sm:mt-1 sm:text-xl">{open.title}</h2>
+        {open.key === 'connections' && <Connections />}
+        {open.key === 'notifications' && <NotificationChannels />}
+        {open.key === 'fuel-prices' && <FuelPrices />}
+        {open.key === 'account' && <AccountSection />}
+      </div>
+    </div>
+  )
+}
+
+/** Each section with a one-line summary, then sign out and the version. */
+function SectionList({ active }: { active?: Key }) {
   const qc = useQueryClient()
-  const integrations = useQuery({ queryKey: ['integrations'], queryFn: () => api<Integration[]>('/integrations'), refetchInterval: 10_000 })
-  const run = useSave((name: string) => api<{ result: string }>(`/integrations/${name}/run`, { method: 'POST' }), undefined, (r) => r.result)
+  const integrations = useQuery({ queryKey: ['integrations'], queryFn: () => api<Integration[]>('/integrations') })
+  const channels = useQuery({ queryKey: ['channels'], queryFn: () => api<ChannelList>('/notifications/channels') })
+  const prices = useQuery({ queryKey: ['fuel-prices'], queryFn: () => api<FuelPrice[]>('/fuel-prices') })
+  const account = useQuery({ queryKey: ['account'], queryFn: () => api<AccountView>('/account') })
+  const failing = (integrations.data ?? []).filter((i) => i.status.lastError)
+  const on = (integrations.data ?? []).filter((i) => i.configured).length
+  const nChannels = channels.data?.channels.length ?? 0
+  const summary: Record<Key, ReactNode> = {
+    connections: !integrations.data ? '' : failing.length
+      ? <span className="text-red-600 dark:text-red-400">{META[failing[0].name].title} is failing</span>
+      : `${on} of ${integrations.data.length} on`,
+    notifications: !channels.data ? '' : nChannels === 0 ? 'No channels yet' : nChannels === 1 ? '1 channel' : `${nChannels} channels`,
+    'fuel-prices': !prices.data ? '' : prices.data.length === 0 ? 'None yet' : prices.data.length === 1 ? '1 state' : `${prices.data.length} prices`,
+    account: account.data?.username ?? '',
+  }
   const logout = async () => {
     await signOut()
     qc.setQueryData(['me'], null)
   }
-
   return (
-    <div className="space-y-6">
-      <h1 className="text-[28px] leading-none font-bold tracking-tight">Settings</h1>
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium text-stone-500">Connections</h2>
-        {integrations.isLoading && <Loading />}
-        {integrations.data?.map((i) => {
-          const m = META[i.name]
-          const s = i.status
-          return (
-            <Panel key={i.name} className="space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-stone-100 p-2 dark:bg-stone-800">{m.icon}</div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
-                    {m.title}
-                    {i.configured ? <Badge tone="ok"><CheckCircle size={12} /> on</Badge> : <Badge><XCircle size={12} /> off</Badge>}
-                  </div>
-                  <div className="text-xs text-stone-500">{m.what}</div>
-                </div>
-                {i.configured && m.run && (
-                  <Button variant="ghost" className="shrink-0 !px-2.5 sm:!px-4" aria-label={m.run} busy={(run.isPending && run.variables === i.name) || s.running} onClick={() => run.mutate(i.name)}>
-                    <ArrowsClockwise size={18} /> <span className="hidden sm:inline">{m.run}</span>
-                  </Button>
-                )}
-              </div>
-              {!i.configured && <p className="text-xs text-stone-500">{m.off}</p>}
-              {i.configured && (i.target || s.lastRun) && (
-                <p className="text-xs text-stone-500">
-                  {i.target}{i.target && s.lastRun ? ' · ' : ''}{s.lastRun && `Last ${ago(s.lastRun)}${s.lastResult && !s.lastError ? `: ${s.lastResult}` : ''}`}
-                </p>
-              )}
-              {s.lastError && <p className="rounded-lg bg-red-500/10 px-2 py-1 text-xs text-red-700 dark:text-red-400">{s.lastError}</p>}
-            </Panel>
-          )
-        })}
-        <ErrorText error={run.error} />
-      </section>
-
-      <NotificationChannels />
-
-      <FuelPrices />
-
-      <AccountSection />
-
+    <>
+      <nav aria-label="Settings sections" className="divide-y divide-stone-900/5 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-900/5 dark:divide-white/5 dark:bg-stone-900 dark:ring-white/10">
+        {SECTIONS.map((x) => (
+          <Link key={x.key} to={`/settings/${x.key}`} aria-current={x.key === active ? 'page' : undefined}
+            className={cx('flex items-center gap-3 px-4 py-3.5', rowPress, 'sm:aria-[current=page]:bg-stone-900/[0.05] sm:dark:aria-[current=page]:bg-white/[0.07]')}>
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-200">{x.icon}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium">{x.title}</span>
+              <span className="block truncate text-xs text-stone-500">{summary[x.key]}</span>
+            </span>
+            <CaretRight size={16} className="shrink-0 text-stone-300 sm:hidden" />
+          </Link>
+        ))}
+      </nav>
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" onClick={logout}><SignOut size={16} /> Sign out</Button>
         <Version />
       </div>
-    </div>
+    </>
+  )
+}
+
+function Connections() {
+  const integrations = useQuery({ queryKey: ['integrations'], queryFn: () => api<Integration[]>('/integrations'), refetchInterval: 10_000 })
+  const run = useSave((name: string) => api<{ result: string }>(`/integrations/${name}/run`, { method: 'POST' }), undefined, (r) => r.result)
+  return (
+    <section className="space-y-3">
+      {integrations.isLoading && <Loading />}
+      {integrations.data?.map((i) => {
+        const m = META[i.name]
+        const s = i.status
+        return (
+          <Panel key={i.name} className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-stone-100 p-2 dark:bg-stone-800">{m.icon}</div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
+                  {m.title}
+                  {i.configured ? <Badge tone="ok"><CheckCircle size={12} /> on</Badge> : <Badge><XCircle size={12} /> off</Badge>}
+                </div>
+                <div className="text-xs text-stone-500">{m.what}</div>
+              </div>
+              {i.configured && m.run && (
+                <Button variant="ghost" className="shrink-0 !px-2.5 sm:!px-4" aria-label={m.run} busy={(run.isPending && run.variables === i.name) || s.running} onClick={() => run.mutate(i.name)}>
+                  <ArrowsClockwise size={18} /> <span className="hidden sm:inline">{m.run}</span>
+                </Button>
+              )}
+            </div>
+            {!i.configured && <p className="text-xs text-stone-500">{m.off}</p>}
+            {i.configured && (i.target || s.lastRun) && (
+              <p className="text-xs text-stone-500">
+                {i.target}{i.target && s.lastRun ? ' · ' : ''}{s.lastRun && `Last ${ago(s.lastRun)}${s.lastResult && !s.lastError ? `: ${s.lastResult}` : ''}`}
+              </p>
+            )}
+            {s.lastError && <p className="rounded-lg bg-red-500/10 px-2 py-1 text-xs text-red-700 dark:text-red-400">{s.lastError}</p>}
+          </Panel>
+        )
+      })}
+      <ErrorText error={run.error} />
+    </section>
   )
 }
 
@@ -87,7 +152,6 @@ function FuelPrices() {
   const src = { MANUAL: 'you', FILL_UP: 'fill-up', LOOKUP: 'looked up' } as const
   return (
     <section className="space-y-3">
-      <h2 className="flex items-center gap-2 text-sm font-medium text-stone-500"><GasPump size={16} /> Fuel prices</h2>
       <p className="text-sm text-stone-500">Picked up from your fill-ups. Set one here when prices change.</p>
       <Panel className="space-y-3">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -140,7 +204,6 @@ function NotificationChannels() {
 
   return (
     <section className="space-y-3">
-      <h2 className="flex items-center gap-2 text-sm font-medium text-stone-500"><Bell size={16} /> Notifications</h2>
       <p className="text-sm text-stone-500">
         Add an Apprise URL for each place you want reminders, e.g. <Code>ntfys://ntfy.sh/your-topic</Code>.{' '}
         <a className="underline active:opacity-60" href="https://github.com/caronc/apprise/wiki#notification-services" target="_blank" rel="noreferrer">See all services</a>
@@ -214,7 +277,6 @@ function AccountSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="flex items-center gap-2 text-sm font-medium text-stone-500"><UserCircle size={16} /> Account</h2>
       <Panel className="space-y-4">
         <div className="flex items-end gap-2">
           <Field label="Username" className="flex-1">

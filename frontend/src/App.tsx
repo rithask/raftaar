@@ -35,6 +35,7 @@ export function App() {
         <Route path="inbox" element={<InboxPage />} />
         <Route path="papers" element={<PapersPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="settings/:section" element={<SettingsPage />} />
         <Route path="*" element={<GaragePage />} />
       </Route>
     </Routes>
