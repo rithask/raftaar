@@ -5,6 +5,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-14
+
 ### Added
 
 - Quick add on the vehicle page: a + next to the Fuel button (and next to Add fuel on larger screens) to log a
