@@ -1,7 +1,8 @@
 import { Paperclip } from '@phosphor-icons/react'
+import { useQuery } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { api, type DocType, type Doc, type Expense, type ExpenseCategory, type Reminder, type ReminderView, type ServiceRow, type Suggestion, type Vehicle } from '../api'
-import { docLabel, expenseLabel, fromLocalInput, km, num, toLocalInput, today, toLocalDate } from '../format'
+import { api, type DocType, type Doc, type Expense, type ExpenseCategory, type OdometerReading, type Reminder, type ReminderView, type ServiceRow, type Suggestion, type Vehicle } from '../api'
+import { date, dateTime, docLabel, expenseLabel, fromLocalInput, km, num, toLocalInput, today, toLocalDate } from '../format'
 import { useSave } from '../hooks'
 import { DateInput, DateTimeInput, plusMonths } from './DateField'
 import { Button, Chip, ErrorText, Field, FormScreen, Input, Segmented, Select, TextArea, Toggle } from './ui'
@@ -298,7 +299,38 @@ export function OdometerForm({ open, onClose, vehicleId, current }: { open: bool
         <Field label="Reading (km)" hint={current ? `Last reading ${km(current)}` : undefined}><Input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} autoFocus /></Field>
         <Field label="When"><DateTimeInput value={when} onChange={setWhen} /></Field>
         <ErrorText error={save.error} />
+        <OdometerHistory vehicleId={vehicleId} />
       </div>
     </FormScreen>
+  )
+}
+
+const READING_FROM: Record<OdometerReading['source'], string> = {
+  PURCHASE: 'At purchase', FUEL: 'Fill-up', SERVICE: 'Service', EXPENSE: 'Expense', MANUAL: 'Entered by hand',
+}
+
+/** Every reading the vehicle has, newest first. Only the ones entered here can be removed; the rest belong to their fill-up, service or expense. */
+function OdometerHistory({ vehicleId }: { vehicleId: number }) {
+  const rows = useQuery({ queryKey: ['odometer', vehicleId], queryFn: () => api<OdometerReading[]>(`/vehicles/${vehicleId}/odometer`) })
+  const remove = useSave((id: number) => api(`/odometer/${id}`, { method: 'DELETE' }), undefined, 'Reading removed')
+  if (!rows.data?.length) return null
+  return (
+    <section className="space-y-2 pt-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500">History</h3>
+      <div className="divide-y divide-stone-900/5 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-900/5 dark:divide-white/5 dark:bg-stone-900 dark:ring-white/10">
+        {rows.data.map((r, i) => (
+          <div key={`${r.source}${r.id ?? ''}${r.at}${i}`} className="flex items-center gap-3 px-4 py-2.5">
+            <div className="min-w-0 flex-1">
+              <div className="num font-medium">{km(r.odometer)}</div>
+              <div className="num truncate text-[13px] text-stone-500">{r.source === 'FUEL' || r.source === 'MANUAL' ? dateTime(r.at) : date(r.at)} · {READING_FROM[r.source]}</div>
+            </div>
+            {r.id != null && (
+              <Button type="button" variant="ghost" className="shrink-0 !px-2.5 !py-1 text-xs" busy={remove.isPending && remove.variables === r.id}
+                onClick={() => remove.mutate(r.id!)}>Remove</Button>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }

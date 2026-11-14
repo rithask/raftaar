@@ -32,7 +32,12 @@ public class VehicleStats {
         this.documents = documents;
     }
 
-    public record Reading(Instant at, BigDecimal odometer, String source) {}
+    /** One odometer reading; {@code id} is set only for manual readings, which are the ones you can delete. */
+    public record Reading(Instant at, BigDecimal odometer, String source, Long id) {
+        public Reading(Instant at, BigDecimal odometer, String source) {
+            this(at, odometer, source, null);
+        }
+    }
 
     public record Odometer(BigDecimal known, Instant knownAt, String knownSource, BigDecimal estimated, BigDecimal tripKmSince,
                            BigDecimal kmPerDay) {}
@@ -114,7 +119,7 @@ public class VehicleStats {
         fills.forEach(f -> out.add(new Reading(f.filledAt, f.odometer, "FUEL")));
         svc.stream().filter(s -> s.odometer != null).forEach(s -> out.add(new Reading(s.servicedOn.atTime(12, 0).atZone(zone).toInstant(), s.odometer, "SERVICE")));
         exp.stream().filter(e -> e.odometer != null).forEach(e -> out.add(new Reading(e.spentOn.atTime(12, 0).atZone(zone).toInstant(), e.odometer, "EXPENSE")));
-        readings.findByVehicleIdOrderByReadAtDesc(v.id).forEach(r -> out.add(new Reading(r.readAt, r.odometer, "MANUAL")));
+        readings.findByVehicleIdOrderByReadAtDesc(v.id).forEach(r -> out.add(new Reading(r.readAt, r.odometer, "MANUAL", r.id)));
         out.sort(Comparator.comparing(Reading::at));
         return out;
     }

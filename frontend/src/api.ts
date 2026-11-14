@@ -119,6 +119,13 @@ export interface Odometer {
   kmPerDay: number | null
 }
 
+export interface OdometerReading {
+  at: string
+  odometer: number
+  source: 'PURCHASE' | 'FUEL' | 'SERVICE' | 'EXPENSE' | 'MANUAL'
+  id: number | null
+}
+
 export interface FuelEntry {
   id: number
   vehicleId: number
