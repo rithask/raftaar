@@ -51,7 +51,10 @@ public class VehicleStats {
 
     public record Summary(Vehicle vehicle, Odometer odometer, BigDecimal averageEconomy, BigDecimal lastEconomy, String unit,
                           FuelEntry lastFill, Costs costs, List<ReminderView> reminders, List<DocumentView> documents,
-                          List<Economy.Stretch> economyHistory, Map<Long, Economy.Stretch> economyByFill) {}
+                          List<Economy.Stretch> economyHistory, Map<Long, Economy.Stretch> economyByFill, List<MonthCost> monthly) {}
+
+    /** What one calendar month cost, {@code month} as "2026-11". */
+    public record MonthCost(String month, BigDecimal fuel, BigDecimal service, BigDecimal other) {}
 
     public Summary summary(Vehicle v) {
         List<FuelEntry> fills = fuel.findByVehicleIdOrderByFilledAtAscIdAsc(v.id);
@@ -90,7 +93,31 @@ public class VehicleStats {
 
         return new Summary(v, odo, eco.average(), last == null ? null : last.kmPerUnit(), v.fuelType.unit,
                 fills.isEmpty() ? null : fills.getLast(), new Costs(fuelCost, svcCost, expCost, total, perKm, month),
-                rems, docs, eco.stretches(), eco.byEndId());
+                rems, docs, eco.stretches(), eco.byEndId(), monthly(fills, svc, exp, today, zone));
+    }
+
+    /** The last twelve months (or fewer, back to the first month with any spending), oldest first, empty months as zero. */
+    static List<MonthCost> monthly(List<FuelEntry> fills, List<ServiceRecord> svc, List<Expense> exp, LocalDate today, ZoneId zone) {
+        Map<YearMonth, BigDecimal[]> by = new HashMap<>();
+        fills.forEach(f -> add(by, YearMonth.from(f.filledAt.atZone(zone)), 0, f.totalCost));
+        svc.forEach(s -> add(by, YearMonth.from(s.servicedOn), 1, s.cost));
+        exp.forEach(e -> add(by, YearMonth.from(e.spentOn), 2, e.amount));
+        YearMonth end = YearMonth.from(today);
+        YearMonth start = by.keySet().stream().filter(m -> !m.isAfter(end)).min(Comparator.naturalOrder()).orElse(end);
+        if (start.isBefore(end.minusMonths(11))) start = end.minusMonths(11);
+        if (by.isEmpty()) return List.of();
+        List<MonthCost> out = new ArrayList<>();
+        for (YearMonth m = start; !m.isAfter(end); m = m.plusMonths(1)) {
+            BigDecimal[] v = by.getOrDefault(m, new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
+            out.add(new MonthCost(m.toString(), v[0], v[1], v[2]));
+        }
+        return out;
+    }
+
+    private static void add(Map<YearMonth, BigDecimal[]> by, YearMonth m, int slot, BigDecimal amount) {
+        if (amount == null) return;
+        BigDecimal[] v = by.computeIfAbsent(m, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
+        v[slot] = v[slot].add(amount);
     }
 
     public static DocumentView documentView(Document d) {

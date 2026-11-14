@@ -261,6 +261,8 @@ export interface Summary {
   reminders: ReminderView[]
   documents: DocView[]
   economyHistory: Stretch[]
+  /** Up to the last twelve months, oldest first; month as "2026-11" */
+  monthly: { month: string; fuel: number; service: number; other: number }[]
 }
 
 export interface Card {

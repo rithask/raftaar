@@ -4,10 +4,10 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
-import { Line, LineChart, ReferenceArea, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, Line, LineChart, ReferenceArea, Tooltip, XAxis, YAxis } from 'recharts'
 import { api, imageUrl, type DocView, type Expense, type FuelRow, type ReminderView, type ServiceRow, type Summary, type Trip, type Vehicle } from '../api'
 import { FuelForm } from '../components/FuelForm'
-import { axis, ChartCard, grid, margin, Swatch, tooltipStyle, usualRange } from '../components/charts'
+import { axis, ChartCard, grid, margin, monthLabel, short, Swatch, tooltipStyle, usualRange } from '../components/charts'
 import { DocumentForm, ExpenseForm, OdometerForm, ReminderForm, ServiceForm } from '../components/Forms'
 import { AddLink, Badge, Button, cx, Empty, ErrorText, listItem, listParent, Loading, rowPress, SectionHeader, softSpring, spring, Tabs } from '../components/ui'
 import { KindIcon, VehicleArt } from '../components/VehicleArt'
@@ -473,6 +473,8 @@ function SpendTab({ id, summary, onOpen, onAdd }: { id: number; summary: Summary
     { label: 'Other', value: c.expenses, color: 'bg-violet-500' },
   ]
   const list = rows.data ?? []
+  const months = summary.monthly.some((m) => m.fuel + m.service + m.other > 0) ? summary.monthly : []
+  const monthAvg = months.reduce((t, m) => t + m.fuel + m.service + m.other, 0) / Math.max(1, months.length)
   return (
     <>
       <section className="space-y-2">
@@ -497,6 +499,23 @@ function SpendTab({ id, summary, onOpen, onAdd }: { id: number; summary: Summary
           </div>
         </div>
       </section>
+      {months.length >= 2 && (
+        <section className="space-y-2">
+          <SectionHeader title="By month" meta={`last ${months.length} months · avg ${money(monthAvg)}`} />
+          <ChartCard>
+            <BarChart data={months} margin={{ ...margin, left: -12 }}>
+              {grid}
+              <XAxis dataKey="month" {...axis} tickFormatter={(m: string) => monthLabel(m)} interval="preserveStartEnd" />
+              <YAxis {...axis} tickCount={4} allowDecimals={false} tickFormatter={short} />
+              <Tooltip labelFormatter={(m) => monthLabel(String(m), true)} formatter={(val, name) => [money(Number(val)), name === 'fuel' ? 'Fuel' : name === 'service' ? 'Service' : 'Other']}
+                cursor={{ fill: 'currentColor', className: 'text-stone-500/10' }} {...tooltipStyle} />
+              <Bar dataKey="fuel" stackId="m" fill="var(--color-accent)" isAnimationActive={false} />
+              <Bar dataKey="service" stackId="m" fill="var(--color-sky-500, #0ea5e9)" isAnimationActive={false} />
+              <Bar dataKey="other" stackId="m" fill="var(--color-violet-500, #8b5cf6)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+            </BarChart>
+          </ChartCard>
+        </section>
+      )}
       <section className="space-y-2">
         <SectionHeader title="Expenses" meta={list.length ? `${list.length} · ${money(c.expenses)}` : undefined} action={<AddLink label="Add" onClick={onAdd} />} />
         {rows.isLoading ? <Loading /> : !list.length ? (

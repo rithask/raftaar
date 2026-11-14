@@ -11,6 +11,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
   clearly worse than usual shows as an amber dot.
 - Price paid chart on the Fuel tab: what you paid per litre at each fill-up. Where a published price was looked up
   (`FUEL_PRICE_URL`) or entered for that place, it's drawn as a dashed line beside yours.
+- Spending by month on the Spend tab: fuel, service and other costs stacked for each of the last twelve months, with
+  the monthly average.
 
 ## [0.4.0] - 2026-11-14
 

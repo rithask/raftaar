@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 import { CartesianGrid, ResponsiveContainer } from 'recharts'
+import { n1 } from '../format'
 
 /** Shared look for the small charts: a card, quiet axes, a soft grid. */
 export function ChartCard({ children, className = 'h-40' }: { children: ReactElement; className?: string }) {
@@ -43,3 +44,11 @@ export function Swatch({ color, dashed }: { color: string; dashed?: boolean }) {
     </svg>
   )
 }
+
+/** "Oct" for a "2026-10" month, or "Oct 2026" with the year. */
+export function monthLabel(month: string, withYear = false) {
+  return new Date(`${month}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'short', ...(withYear ? { year: 'numeric' } : {}) })
+}
+
+/** Axis numbers: 1.5k rather than 1500, so they stay narrow. */
+export const short = (v: number) => (Math.abs(v) >= 1000 ? `${n1(v / 1000)}k` : String(Math.round(v)))
