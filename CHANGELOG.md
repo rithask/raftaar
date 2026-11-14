@@ -12,6 +12,10 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
   top, with the tabs just under it.
 - Vehicle page on wide screens (1280 px and up): two columns, with the tabs on the left and the numbers and what's
   due soon in a column on the right that stays in view as you scroll.
+- The fill-up form is one screen: odometer, the price/litres/paid trio and Full tank up front; the time is "now"
+  unless you change it; the vehicle is a line (with Change) when you start from its page; the skipped-fill-up
+  switch, the pump and place, and notes are under More details, open by themselves when they have something. On
+  phones, Save is a big button at the bottom (just above the keyboard on Android).
 
 ### Fixed
 

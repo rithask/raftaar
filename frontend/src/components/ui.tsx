@@ -190,6 +190,7 @@ export function FormScreen({
   onDelete,
   deleting,
   deleteLabel = 'Delete',
+  saveAtBottom = false,
 }: {
   open: boolean
   onClose: () => void
@@ -201,6 +202,8 @@ export function FormScreen({
   onDelete?: () => void
   deleting?: boolean
   deleteLabel?: string
+  /** On phones, a full-width Save at the bottom, in reach of the thumb, instead of the one in the corner. */
+  saveAtBottom?: boolean
 }) {
   const id = useId()
   const closeRef = useRef(onClose)
@@ -280,7 +283,7 @@ export function FormScreen({
           </button>
           <h2 className="truncate text-center text-base font-semibold">{title}</h2>
           {onSave ? (
-            <Button type="submit" variant="primary" className="!rounded-full !px-4 !py-2" busy={saving}>
+            <Button type="submit" variant="primary" className={cx('!rounded-full !px-4 !py-2', saveAtBottom && 'max-sm:invisible')} busy={saving} tabIndex={saveAtBottom ? -1 : undefined}>
               {saveLabel}
             </Button>
           ) : (
@@ -299,6 +302,11 @@ export function FormScreen({
             )}
           </motion.div>
         </div>
+        {onSave && saveAtBottom && (
+          <div className="shrink-0 border-t border-stone-900/5 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden dark:border-white/10 dark:bg-stone-900">
+            <Button type="submit" variant="primary" className="w-full !rounded-2xl !py-3.5 text-base" busy={saving}>{saveLabel}</Button>
+          </div>
+        )}
       </motion.form>
     </div>,
     document.body,

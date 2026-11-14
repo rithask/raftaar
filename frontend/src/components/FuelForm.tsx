@@ -1,4 +1,4 @@
-import { MapPin } from '@phosphor-icons/react'
+import { MapPin, Plus } from '@phosphor-icons/react'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import { api, type FuelEntry, type Quote, type Suggestion, type Vehicle } from '../api'
@@ -63,6 +63,10 @@ export function FuelForm({
   const [notes, setNotes] = useState(entry?.notes ?? '')
   const [locating, setLocating] = useState(false)
   const [locError, setLocError] = useState<string | null>(null)
+  // Kept out of the way until wanted; open by themselves when they already have something in them.
+  const [more, setMore] = useState(() => !!(entry?.missedPrevious || entry?.stationName || entry?.region || entry?.notes || suggestion?.stationName))
+  const [pickVehicle, setPickVehicle] = useState(!vehicleId || !!suggestion)
+  const [pickWhen, setPickWhen] = useState(!!entry || !!suggestion)
 
   /**
    * The value that's worked out: the one that isn't among the two most recently filled-in fields. Empty fields
@@ -177,6 +181,7 @@ export function FuelForm({
       onDelete={entry ? () => confirm('Delete this fill-up?') && del.mutate(undefined) : undefined}
       deleting={del.isPending}
       deleteLabel="Delete fill-up"
+      saveAtBottom
     >
       <div className="space-y-4">
         {suggestion && (
@@ -186,21 +191,25 @@ export function FuelForm({
             {suggestion.hisaabAccount && <> · {suggestion.hisaabAccount}</>}
           </div>
         )}
-        {(vehicles.length > 1 || suggestion) && (
+        {vehicles.length > 1 && pickVehicle ? (
           <Field label="Vehicle">
             <Select value={vid ?? ''} onChange={(e) => setVid(Number(e.target.value))}>
               {vehicles.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
             </Select>
           </Field>
-        )}
+        ) : vehicles.length > 1 && vehicle ? (
+          // opened from a vehicle: say which, and let it be changed
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <span className="truncate font-medium">{vehicle.name}{vehicle.registration ? <span className="ml-2 font-mono text-xs text-stone-500">{vehicle.registration}</span> : null}</span>
+            <button type="button" onClick={() => setPickVehicle(true)} className="shrink-0 rounded-lg px-2 py-1 font-medium text-accent-strong active:bg-accent-soft">Change</button>
+          </div>
+        ) : null}
         <Field
           label="Odometer (km)"
           hint={below ? <span className="text-amber-600">Lower than the last reading ({km(lastOdometer)})</span> : estimatedOdometer ? `≈ ${km(estimatedOdometer)} going by your trips` : lastOdometer ? `Last reading ${km(lastOdometer)}` : undefined}
         >
           <Input inputMode="decimal" value={odometer} onChange={(e) => setOdometer(e.target.value)} placeholder={estimatedOdometer ? String(Math.round(estimatedOdometer)) : ''} autoFocus={!entry && !suggestion} />
         </Field>
-        <Field label="When"><DateTimeInput value={when} onChange={setWhen} /></Field>
-
         <div className="grid grid-cols-3 gap-2">
           {([
             ['price', `₹ per ${unit}`],
@@ -219,6 +228,24 @@ export function FuelForm({
         )}
 
         <Toggle checked={fullTank} onChange={setFullTank} label="Full tank" hint="Mileage is worked out between full tanks." />
+
+        {pickWhen ? (
+          <Field label="When"><DateTimeInput value={when} onChange={setWhen} /></Field>
+        ) : (
+          // almost every fill-up is logged at the pump: "now" unless you say otherwise
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <span><span className="text-stone-500">When</span> <span className="font-medium">now</span></span>
+            <button type="button" onClick={() => setPickWhen(true)} className="rounded-lg px-2 py-1 font-medium text-accent-strong active:bg-accent-soft">Change</button>
+          </div>
+        )}
+
+        {!more ? (
+          <button type="button" onClick={() => setMore(true)}
+            className="flex w-full items-center gap-2 rounded-2xl border border-dashed border-stone-900/15 px-4 py-3 text-sm font-medium text-stone-600 transition active:scale-[0.99] active:bg-stone-100 dark:border-white/15 dark:text-stone-300 dark:active:bg-stone-800">
+            <Plus size={16} /> More details <span className="font-normal text-stone-400">pump, skipped fill-up, notes</span>
+          </button>
+        ) : (
+        <>
         <Toggle checked={missed} onChange={setMissed} label="I skipped logging the last fill-up" hint="So this stretch doesn't throw off your mileage." />
 
         <div className="space-y-3 rounded-2xl bg-stone-100 p-3 dark:bg-stone-800/60">
@@ -239,6 +266,8 @@ export function FuelForm({
         </div>
 
         <Field label="Notes"><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+        </>
+        )}
         <ErrorText error={save.error ?? del.error} />
       </div>
     </FormScreen>
