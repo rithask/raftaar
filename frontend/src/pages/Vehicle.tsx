@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, GasPump, Path, PencilSimple, Receipt, Scroll, Warning, Wrench } from '@phosphor-icons/react'
+import { ArrowLeft, Bell, GasPump, Gauge, Plus, Path, PencilSimple, Receipt, Scroll, Warning, Wrench } from '@phosphor-icons/react'
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
@@ -52,7 +52,7 @@ export function VehiclePage() {
   return (
     <div className="space-y-5 pb-20 [--sticky-top:3.25rem] sm:pb-0 sm:[--sticky-top:0px]">
       <div ref={headRef}>
-        <Header vehicle={v} onEdit={() => setOpen({ kind: 'vehicle' })} onFuel={() => setOpen({ kind: 'fuel' })} />
+        <Header vehicle={v} onEdit={() => setOpen({ kind: 'vehicle' })} onFuel={() => setOpen({ kind: 'fuel' })} onPick={setOpen} />
       </div>
       <CompactBar vehicle={v} visible={!headInView} onEdit={() => setOpen({ kind: 'vehicle' })} />
 
@@ -141,7 +141,7 @@ export function VehiclePage() {
       </div>
       </div>
 
-      <FuelFab onClick={() => setOpen({ kind: 'fuel' })} hidden={open !== null} />
+      <FuelFab onClick={() => setOpen({ kind: 'fuel' })} onPick={setOpen} hidden={open !== null} />
 
       <AnimatePresence>
         {open?.kind === 'vehicle' && <VehicleForm key="vehicle" open onClose={close} vehicle={v} />}
@@ -196,7 +196,7 @@ function CompactBar({ vehicle: v, visible, onEdit }: { vehicle: Vehicle; visible
 
 const glass = 'rounded-full p-2.5 backdrop-blur transition active:scale-90'
 
-function Header({ vehicle: v, onEdit, onFuel }: { vehicle: Vehicle; onEdit: () => void; onFuel: () => void }) {
+function Header({ vehicle: v, onEdit, onFuel, onPick }: { vehicle: Vehicle; onEdit: () => void; onFuel: () => void; onPick: (o: Open) => void }) {
   const subtitle = [v.make, v.model, v.year].filter(Boolean).join(' ')
   const facts = [kindLabel[v.kind], fuelLabel[v.fuelType]].join(' · ')
   const plate = v.registration && (
@@ -204,9 +204,10 @@ function Header({ vehicle: v, onEdit, onFuel }: { vehicle: Vehicle; onEdit: () =
       {v.registration}
     </span>
   )
-  const desktopFuel = (
-    <div className="hidden shrink-0 sm:block">
+  const desktopFuel = (look: 'glass' | 'plain') => (
+    <div className="hidden shrink-0 items-center gap-2 sm:flex">
       <Button variant="primary" onClick={onFuel}><GasPump size={16} /> Add fuel</Button>
+      <QuickAddMenu onPick={onPick} look={look} />
     </div>
   )
 
@@ -226,7 +227,7 @@ function Header({ vehicle: v, onEdit, onFuel }: { vehicle: Vehicle; onEdit: () =
               <p className="truncate text-sm text-white/75">{subtitle || facts}</p>
               {plate && <div className="mt-1.5">{plate}</div>}
             </div>
-            {desktopFuel}
+            {desktopFuel('glass')}
           </div>
         </div>
       </div>
@@ -250,7 +251,7 @@ function Header({ vehicle: v, onEdit, onFuel }: { vehicle: Vehicle; onEdit: () =
           <p className="truncate text-sm text-stone-500">{subtitle ? `${subtitle} · ${fuelLabel[v.fuelType]}` : facts}</p>
           {plate && <div className="mt-1.5">{plate}</div>}
         </div>
-        {desktopFuel}
+        {desktopFuel('plain')}
       </div>
     </div>
   )
@@ -281,27 +282,85 @@ function AttentionChip({ bad, icon, title, detail, onClick }: { bad: boolean; ic
   )
 }
 
-/** The main action on a phone: a round Fuel button above the tab bar, within reach of the thumb. */
-function FuelFab({ onClick, hidden }: { onClick: () => void; hidden: boolean }) {
+/**
+ * The main actions on a phone, above the tab bar within reach of the thumb: Fuel (the common one), and a small
+ * "+" beside it for everything else you might log.
+ */
+function FuelFab({ onClick, onPick, hidden }: { onClick: () => void; onPick: (o: Open) => void; hidden: boolean }) {
   return createPortal(
     <AnimatePresence>
       {!hidden && (
-        <motion.button
+        <motion.div
           key="fab"
-          type="button"
-          onClick={onClick}
-          aria-label="Add fuel"
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1, transition: { ...spring, delay: 0.15 } }}
           exit={{ scale: 0.6, opacity: 0, transition: { duration: 0.12 } }}
-          whileTap={{ scale: 0.9 }}
-          className="fixed right-4 bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+4.75rem)] z-40 flex items-center gap-2 rounded-full bg-accent py-3.5 pr-5 pl-4 font-semibold text-on-accent shadow-lg shadow-black/25 sm:hidden"
+          className="fixed right-4 bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+4.75rem)] z-40 flex items-center gap-2 sm:hidden"
         >
-          <GasPump size={22} weight="bold" /> Fuel
-        </motion.button>
+          <QuickAddMenu onPick={onPick} look="fab" />
+          <motion.button type="button" onClick={onClick} aria-label="Add fuel" whileTap={{ scale: 0.9 }}
+            className="flex items-center gap-2 rounded-full bg-accent py-3.5 pr-5 pl-4 font-semibold text-on-accent shadow-lg shadow-black/25">
+            <GasPump size={22} weight="bold" /> Fuel
+          </motion.button>
+        </motion.div>
       )}
     </AnimatePresence>,
     document.body,
+  )
+}
+
+const QUICK: { label: string; icon: ReactNode; open: Open }[] = [
+  { label: 'Log service', icon: <Wrench size={18} />, open: { kind: 'service' } },
+  { label: 'Add expense', icon: <Receipt size={18} />, open: { kind: 'expense' } },
+  { label: 'Update odometer', icon: <Gauge size={18} />, open: { kind: 'odometer' } },
+  { label: 'Add paper', icon: <Scroll size={18} />, open: { kind: 'doc' } },
+  { label: 'Add reminder', icon: <Bell size={18} />, open: { kind: 'reminder' } },
+]
+
+/** A round "+" that opens the other things you can add for this vehicle. Closes on a pick, outside tap or Escape. */
+function QuickAddMenu({ onPick, look }: { onPick: (o: Open) => void; look: 'fab' | 'glass' | 'plain' }) {
+  // over the photo the menu opens upwards: the photo's frame would clip it below
+  const placement = look === 'plain' ? 'below' : 'above'
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const away = (e: PointerEvent) => !root.current?.contains(e.target as Node) && setOpen(false)
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('pointerdown', away)
+    document.addEventListener('keydown', esc)
+    return () => {
+      document.removeEventListener('pointerdown', away)
+      document.removeEventListener('keydown', esc)
+    }
+  }, [open])
+  return (
+    <div ref={root} className="relative">
+      <motion.button type="button" onClick={() => setOpen((o) => !o)} aria-label="Add something else" aria-expanded={open} aria-haspopup="menu"
+        whileTap={{ scale: 0.9 }} animate={{ rotate: open ? 45 : 0 }} transition={spring}
+        className={cx('flex items-center justify-center rounded-full',
+          look === 'fab' && 'size-12 bg-white text-stone-900 shadow-lg shadow-black/20 ring-1 ring-stone-900/10 dark:bg-stone-800 dark:text-stone-100 dark:ring-white/10',
+          look === 'glass' && 'size-10 bg-black/35 text-white backdrop-blur hover:bg-black/50',
+          look === 'plain' && 'size-10 bg-stone-200 text-stone-800 hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-100 dark:hover:bg-stone-700')}>
+        <Plus size={placement === 'above' ? 22 : 18} weight="bold" />
+      </motion.button>
+      <AnimatePresence>
+        {open && (
+          <motion.div role="menu" key="menu"
+            initial={{ opacity: 0, scale: 0.92, y: placement === 'above' ? 8 : -8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.1 } }}
+            transition={spring}
+            className={cx('absolute right-0 z-50 w-52 overflow-hidden rounded-2xl bg-white p-1.5 text-stone-900 shadow-xl ring-1 ring-stone-900/10 dark:bg-stone-800 dark:text-stone-100 dark:ring-white/10',
+              placement === 'above' ? 'bottom-full mb-2 origin-bottom-right' : 'top-full mt-2 origin-top-right')}>
+            {QUICK.map((q) => (
+              <button key={q.label} type="button" role="menuitem" onClick={() => { setOpen(false); onPick(q.open) }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition active:scale-[0.98] hover:bg-stone-100 active:bg-stone-100 dark:hover:bg-stone-700 dark:active:bg-stone-700">
+                <span className="text-stone-500 dark:text-stone-400">{q.icon}</span> {q.label}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 

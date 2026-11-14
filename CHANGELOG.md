@@ -5,6 +5,11 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+### Added
+
+- Quick add on the vehicle page: a + next to the Fuel button (and next to Add fuel on larger screens) to log a
+  service, add an expense, update the odometer, or add a paper or reminder, without finding the right tab first.
+
 ### Changed
 
 - Vehicle page on phones: a shorter photo, and what's due soon as a row of chips instead of a card, so the first
