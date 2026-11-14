@@ -5,6 +5,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-14
+
 ### Added
 
 - Odometer history. Tap the odometer on a vehicle's page to see every reading it has, newest first, and where each
