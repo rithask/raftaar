@@ -5,6 +5,12 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+### Added
+
+- Odometer history. Tap the odometer on a vehicle's page to see every reading it has, newest first, and where each
+  came from (a fill-up, a service, an expense, the purchase, or entered by hand). Readings you entered by hand can
+  be removed there; the others are changed with their fill-up, service or expense.
+
 ## [0.3.2] - 2026-11-13
 
 ### Changed
