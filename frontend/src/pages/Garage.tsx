@@ -9,17 +9,20 @@ import { Badge, Button, Empty, ErrorText, listItem, listParent, Loading, softSpr
 import { KindIcon, VehicleArt } from '../components/VehicleArt'
 import { VehicleForm } from '../components/VehicleForm'
 import { date, economyUnit, km, money, n1 } from '../format'
+import { useHidden } from '../undo'
 
 export function GaragePage() {
   const garage = useQuery({ queryKey: ['garage'], queryFn: () => api<Garage>('/garage') })
   const [adding, setAdding] = useState(false)
   const [fuelFor, setFuelFor] = useState<Card | null>(null)
+  const hidden = useHidden()
 
   if (garage.isLoading) return <Loading />
   if (garage.error) return <ErrorText error={garage.error} />
   const data = garage.data!
-  const active = data.vehicles.filter((c) => !c.vehicle.archived)
-  const retired = data.vehicles.filter((c) => c.vehicle.archived)
+  const all = data.vehicles.filter((c) => !hidden(`vehicle:${c.vehicle.id}`))
+  const active = all.filter((c) => !c.vehicle.archived)
+  const retired = all.filter((c) => c.vehicle.archived)
   const vehicles: Vehicle[] = active.map((c) => c.vehicle)
   const waiting = data.toConfirm + data.tripsToSort
 
@@ -46,7 +49,7 @@ export function GaragePage() {
       )}
       </AnimatePresence>
 
-      {data.vehicles.length === 0 ? (
+      {all.length === 0 ? (
         <Empty icon={<Gauge size={48} />} title="Your garage is empty">
           Add a vehicle to start tracking fuel, mileage and services.
           <div className="mt-4"><Button variant="primary" onClick={() => setAdding(true)}><Plus size={16} /> Add a vehicle</Button></div>

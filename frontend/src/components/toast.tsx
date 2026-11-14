@@ -2,22 +2,23 @@ import { CheckCircle, WarningCircle } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useSyncExternalStore } from 'react'
 
-type Toast = { id: number; text: string; tone: 'ok' | 'bad' }
+type Action = { label: string; onClick: () => void }
+type Toast = { id: number; text: string; tone: 'ok' | 'bad'; action?: Action }
 let toasts: Toast[] = []
 let next = 1
 const listeners = new Set<() => void>()
 const emit = () => listeners.forEach((l) => l())
 
 /** A short confirmation at the bottom of the screen ("Fill-up saved"). */
-export function toast(text: string, tone: Toast['tone'] = 'ok') {
-  const t = { id: next++, text, tone }
+export function toast(text: string, tone: Toast['tone'] = 'ok', opts: { action?: Action; duration?: number } = {}) {
+  const t = { id: next++, text, tone, action: opts.action }
   toasts = [t] // only the newest: a pile of them covers what you're looking at
   emit()
   if (tone === 'ok' && 'vibrate' in navigator) navigator.vibrate?.(8) // a tiny tick on Android
   setTimeout(() => {
     toasts = toasts.filter((x) => x.id !== t.id)
     emit()
-  }, tone === 'ok' ? 2200 : 4000)
+  }, opts.duration ?? (tone === 'ok' ? 2200 : 4000))
 }
 
 export function Toasts() {
@@ -35,7 +36,8 @@ export function Toasts() {
     return () => document.removeEventListener('touchstart', noop)
   }, [])
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+5rem)] z-[60] flex flex-col items-center gap-2 px-4 sm:bottom-6" aria-live="polite">
+    // above the tab bar, and above the floating Fuel button when a page shows one ([data-fab])
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+5rem)] z-[60] flex flex-col items-center gap-2 px-4 sm:bottom-6 max-sm:[:root:has([data-fab])_&]:bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+9rem)]" aria-live="polite">
       <AnimatePresence mode="popLayout">
       {list.map((t) => (
         <motion.div
@@ -48,6 +50,12 @@ export function Toasts() {
         >
           {t.tone === 'ok' ? <CheckCircle size={18} weight="fill" className="text-emerald-400 dark:text-emerald-600" /> : <WarningCircle size={18} weight="fill" className="text-red-400" />}
           {t.text}
+          {t.action && (
+            <button type="button" onClick={() => { t.action!.onClick(); toasts = toasts.filter((x) => x.id !== t.id); emit() }}
+              className="pointer-events-auto -my-1 ml-1 rounded-full px-3 py-1 font-semibold text-sky-300 transition active:scale-95 active:bg-white/10 dark:text-sky-700 dark:active:bg-black/10">
+              {t.action.label}
+            </button>
+          )}
         </motion.div>
       ))}
       </AnimatePresence>

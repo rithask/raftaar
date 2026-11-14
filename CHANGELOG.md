@@ -37,6 +37,9 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 - Settings is a short list (Connections, Notifications, Fuel prices, Account), each with a one-line summary. On a
   phone each opens on its own page, and back returns to the list; on larger screens the list stays on the left with
   the section beside it.
+- Deleting no longer asks "are you sure?". A deleted fill-up, service, reminder, paper, expense, vehicle,
+  notification channel or fuel price disappears at once, and the toast offers Undo for 5 seconds before the delete
+  is sent. Leaving the page sends it straight away. Toasts on the vehicle page sit above the floating Fuel button.
 
 ### Fixed
 

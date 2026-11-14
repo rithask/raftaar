@@ -5,6 +5,7 @@ import { api, type FuelEntry, type Quote, type Suggestion, type Vehicle } from '
 import { fromLocalInput, fuelUnit, km, money2, num, toLocalInput } from '../format'
 import { INDIAN_STATES, useSave } from '../hooks'
 import { queueFill, unreachable } from '../outbox'
+import { deleteWithUndo } from '../undo'
 import { DateTimeInput } from './DateField'
 import { Badge, Button, ErrorText, Field, FormScreen, Input, Select, TextArea, Toggle } from './ui'
 
@@ -180,7 +181,6 @@ export function FuelForm({
       return { queued: true }
     }
   }, onClose, (r) => (r?.queued ? "Saved on this phone. It'll be sent when you're back online." : suggestion ? 'Fill-up added' : entry ? 'Fill-up updated' : 'Fill-up saved'))
-  const del = useSave(() => api(`/fuel/${entry!.id}`, { method: 'DELETE' }), onClose, 'Fill-up deleted')
 
   const odo = num(odometer)
   const below = odo != null && lastOdometer != null && !entry && odo < lastOdometer
@@ -192,8 +192,10 @@ export function FuelForm({
       title={suggestion ? 'Confirm fill-up' : entry ? 'Edit fill-up' : 'Add fill-up'}
       onSave={() => save.mutate(undefined)}
       saving={save.isPending}
-      onDelete={entry ? () => confirm('Delete this fill-up?') && del.mutate(undefined) : undefined}
-      deleting={del.isPending}
+      onDelete={entry ? () => {
+        deleteWithUndo({ text: 'Fill-up deleted', what: 'the fill-up', hide: `fuel:${entry.id}`, run: () => api(`/fuel/${entry.id}`, { method: 'DELETE' }) })
+        onClose()
+      } : undefined}
       deleteLabel="Delete fill-up"
       saveAtBottom
     >
@@ -282,7 +284,7 @@ export function FuelForm({
         <Field label="Notes"><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
         </>
         )}
-        <ErrorText error={save.error ?? del.error} />
+        <ErrorText error={save.error} />
       </div>
     </FormScreen>
   )

@@ -10,6 +10,7 @@ type Opts = { method?: string; body?: unknown; form?: FormData }
 
 export async function api<T = unknown>(path: string, opts: Opts = {}): Promise<T> {
   const init: RequestInit = { method: opts.method ?? (opts.body !== undefined || opts.form ? 'POST' : 'GET'), credentials: 'same-origin' }
+  if (init.method === 'DELETE') init.keepalive = true // a delete sent as the page closes (see undo.ts) still goes through
   if (opts.form) init.body = opts.form
   else if (opts.body !== undefined) {
     init.body = JSON.stringify(opts.body)

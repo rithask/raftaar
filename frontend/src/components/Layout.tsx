@@ -7,6 +7,7 @@ import { api, imageUrl, signOut, type Garage as GarageData } from '../api'
 import { cx, spring } from './ui'
 import { ErrorBoundary } from './ErrorBoundary'
 import { OutboxBar } from './OutboxBar'
+import { useHidden } from '../undo'
 import { Logo } from './Logo'
 import { KindIcon } from './VehicleArt'
 
@@ -114,7 +115,8 @@ function Sidebar({ garage, waiting, collapsed, onToggle }: { garage?: GarageData
   const { pathname } = useLocation()
   const qc = useQueryClient()
   const current = pathname.startsWith('/settings') ? '/settings' : pathname
-  const vehicles = (garage?.vehicles ?? []).filter((c) => !c.vehicle.archived)
+  const hidden = useHidden()
+  const vehicles = (garage?.vehicles ?? []).filter((c) => !c.vehicle.archived && !hidden(`vehicle:${c.vehicle.id}`))
   const leave = async () => {
     await signOut()
     qc.setQueryData(['me'], { username: null })

@@ -6,6 +6,7 @@ import { Link, Navigate, useParams } from 'react-router-dom'
 import { Badge, Button, cx, ErrorText, Field, Input, Loading, Panel, rowPress, Select, Toggle } from '../components/ui'
 import { ago, date, fuelLabel, money2, num } from '../format'
 import { INDIAN_STATES, useSave } from '../hooks'
+import { deleteWithUndo, useHidden } from '../undo'
 
 const META: Record<Integration['name'], { title: string; icon: ReactNode; off: ReactNode; what: string; run?: string }> = {
   geopulse: { title: 'GeoPulse', icon: <Path size={20} />, off: <>Set <Code>GEOPULSE_URL</Code> and <Code>GEOPULSE_TOKEN</Code> to connect.</>, what: 'Brings in your trips and spots stops at fuel pumps.', run: 'Sync now' },
@@ -148,7 +149,8 @@ function FuelPrices() {
   const prices = useQuery({ queryKey: ['fuel-prices'], queryFn: () => api<FuelPrice[]>('/fuel-prices') })
   const [f, setF] = useState({ region: '', district: '', fuelType: 'PETROL' as FuelType, price: '' })
   const add = useSave(() => api('/fuel-prices', { body: { ...f, district: f.district || null, price: num(f.price) } }), () => setF((o) => ({ ...o, price: '' })), 'Price saved')
-  const del = useSave((id: number) => api(`/fuel-prices/${id}`, { method: 'DELETE' }), undefined, 'Price removed')
+  const hiddenPrice = useHidden()
+  const remove = (p: FuelPrice) => deleteWithUndo({ text: 'Price removed', what: 'the price', hide: `price:${p.id}`, run: () => api(`/fuel-prices/${p.id}`, { method: 'DELETE' }) })
   const src = { MANUAL: 'you', FILL_UP: 'fill-up', LOOKUP: 'looked up' } as const
   return (
     <section className="space-y-3">
@@ -172,14 +174,14 @@ function FuelPrices() {
       </Panel>
       {(prices.data?.length ?? 0) > 0 && (
         <div className="divide-y divide-stone-900/5 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-900/5 dark:divide-white/5 dark:bg-stone-900 dark:ring-white/10">
-          {prices.data!.map((p) => (
+          {prices.data!.filter((p) => !hiddenPrice(`price:${p.id}`)).map((p) => (
             <div key={p.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
               <div className="min-w-0 flex-1">
                 <div className="font-medium">{p.region}{p.district ? `, ${p.district}` : ''} · {fuelLabel[p.fuelType]}</div>
                 <div className="text-xs text-stone-500">{date(p.effectiveAt)} · {src[p.source]}</div>
               </div>
               <div className="num font-semibold">{money2(p.price)}</div>
-              <button onClick={() => del.mutate(p.id)} className="-m-1 rounded-lg p-2 text-stone-400 transition hover:text-red-600 active:scale-90 active:bg-red-500/10 active:text-red-600" aria-label="Remove price"><Trash size={16} /></button>
+              <button onClick={() => remove(p)} className="-m-1 rounded-lg p-2 text-stone-400 transition hover:text-red-600 active:scale-90 active:bg-red-500/10 active:text-red-600" aria-label="Remove price"><Trash size={16} /></button>
             </div>
           ))}
         </div>
@@ -199,7 +201,8 @@ function NotificationChannels() {
   }, 'Channel added')
   const test = useSave((id: number) => api<Channel>(`/notifications/channels/${id}/test`, { method: 'POST' }), undefined, (c) => (c.lastOk ? 'Test sent' : 'Test failed'))
   const toggle = useSave((c: { id: number; enabled: boolean }) => api(`/notifications/channels/${c.id}`, { method: 'PUT', body: { enabled: c.enabled } }))
-  const del = useSave((id: number) => api(`/notifications/channels/${id}`, { method: 'DELETE' }), undefined, 'Channel removed')
+  const hidden = useHidden()
+  const remove = (c: Channel) => deleteWithUndo({ text: 'Channel removed', what: 'the channel', hide: `channel:${c.id}`, run: () => api(`/notifications/channels/${c.id}`, { method: 'DELETE' }) })
   const data = list.data
 
   return (
@@ -222,7 +225,7 @@ function NotificationChannels() {
       {list.isLoading && <Loading />}
       {data && data.channels.length > 0 && (
         <div className="divide-y divide-stone-900/5 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-900/5 dark:divide-white/5 dark:bg-stone-900 dark:ring-white/10">
-          {data.channels.map((c, i) => (
+          {data.channels.filter((c) => c.id == null || !hidden(`channel:${c.id}`)).map((c, i) => (
             <div key={c.id ?? `env-${i}`} className="space-y-2 px-4 py-3">
               <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
@@ -237,7 +240,7 @@ function NotificationChannels() {
                 {c.id != null && (
                   <>
                     <Button variant="ghost" className="!py-1.5 text-xs" busy={test.isPending && test.variables === c.id} onClick={() => test.mutate(c.id!)}>Test</Button>
-                    <button onClick={() => confirm('Remove this channel?') && del.mutate(c.id!)} className="-m-1 rounded-lg p-2 text-stone-400 transition hover:text-red-600 active:scale-90 active:bg-red-500/10 active:text-red-600" aria-label="Remove channel"><Trash size={16} /></button>
+                    <button onClick={() => remove(c)} className="-m-1 rounded-lg p-2 text-stone-400 transition hover:text-red-600 active:scale-90 active:bg-red-500/10 active:text-red-600" aria-label="Remove channel"><Trash size={16} /></button>
                   </>
                 )}
               </div>
@@ -249,7 +252,7 @@ function NotificationChannels() {
         </div>
       )}
       {data?.apprise && <p className="text-xs text-stone-500">{data.apprise}</p>}
-      <ErrorText error={test.error ?? toggle.error ?? del.error} />
+      <ErrorText error={test.error ?? toggle.error} />
     </section>
   )
 }

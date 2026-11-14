@@ -6,14 +6,16 @@ import { api, type DocView, type Vehicle } from '../api'
 import { DocumentForm } from '../components/Forms'
 import { needsRenewal, PaperRow, paperSub } from '../components/PaperRow'
 import { Button, Empty, listParent, Loading, SectionHeader } from '../components/ui'
+import { useHidden } from '../undo'
 
 /** Every certificate and paper in one place: what needs attention first (expired, then expiring), then the rest. */
 export function PapersPage() {
   const docs = useQuery({ queryKey: ['documents'], queryFn: () => api<DocView[]>('/documents') })
   const vehicles = useQuery({ queryKey: ['vehicles'], queryFn: () => api<Vehicle[]>('/vehicles') })
   const [open, setOpen] = useState<{ d?: DocView; renewing?: boolean } | null>(null)
+  const hidden = useHidden()
   if (docs.isLoading) return <Loading />
-  const list = docs.data ?? []
+  const list = (docs.data ?? []).filter((d) => !hidden(`doc:${d.document.id}`))
   const vs = (vehicles.data ?? []).filter((v) => !v.archived)
   const name = (id: number | null) => (id == null ? 'You' : (vehicles.data ?? []).find((v) => v.id === id)?.name ?? '—')
   const byExpiry = (a: DocView, b: DocView) => (a.document.expiresOn ?? '').localeCompare(b.document.expiresOn ?? '')

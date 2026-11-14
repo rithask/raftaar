@@ -5,6 +5,7 @@ import { Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { api, type DocType, type Doc, type Expense, type ExpenseCategory, type Odometer, type OdometerReading, type Reminder, type ReminderView, type ServiceRow, type Suggestion, type Vehicle } from '../api'
 import { date, docLabel, expenseLabel, fromLocalInput, km, n1, num, time, toLocalInput, today, toLocalDate } from '../format'
 import { useSave } from '../hooks'
+import { deleteWithUndo } from '../undo'
 import { DateInput, DateTimeInput, plusMonths } from './DateField'
 import { axis, ChartCard, evenTicks, grid, margin, short, tooltipStyle } from './charts'
 import { Button, Chip, ErrorText, Field, FormScreen, Input, SectionHeader, Segmented, Select, TextArea, Toggle } from './ui'
@@ -28,11 +29,10 @@ export function ServiceForm({ open, onClose, vehicleId, row, reminders, odometer
   const titleFromReminders = () => reminders.filter((x) => completes.includes(x.reminder.id)).map((x) => x.reminder.title).join(', ')
   const body = () => ({ ...f, title: f.title || titleFromReminders(), odometer: num(f.odometer), cost: num(f.cost) ?? 0, completes })
   const save = useSave(() => (r ? api(`/services/${r.id}`, { method: 'PUT', body: body() }) : api(`/vehicles/${vehicleId}/services`, { body: body() })), onClose, 'Service saved')
-  const del = useSave(() => api(`/services/${r!.id}`, { method: 'DELETE' }), onClose, 'Service deleted')
   const toggle = (id: number) => setCompletes((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
 
   return (
-    <FormScreen open={open} onClose={onClose} title={r ? 'Edit service' : 'Log a service'} onSave={() => save.mutate(undefined)} saving={save.isPending} onDelete={r ? () => confirm('Delete this service?') && del.mutate(undefined) : undefined} deleting={del.isPending}>
+    <FormScreen open={open} onClose={onClose} title={r ? 'Edit service' : 'Log a service'} onSave={() => save.mutate(undefined)} saving={save.isPending} onDelete={r ? () => { deleteWithUndo({ text: 'Service deleted', what: 'the service', hide: `service:${r.id}`, run: () => api(`/services/${r.id}`, { method: 'DELETE' }) }); onClose() } : undefined}>
       <div className="space-y-4">
         {reminders.length > 0 && (
           <div>
@@ -51,7 +51,7 @@ export function ServiceForm({ open, onClose, vehicleId, row, reminders, odometer
         <Field label="Date"><DateInput value={f.servicedOn} onChange={(v) => set('servicedOn', v)} /></Field>
         <Field label="Workshop"><Input value={f.workshop} onChange={(e) => set('workshop', e.target.value)} /></Field>
         <Field label="Notes"><TextArea value={f.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Parts replaced, things to watch" /></Field>
-        <ErrorText error={save.error ?? del.error} />
+        <ErrorText error={save.error} />
       </div>
     </FormScreen>
   )
@@ -100,10 +100,9 @@ export function ReminderForm({ open, onClose, vehicleId, reminder, odometer }: {
     notes: f.notes || null,
   })
   const save = useSave(() => (reminder ? api(`/reminders/${reminder.id}`, { method: 'PUT', body: body() }) : api(`/vehicles/${vehicleId}/reminders`, { body: body() })), onClose, 'Reminder saved')
-  const del = useSave(() => api(`/reminders/${reminder!.id}`, { method: 'DELETE' }), onClose, 'Reminder deleted')
 
   return (
-    <FormScreen open={open} onClose={onClose} title={reminder ? 'Edit reminder' : 'New reminder'} onSave={() => save.mutate(undefined)} saving={save.isPending} onDelete={reminder ? () => confirm('Delete this reminder?') && del.mutate(undefined) : undefined} deleting={del.isPending}>
+    <FormScreen open={open} onClose={onClose} title={reminder ? 'Edit reminder' : 'New reminder'} onSave={() => save.mutate(undefined)} saving={save.isPending} onDelete={reminder ? () => { deleteWithUndo({ text: 'Reminder deleted', what: 'the reminder', hide: `reminder:${reminder.id}`, run: () => api(`/reminders/${reminder.id}`, { method: 'DELETE' }) }); onClose() } : undefined}>
       <div className="space-y-4">
         {!reminder && (
           <div className="flex flex-wrap gap-2">
@@ -140,7 +139,7 @@ export function ReminderForm({ open, onClose, vehicleId, reminder, odometer }: {
           <Field label="Remind me (km before)"><Input inputMode="numeric" value={f.notifyKmBefore} onChange={(e) => set('notifyKmBefore', e.target.value)} /></Field>
         </div>
         {reminder && <Toggle checked={f.active} onChange={(v) => set('active', v)} label="Active" />}
-        <ErrorText error={save.error ?? del.error} />
+        <ErrorText error={save.error} />
       </div>
     </FormScreen>
   )
@@ -192,14 +191,13 @@ export function DocumentForm({ open, onClose, vehicles, vehicleId, doc, renewing
       await api(`/documents/${saved.id}/file`, { method: 'PUT', form })
     }
   }, onClose, renewing ? 'Renewed. Reminders start over for the new date.' : 'Saved')
-  const del = useSave(() => api(`/documents/${doc!.id}`, { method: 'DELETE' }), onClose, 'Deleted')
   const renew = () => setF((o) => ({ ...o, ...nextTerm(o.issuedOn || null, o.expiresOn || null) }))
   const from = f.issuedOn || undefined
 
   return (
     <FormScreen open={open} onClose={onClose} title={renewing && doc ? `Renew ${doc.title}` : doc ? doc.title : 'Add a paper'} onSave={() => save.mutate(undefined)} saving={save.isPending}
       saveLabel={renewing ? 'Save renewal' : 'Save'}
-      onDelete={doc && !renewing ? () => confirm('Delete this paper?') && del.mutate(undefined) : undefined} deleting={del.isPending}>
+      onDelete={doc && !renewing ? () => { deleteWithUndo({ text: 'Paper deleted', what: 'the paper', hide: `doc:${doc.id}`, run: () => api(`/documents/${doc.id}`, { method: 'DELETE' }) }); onClose() } : undefined}>
       <div className="space-y-4">
         {renewing && (
           <p className="rounded-xl bg-accent-soft px-3 py-2.5 text-sm text-stone-700 dark:text-stone-200">
@@ -246,7 +244,7 @@ export function DocumentForm({ open, onClose, vehicles, vehicleId, doc, renewing
           <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </div>
         <Field label="Notes"><TextArea value={f.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
-        <ErrorText error={save.error ?? del.error} />
+        <ErrorText error={save.error} />
       </div>
     </FormScreen>
   )
@@ -274,10 +272,9 @@ export function ExpenseForm({ open, onClose, vehicles, vehicleId, expense, sugge
     if (expense) return api(`/expenses/${expense.id}`, { method: 'PUT', body: body() })
     return api(`/vehicles/${f.vehicleId}/expenses`, { body: body() })
   }, onClose, 'Expense saved')
-  const del = useSave(() => api(`/expenses/${expense!.id}`, { method: 'DELETE' }), onClose, 'Expense deleted')
 
   return (
-    <FormScreen open={open} onClose={onClose} title={suggestion ? 'Add as expense' : expense ? 'Edit expense' : 'Add expense'} onSave={() => save.mutate(undefined)} saving={save.isPending} onDelete={expense ? () => confirm('Delete this expense?') && del.mutate(undefined) : undefined} deleting={del.isPending}>
+    <FormScreen open={open} onClose={onClose} title={suggestion ? 'Add as expense' : expense ? 'Edit expense' : 'Add expense'} onSave={() => save.mutate(undefined)} saving={save.isPending} onDelete={expense ? () => { deleteWithUndo({ text: 'Expense deleted', what: 'the expense', hide: `expense:${expense.id}`, run: () => api(`/expenses/${expense.id}`, { method: 'DELETE' }) }); onClose() } : undefined}>
       <div className="space-y-4">
         {(suggestion || vehicles.length > 1) && !expense && (
           <Field label="Vehicle">
@@ -301,7 +298,7 @@ export function ExpenseForm({ open, onClose, vehicles, vehicleId, expense, sugge
         </div>
         <Field label="Shop"><Input value={f.vendor} onChange={(e) => set('vendor', e.target.value)} /></Field>
         <Field label="Notes"><TextArea value={f.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
-        <ErrorText error={save.error ?? del.error} />
+        <ErrorText error={save.error} />
       </div>
     </FormScreen>
   )

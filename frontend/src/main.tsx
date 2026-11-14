@@ -8,6 +8,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Toasts } from './components/toast'
+import { setUndoClient } from './undo'
 
 // Offline is handled by the app itself: data loads are still tried (the service worker answers from what it
 // kept), and saves always run (a fill-up goes to the outbox; others say there's no connection) instead of
@@ -18,6 +19,8 @@ const client = new QueryClient({
     mutations: { networkMode: 'always' },
   },
 })
+
+setUndoClient(client) // deletes refresh the lists once they're sent
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

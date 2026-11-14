@@ -17,6 +17,7 @@ import { VehicleForm } from '../components/VehicleForm'
 import { date, dateTime, economyUnit, today, expenseLabel, fuelLabel, kindLabel, km, money, money2, n1, n2 } from '../format'
 import { useSave } from '../hooks'
 import { amounts, useOutbox } from '../outbox'
+import { useHidden } from '../undo'
 
 type Tab = 'fuel' | 'upkeep' | 'papers' | 'spend' | 'trips'
 const TABS: Tab[] = ['fuel', 'upkeep', 'papers', 'spend', 'trips']
@@ -40,6 +41,7 @@ export function VehiclePage() {
   const close = () => setOpen(null)
   const headRef = useRef<HTMLDivElement>(null)
   const headInView = useInView(headRef, !summary.isLoading)
+  const hidden = useHidden()
 
   if (summary.isLoading) return <Loading />
   if (summary.error) return <ErrorText error={summary.error} />
@@ -47,8 +49,9 @@ export function VehiclePage() {
   const v = s.vehicle
   const odo = s.odometer.estimated ?? s.odometer.known
   const activeVehicles = (vehicles.data ?? [v]).filter((x) => !x.archived || x.id === v.id)
-  const due = s.reminders.filter((r) => r.status.state === 'OVERDUE' || r.status.state === 'DUE_SOON')
-  const papers = s.documents.filter((d) => d.state === 'EXPIRED' || d.state === 'EXPIRING')
+  const due = s.reminders.filter((r) => (r.status.state === 'OVERDUE' || r.status.state === 'DUE_SOON') && !hidden(`reminder:${r.reminder.id}`))
+  const docs = s.documents.filter((d) => !hidden(`doc:${d.document.id}`))
+  const papers = docs.filter((d) => d.state === 'EXPIRED' || d.state === 'EXPIRING')
   const worst = (bad: boolean, any: boolean) => (bad ? 'bad' : any ? 'warn' : undefined)
 
   return (
@@ -134,7 +137,7 @@ export function VehiclePage() {
               <ServicesSection id={id} onOpen={(row) => setOpen({ kind: 'service', row })} onAdd={() => setOpen({ kind: 'service' })} />
             </>
           )}
-          {tab === 'papers' && <PapersSection docs={s.documents} onOpen={(d) => setOpen({ kind: 'doc', d })} onRenew={(d) => setOpen({ kind: 'doc', d, renewing: true })} onAdd={() => setOpen({ kind: 'doc' })} />}
+          {tab === 'papers' && <PapersSection docs={docs} onOpen={(d) => setOpen({ kind: 'doc', d })} onRenew={(d) => setOpen({ kind: 'doc', d, renewing: true })} onAdd={() => setOpen({ kind: 'doc' })} />}
           {tab === 'spend' && <SpendTab id={id} summary={s} onOpen={(e) => setOpen({ kind: 'expense', e })} onAdd={() => setOpen({ kind: 'expense' })} />}
           {tab === 'trips' && <TripsTab id={id} />}
           </ErrorBoundary>
@@ -297,6 +300,7 @@ function FuelFab({ onClick, onPick, hidden }: { onClick: () => void; onPick: (o:
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1, transition: { ...spring, delay: 0.15 } }}
           exit={{ scale: 0.6, opacity: 0, transition: { duration: 0.12 } }}
+          data-fab
           className="fixed right-4 bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+4.75rem)] z-40 flex items-center gap-2 sm:hidden"
         >
           <QuickAddMenu onPick={onPick} look="fab" />
@@ -384,8 +388,9 @@ function FuelTab({ id, summary, onOpen }: { id: number; summary: Summary; onOpen
   const rows = useQuery({ queryKey: ['fuel', id], queryFn: () => api<FuelRow[]>(`/vehicles/${id}/fuel`) })
   const resolve = useSave((fid: number) => api(`/fuel/${fid}/resolve`, { method: 'POST' }), undefined, 'Marked as checked')
   const waiting = useOutbox().filter((w) => w.vehicleId === id)
+  const hidden = useHidden()
   if (rows.isLoading && !waiting.length) return <Loading />
-  const list = rows.data ?? []
+  const list = (rows.data ?? []).filter((r) => !hidden(`fuel:${r.entry.id}`))
   if (!list.length && !waiting.length) return <Empty icon={<GasPump size={40} />} title="No fill-ups yet">Add each fill-up with the odometer reading. Mileage shows after two full tanks.</Empty>
   const byId = new Map(list.map((r) => [r.entry.id, r.entry]))
   const chart = summary.economyHistory.map((st) => ({ when: date(byId.get(st.endId)?.filledAt, false), kmpl: st.kmPerUnit }))
@@ -503,12 +508,13 @@ function DueSoonest({ status: st }: { status: ReminderView['status'] }) {
 function RemindersSection({ id, odometer, onOpen, onAdd }: { id: number; odometer: number | null; onOpen: (r: ReminderView) => void; onAdd: () => void }) {
   const rows = useQuery({ queryKey: ['reminders', id], queryFn: () => api<ReminderView[]>(`/vehicles/${id}/reminders`) })
   const [asking, setAsking] = useState<number | null>(null)
+  const hidden = useHidden()
   const atKm = odometer != null ? Math.round(odometer) : null
   // Done: logs the service today (at the current odometer) and restarts this reminder from there.
   const done = useSave((r: ReminderView) => api(`/vehicles/${id}/services`, {
     body: { servicedOn: today(), odometer: atKm, title: r.reminder.title, cost: 0, completes: [r.reminder.id] },
   }), () => setAsking(null), 'Done. Add the cost or workshop in Service history if you like.')
-  const list = rows.data ?? []
+  const list = (rows.data ?? []).filter((r) => !hidden(`reminder:${r.reminder.id}`))
   const due = (r: ReminderView) => r.reminder.active && (r.status.state === 'OVERDUE' || r.status.state === 'DUE_SOON')
   return (
     <section className="space-y-2">
@@ -564,7 +570,8 @@ function RemindersSection({ id, odometer, onOpen, onAdd }: { id: number; odomete
 
 function ServicesSection({ id, onOpen, onAdd }: { id: number; onOpen: (r: ServiceRow) => void; onAdd: () => void }) {
   const rows = useQuery({ queryKey: ['services', id], queryFn: () => api<ServiceRow[]>(`/vehicles/${id}/services`) })
-  const list = rows.data ?? []
+  const hidden = useHidden()
+  const list = (rows.data ?? []).filter((r) => !hidden(`service:${r.record.id}`))
   return (
     <section className="space-y-2">
       <SectionHeader title="Service history" meta={list.length ? `${list.length} · ${money(list.reduce((t, r) => t + r.record.cost, 0))}` : undefined}
@@ -613,7 +620,8 @@ function SpendTab({ id, summary, onOpen, onAdd }: { id: number; summary: Summary
     { label: 'Service', value: c.service, color: 'bg-sky-500' },
     { label: 'Other', value: c.expenses, color: 'bg-violet-500' },
   ]
-  const list = rows.data ?? []
+  const hidden = useHidden()
+  const list = (rows.data ?? []).filter((e) => !hidden(`expense:${e.id}`))
   const months = summary.monthly.some((m) => m.fuel + m.service + m.other > 0) ? summary.monthly : []
   const monthAvg = months.reduce((t, m) => t + m.fuel + m.service + m.other, 0) / Math.max(1, months.length)
   return (

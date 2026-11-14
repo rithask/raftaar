@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { api, type FuelType, type Kind, type Vehicle } from '../api'
 import { fuelLabel, kindLabel, num } from '../format'
 import { shrinkImage, useSave } from '../hooks'
+import { deleteWithUndo } from '../undo'
 import { DateInput } from './DateField'
 import { Button, ErrorText, Field, FormScreen, Input, Segmented, Select, TextArea, Toggle } from './ui'
 import { KindIcon, VehicleArt } from './VehicleArt'
@@ -57,10 +58,6 @@ export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose
     vehicle ? 'Saved' : (v) => `${v.name} added`,
   )
   const removePhoto = useSave(() => api(`/vehicles/${vehicle!.id}/image`, { method: 'DELETE' }), undefined, 'Photo removed')
-  const del = useSave(() => api(`/vehicles/${vehicle!.id}`, { method: 'DELETE' }), () => {
-    onClose()
-    nav('/')
-  }, 'Vehicle deleted')
 
   const pick = async (file?: File) => {
     if (!file) return
@@ -77,8 +74,12 @@ export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose
       onSave={() => save.mutate(undefined)}
       saving={save.isPending}
       saveLabel={vehicle ? 'Save' : 'Add'}
-      onDelete={vehicle ? () => confirm(`Delete ${vehicle.name} and all its records? This can't be undone.`) && del.mutate(undefined) : undefined}
-      deleting={del.isPending}
+      onDelete={vehicle ? () => {
+        // everything about it goes too, so the Undo is the safety net
+        deleteWithUndo({ text: `${vehicle.name} deleted with all its records`, what: vehicle.name, hide: `vehicle:${vehicle.id}`, run: () => api(`/vehicles/${vehicle.id}`, { method: 'DELETE' }) })
+        onClose()
+        nav('/')
+      } : undefined}
       deleteLabel="Delete vehicle"
     >
       <div className="space-y-4">
@@ -136,7 +137,7 @@ export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose
         <Field label="Notes"><TextArea value={f.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
         <Toggle checked={f.isDefault} onChange={(v) => set('isDefault', v)} label="My usual ride" hint="Suggested first for new trips and fill-ups." />
         {vehicle && <Toggle checked={f.archived} onChange={(v) => set('archived', v)} label="Sold or retired" hint="Its history stays; it's left out of new entries." />}
-        <ErrorText error={save.error ?? removePhoto.error ?? del.error} />
+        <ErrorText error={save.error ?? removePhoto.error} />
       </div>
     </FormScreen>
   )

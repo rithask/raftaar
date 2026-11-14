@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { money } from '../format'
 import { amounts, discard, flush, useOutbox } from '../outbox'
+import { deleteWithUndo, useHidden } from '../undo'
 import { softSpring } from './ui'
 
 /** Fill-ups saved on this phone and not sent yet: how many, a way to send them now, and any the server refused. */
@@ -21,8 +22,10 @@ export function OutboxBar() {
       window.removeEventListener('offline', off)
     }
   }, [])
-  const waiting = items.filter((i) => !i.error)
-  const refused = items.filter((i) => i.error)
+  const hidden = useHidden()
+  const shown = items.filter((i) => !hidden(`outbox:${i.key}`))
+  const waiting = shown.filter((i) => !i.error)
+  const refused = shown.filter((i) => i.error)
   const send = async () => {
     setBusy(true)
     await flush(qc)
@@ -30,7 +33,7 @@ export function OutboxBar() {
   }
   return (
     <AnimatePresence initial={false}>
-      {items.length > 0 && (
+      {shown.length > 0 && (
         <motion.div key="outbox" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={softSpring} className="overflow-hidden">
           <div className="mb-4 space-y-2">
             {waiting.length > 0 && (
@@ -54,7 +57,7 @@ export function OutboxBar() {
                   <b className="font-semibold">A fill-up for {i.vehicleName} couldn't be saved</b>
                   {amounts(i.body).total != null ? ` (${money(amounts(i.body).total!)})` : ''}: {i.error}
                 </span>
-                <button type="button" onClick={() => confirm('Discard this fill-up? It was never saved.') && discard(i.key)} aria-label="Discard"
+                <button type="button" onClick={() => deleteWithUndo({ text: 'Fill-up discarded', what: 'the fill-up', hide: `outbox:${i.key}`, run: async () => discard(i.key) })} aria-label="Discard"
                   className="shrink-0 rounded-lg p-2 transition active:scale-90 active:bg-red-500/15"><Trash size={16} /></button>
               </div>
             ))}
