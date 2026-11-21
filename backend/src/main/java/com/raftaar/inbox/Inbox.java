@@ -37,7 +37,7 @@ public class Inbox {
 
     public Overview overview() {
         var pending = suggestions.findByStatusOrderByOccurredAtDesc(Suggestion.Status.PENDING).stream().map(this::view).toList();
-        var issues = fills.findAll().stream().filter(fill -> fill.sourceIssue != null).toList();
+        var issues = fills.findBySourceIssueIsNotNullOrderByIdAsc();
         return new Overview(trips.findByStatusOrderByStartedAtDesc(Trip.Status.PENDING), pending, issues);
     }
 
