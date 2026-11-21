@@ -1,9 +1,9 @@
 package com.raftaar.vehicle;
 
-import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import com.raftaar.common.EntityRepo;
 
-public interface OdometerReadingRepo extends JpaRepository<OdometerReading, Long> {
+public interface OdometerReadingRepo extends EntityRepo<OdometerReading> {
     List<OdometerReading> findByVehicleIdOrderByReadAtDesc(Long vehicleId);
 }

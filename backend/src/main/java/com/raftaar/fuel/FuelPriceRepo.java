@@ -1,12 +1,12 @@
 package com.raftaar.fuel;
 
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
+import com.raftaar.common.EntityRepo;
 
-public interface FuelPriceRepo extends JpaRepository<FuelPrice, Long> {
+public interface FuelPriceRepo extends EntityRepo<FuelPrice> {
     Optional<FuelPrice> findFirstByRegionIgnoreCaseAndFuelTypeOrderByEffectiveAtDesc(String region, FuelType fuelType);
     Optional<FuelPrice> findFirstByRegionIgnoreCaseAndDistrictIgnoreCaseAndFuelTypeOrderByEffectiveAtDesc(String region, String district, FuelType fuelType);
 

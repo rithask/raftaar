@@ -1,10 +1,10 @@
 package com.raftaar.vehicle;
 
-import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import com.raftaar.common.EntityRepo;
 
-public interface VehicleRepo extends JpaRepository<Vehicle, Long> {
+public interface VehicleRepo extends EntityRepo<Vehicle> {
     List<Vehicle> findAllByOrderByArchivedAscSortOrderAscIdAsc();
     List<Vehicle> findByArchivedFalse();
 }

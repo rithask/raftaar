@@ -1,12 +1,12 @@
 package com.raftaar.fuel;
 
-import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import com.raftaar.common.EntityRepo;
 
-public interface FuelEntryRepo extends JpaRepository<FuelEntry, Long> {
+public interface FuelEntryRepo extends EntityRepo<FuelEntry> {
     List<FuelEntry> findByVehicleIdOrderByFilledAtAscIdAsc(Long vehicleId);
     Optional<FuelEntry> findByHisaabTxnId(String id);
     List<FuelEntry> findByHisaabTxnIdNotNullAndFilledAtAfter(Instant after);

@@ -325,14 +325,14 @@ public class Suggestions {
 
     @Transactional
     public void dismiss(Long id, String reason) {
-        Suggestion s = repo.findById(id).orElseThrow(() -> new NoSuchElementException("Suggestion not found"));
+        Suggestion s = repo.require(id, "Suggestion");
         s.status = Suggestion.Status.DISMISSED;
         s.dismissReason = reason == null || reason.isBlank() ? "Dismissed" : reason;
         save(s);
     }
 
     private Suggestion pending(Long id, Suggestion.Kind kind) {
-        Suggestion s = repo.findById(id).orElseThrow(() -> new NoSuchElementException("Suggestion not found"));
+        Suggestion s = repo.require(id, "Suggestion");
         if (s.kind != kind) throw new IllegalArgumentException("That isn't a " + kind.name().toLowerCase() + " suggestion");
         if (s.status != Suggestion.Status.PENDING) throw new IllegalStateException("Already " + s.status.name().toLowerCase());
         return s;

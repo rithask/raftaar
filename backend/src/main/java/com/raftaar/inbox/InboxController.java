@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
-import com.raftaar.common.ApiErrors;
 import com.raftaar.expense.Expense;
 import com.raftaar.fuel.FuelEntry;
 import com.raftaar.fuel.FuelEntryRepo;
@@ -63,12 +62,12 @@ public class InboxController {
 
     @PostMapping("/trips/{id}/assign")
     public Trip assign(@PathVariable Long id, @RequestBody Assign a) {
-        Trip t = trips.findById(id).orElseThrow(() -> ApiErrors.notFound("Trip"));
+        Trip t = trips.require(id, "Trip");
         if (a.vehicleId() == null) {
             t.status = Trip.Status.IGNORED;
             t.vehicleId = null;
         } else {
-            vehicles.findById(a.vehicleId()).orElseThrow(() -> ApiErrors.notFound("Vehicle"));
+            vehicles.require(a.vehicleId(), "Vehicle");
             t.status = Trip.Status.ASSIGNED;
             t.vehicleId = a.vehicleId();
         }
@@ -87,7 +86,7 @@ public class InboxController {
 
     @PostMapping("/trips/{id}/unassign")
     public Trip unassign(@PathVariable Long id) {
-        Trip t = trips.findById(id).orElseThrow(() -> ApiErrors.notFound("Trip"));
+        Trip t = trips.require(id, "Trip");
         t.status = Trip.Status.PENDING;
         t.vehicleId = null;
         return trips.save(t);

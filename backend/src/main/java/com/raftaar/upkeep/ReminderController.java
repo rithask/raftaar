@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import com.raftaar.common.ApiErrors;
 import com.raftaar.vehicle.VehicleController;
+import com.raftaar.common.Text;
 
 @RestController
 @RequestMapping("/api")
@@ -26,7 +26,7 @@ public class ReminderController {
     /** All of a vehicle's reminders, finished one-offs included. */
     @GetMapping("/vehicles/{id}/reminders")
     public List<VehicleStats.ReminderView> list(@PathVariable Long id) {
-        var v = vehicles.findById(id).orElseThrow(() -> ApiErrors.notFound("Vehicle"));
+        var v = vehicles.require(id, "Vehicle");
         var odo = stats.odometer(v);
         var current = odo.estimated() != null ? odo.estimated() : odo.known();
         return reminders.findByVehicleIdOrderByIdAsc(id).stream()
@@ -39,7 +39,7 @@ public class ReminderController {
 
     @PostMapping("/vehicles/{id}/reminders")
     public Reminder create(@PathVariable Long id, @RequestBody Input in) {
-        vehicles.findById(id).orElseThrow(() -> ApiErrors.notFound("Vehicle"));
+        vehicles.require(id, "Vehicle");
         Reminder r = new Reminder();
         r.vehicleId = id;
         return save(r, in);
@@ -47,7 +47,7 @@ public class ReminderController {
 
     @PutMapping("/reminders/{id}")
     public Reminder update(@PathVariable Long id, @RequestBody Input in) {
-        return save(reminders.findById(id).orElseThrow(() -> ApiErrors.notFound("Reminder")), in);
+        return save(reminders.require(id, "Reminder"), in);
     }
 
     private Reminder save(Reminder r, Input in) {
@@ -65,7 +65,7 @@ public class ReminderController {
         if (in.notifyDaysBefore() != null) r.notifyDaysBefore = in.notifyDaysBefore();
         if (in.notifyKmBefore() != null) r.notifyKmBefore = in.notifyKmBefore();
         r.active = in.active() == null || in.active();
-        r.notes = VehicleController.trim(in.notes());
+        r.notes = Text.trimToNull(in.notes());
         r.lastNotifiedState = null;
         return reminders.save(r);
     }

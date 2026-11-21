@@ -1,12 +1,12 @@
 package com.raftaar.inbox;
 
-import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import com.raftaar.common.EntityRepo;
 
-public interface TripRepo extends JpaRepository<Trip, Long> {
+public interface TripRepo extends EntityRepo<Trip> {
     Optional<Trip> findByGeopulseId(Long id);
     List<Trip> findByStatusOrderByStartedAtDesc(Trip.Status status);
     List<Trip> findByVehicleIdOrderByStartedAtDesc(Long vehicleId);

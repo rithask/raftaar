@@ -19,6 +19,7 @@ import com.raftaar.geopulse.GeoPulseSync;
 import com.raftaar.common.Settings;
 import com.raftaar.inbox.Suggestions;
 import com.raftaar.common.SyncLog;
+import com.raftaar.common.Text;
 
 /**
  * Polls Hisaab for payments created or changed since the last poll ({@code updated_since}). Fuel payments become
@@ -101,12 +102,9 @@ public class HisaabSync {
         int gone = checkPending();
         if (lastDailyCheckOlderThan(Duration.ofHours(20))) flagged += checkConfirmed();
 
-        return plural(fuelNew, "fuel payment") + ", " + plural(expenseNew, "expense") + (gone > 0 ? ", " + gone + " removed" : "") + (flagged > 0 ? ", " + flagged + " to check" : "");
+        return Text.plural(fuelNew, "fuel payment") + ", " + Text.plural(expenseNew, "expense") + (gone > 0 ? ", " + gone + " removed" : "") + (flagged > 0 ? ", " + flagged + " to check" : "");
     }
 
-    public static String plural(int n, String what) {
-        return n + " " + what + (n == 1 ? "" : "s");
-    }
 
     enum Kind { FUEL, EXPENSE, NONE }
 

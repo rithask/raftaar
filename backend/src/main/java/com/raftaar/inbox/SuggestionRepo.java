@@ -1,12 +1,12 @@
 package com.raftaar.inbox;
 
-import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import com.raftaar.common.EntityRepo;
 
-public interface SuggestionRepo extends JpaRepository<Suggestion, Long> {
+public interface SuggestionRepo extends EntityRepo<Suggestion> {
     Optional<Suggestion> findByHisaabTxnId(String id);
     List<Suggestion> findByStatusOrderByOccurredAtDesc(Suggestion.Status status);
     List<Suggestion> findByStatusAndHisaabTxnIdNotNull(Suggestion.Status status);

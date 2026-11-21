@@ -15,6 +15,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import com.raftaar.common.Failures;
+import com.raftaar.common.Text;
 
 /**
  * Fuel pumps near a point, and the state and district a point is in, cached so OpenStreetMap is asked about each
@@ -73,8 +74,8 @@ public class Places {
             FuelStation s = new FuelStation();
             s.osmId = e.type() + "/" + e.id();
             var tags = e.tags() == null ? java.util.Map.<String, String>of() : e.tags();
-            s.name = firstNonBlank(tags.get("name"), tags.get("brand"), tags.get("operator"));
-            s.brand = firstNonBlank(tags.get("brand"), tags.get("operator"));
+            s.name = Text.firstNonBlank(tags.get("name"), tags.get("brand"), tags.get("operator"));
+            s.brand = Text.firstNonBlank(tags.get("brand"), tags.get("operator"));
             s.latitude = e.latitude();
             s.longitude = e.longitude();
             stations.save(s);
@@ -110,7 +111,7 @@ public class Places {
         Geocode g = cached.orElseGet(Geocode::new);
         g.cellKey = key;
         g.region = a == null ? null : a.state();
-        g.district = a == null ? null : firstNonBlank(a.stateDistrict(), a.county(), a.city());
+        g.district = a == null ? null : Text.firstNonBlank(a.stateDistrict(), a.county(), a.city());
         g.fetchedAt = Instant.now();
         geocodes.save(g);
         return toRegion(g);
@@ -160,8 +161,4 @@ public class Places {
         else Failures.log(log, what, e);
     }
 
-    static String firstNonBlank(String... values) {
-        for (String v : values) if (v != null && !v.isBlank()) return v.trim();
-        return null;
-    }
 }

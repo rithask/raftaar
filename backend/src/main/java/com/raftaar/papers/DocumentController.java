@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.util.List;
 import com.raftaar.common.ApiErrors;
 import com.raftaar.vehicle.VehicleController;
+import com.raftaar.common.Text;
 
 /** Certificates and papers: insurance, PUC, RC, road tax… and your own, like a driving licence (no vehicle). */
 @RestController
@@ -63,8 +64,8 @@ public class DocumentController {
         d.vehicleId = in.vehicleId();
         d.type = in.type() != null ? in.type() : Document.Type.OTHER;
         d.title = in.title() != null && !in.title().isBlank() ? in.title().trim() : defaultTitle(d.type);
-        d.number = VehicleController.trim(in.number());
-        d.provider = VehicleController.trim(in.provider());
+        d.number = Text.trimToNull(in.number());
+        d.provider = Text.trimToNull(in.provider());
         d.issuedOn = in.issuedOn();
         boolean renewed = d.expiresOn != null && in.expiresOn() != null && in.expiresOn().isAfter(d.expiresOn);
         d.expiresOn = in.expiresOn();
@@ -74,7 +75,7 @@ public class DocumentController {
         }
         if (in.remindDaysBefore() != null) d.remindDaysBefore = Math.max(0, in.remindDaysBefore());
         d.cost = in.cost();
-        d.notes = VehicleController.trim(in.notes());
+        d.notes = Text.trimToNull(in.notes());
         return documents.save(d);
     }
 
@@ -135,6 +136,6 @@ public class DocumentController {
     }
 
     private Document find(Long id) {
-        return documents.findById(id).orElseThrow(() -> ApiErrors.notFound("Document"));
+        return documents.require(id, "Document");
     }
 }

@@ -19,6 +19,7 @@ import com.raftaar.places.Places;
 import com.raftaar.common.Settings;
 import com.raftaar.inbox.Suggestions;
 import com.raftaar.common.SyncLog;
+import com.raftaar.common.Text;
 
 /**
  * Imports driving trips from GeoPulse and looks for fuel stops. A stop is found two ways: a short GeoPulse stay
@@ -91,7 +92,7 @@ public class GeoPulseSync {
             trips.save(trip);
         }
         settings.set("geopulse.syncedTo", to);
-        return HisaabSync.plural(added, "new trip") + ", " + HisaabSync.plural(stops, "fuel stop");
+        return Text.plural(added, "new trip") + ", " + Text.plural(stops, "fuel stop");
     }
 
     /** True when the trip is new. */

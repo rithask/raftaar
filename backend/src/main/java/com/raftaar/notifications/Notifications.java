@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.NoSuchElementException;
 
 /**
  * Where notifications go: Apprise URLs added in Settings (stored here), plus any fixed ones from APPRISE_URLS.
@@ -130,7 +129,7 @@ public class Notifications {
     }
 
     private NotificationChannel find(Long id) {
-        return repo.findById(id).orElseThrow(() -> new NoSuchElementException("Channel not found"));
+        return repo.require(id, "Channel");
     }
 
     private Channel view(NotificationChannel c) {

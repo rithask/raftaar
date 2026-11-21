@@ -9,7 +9,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import com.raftaar.common.ApiErrors;
 import com.raftaar.expense.Expense;
 import com.raftaar.expense.ExpenseRepo;
 import com.raftaar.fuel.FuelEntry;
@@ -18,6 +17,7 @@ import com.raftaar.upkeep.Reminder;
 import com.raftaar.upkeep.ReminderRepo;
 import com.raftaar.upkeep.ServiceRecord;
 import com.raftaar.upkeep.ServiceRecordRepo;
+import com.raftaar.common.Text;
 
 /** Fill-ups, services, expenses and odometer readings for a vehicle. */
 @RestController
@@ -81,14 +81,14 @@ public class LogController {
 
     @PutMapping("/fuel/{id}")
     public FuelEntry updateFuel(@PathVariable Long id, @RequestBody FuelEntries.Input in) {
-        FuelEntry e = fuel.findById(id).orElseThrow(() -> ApiErrors.notFound("Fill-up"));
+        FuelEntry e = fuel.require(id, "Fill-up");
         return fuelEntries.save(e, withVehicle(in, in.vehicleId() != null ? in.vehicleId() : e.vehicleId));
     }
 
     /** Marks a "the Hisaab payment changed" note as seen. */
     @PostMapping("/fuel/{id}/resolve")
     public FuelEntry resolveFuel(@PathVariable Long id) {
-        FuelEntry e = fuel.findById(id).orElseThrow(() -> ApiErrors.notFound("Fill-up"));
+        FuelEntry e = fuel.require(id, "Fill-up");
         e.sourceIssue = null;
         return fuel.save(e);
     }
@@ -129,7 +129,7 @@ public class LogController {
     @PutMapping("/services/{id}")
     @Transactional
     public ServiceRow updateService(@PathVariable Long id, @RequestBody ServiceInput in) {
-        return saveService(services.findById(id).orElseThrow(() -> ApiErrors.notFound("Service record")), in);
+        return saveService(services.require(id, "Service record"), in);
     }
 
     private ServiceRow saveService(ServiceRecord s, ServiceInput in) {
@@ -137,9 +137,9 @@ public class LogController {
         s.servicedOn = in.servicedOn() != null ? in.servicedOn() : LocalDate.now();
         s.odometer = in.odometer();
         s.title = in.title().trim();
-        s.workshop = VehicleController.trim(in.workshop());
+        s.workshop = Text.trimToNull(in.workshop());
         s.cost = in.cost() != null ? in.cost() : BigDecimal.ZERO;
-        s.notes = VehicleController.trim(in.notes());
+        s.notes = Text.trimToNull(in.notes());
         ServiceRecord saved = services.save(s);
         services.clearReminders(saved.id);
         for (Long rid : in.completes() == null ? List.<Long>of() : in.completes()) {
@@ -185,7 +185,7 @@ public class LogController {
 
     @PutMapping("/expenses/{id}")
     public Expense updateExpense(@PathVariable Long id, @RequestBody ExpenseInput in) {
-        return saveExpense(expenses.findById(id).orElseThrow(() -> ApiErrors.notFound("Expense")), in);
+        return saveExpense(expenses.require(id, "Expense"), in);
     }
 
     private Expense saveExpense(Expense e, ExpenseInput in) {
@@ -196,8 +196,8 @@ public class LogController {
         e.title = in.title().trim();
         e.amount = in.amount();
         e.odometer = in.odometer();
-        e.vendor = VehicleController.trim(in.vendor());
-        e.notes = VehicleController.trim(in.notes());
+        e.vendor = Text.trimToNull(in.vendor());
+        e.notes = Text.trimToNull(in.notes());
         return expenses.save(e);
     }
 
@@ -225,7 +225,7 @@ public class LogController {
         r.vehicleId = id;
         r.readAt = in.readAt() != null ? in.readAt() : Instant.now();
         r.odometer = in.odometer();
-        r.notes = VehicleController.trim(in.notes());
+        r.notes = Text.trimToNull(in.notes());
         return readings.save(r);
     }
 
@@ -240,6 +240,6 @@ public class LogController {
     }
 
     private Vehicle vehicle(Long id) {
-        return vehicles.findById(id).orElseThrow(() -> ApiErrors.notFound("Vehicle"));
+        return vehicles.require(id, "Vehicle");
     }
 }

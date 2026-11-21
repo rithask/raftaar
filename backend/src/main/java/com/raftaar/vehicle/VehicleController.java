@@ -15,13 +15,13 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
-import com.raftaar.common.ApiErrors;
 import com.raftaar.fuel.FuelEntry;
 import com.raftaar.fuel.FuelType;
 import com.raftaar.inbox.Suggestion;
 import com.raftaar.inbox.SuggestionRepo;
 import com.raftaar.inbox.Trip;
 import com.raftaar.inbox.TripRepo;
+import com.raftaar.common.Text;
 
 @RestController
 @RequestMapping("/api")
@@ -93,17 +93,17 @@ public class VehicleController {
         v.name = in.name().trim();
         v.kind = in.kind() != null ? in.kind() : Vehicle.Kind.MOTORCYCLE;
         v.fuelType = in.fuelType() != null ? in.fuelType() : FuelType.PETROL;
-        v.make = trim(in.make());
-        v.model = trim(in.model());
+        v.make = Text.trimToNull(in.make());
+        v.model = Text.trimToNull(in.model());
         v.year = in.year();
-        v.registration = in.registration() == null ? null : trim(in.registration().toUpperCase());
-        v.color = trim(in.color());
+        v.registration = in.registration() == null ? null : Text.trimToNull(in.registration().toUpperCase());
+        v.color = Text.trimToNull(in.color());
         v.tankCapacity = in.tankCapacity();
         v.purchaseDate = in.purchaseDate();
         v.purchaseOdometer = in.purchaseOdometer();
         v.purchasePrice = in.purchasePrice();
         v.archived = Boolean.TRUE.equals(in.archived());
-        v.notes = trim(in.notes());
+        v.notes = Text.trimToNull(in.notes());
         boolean makeDefault = Boolean.TRUE.equals(in.isDefault()) && !v.archived;
         if (makeDefault) vehicles.findAll().stream().filter(o -> o.isDefault && !o.id.equals(v.id)).forEach(o -> {
             o.isDefault = false;
@@ -171,10 +171,7 @@ public class VehicleController {
     }
 
     Vehicle find(Long id) {
-        return vehicles.findById(id).orElseThrow(() -> ApiErrors.notFound("Vehicle"));
+        return vehicles.require(id, "Vehicle");
     }
 
-    public static String trim(String s) {
-        return s == null || s.isBlank() ? null : s.trim();
-    }
 }

@@ -1,12 +1,12 @@
 package com.raftaar.upkeep;
 
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import com.raftaar.common.EntityRepo;
 
-public interface ServiceRecordRepo extends JpaRepository<ServiceRecord, Long> {
+public interface ServiceRecordRepo extends EntityRepo<ServiceRecord> {
     List<ServiceRecord> findByVehicleIdOrderByServicedOnDescIdDesc(Long vehicleId);
 
     @Query(value = "select reminder_id from service_record_reminder where service_record_id = ?1", nativeQuery = true)

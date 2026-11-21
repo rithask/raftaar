@@ -1,10 +1,10 @@
 package com.raftaar.upkeep;
 
-import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import com.raftaar.common.EntityRepo;
 
-public interface ReminderRepo extends JpaRepository<Reminder, Long> {
+public interface ReminderRepo extends EntityRepo<Reminder> {
     List<Reminder> findByVehicleIdOrderByIdAsc(Long vehicleId);
     List<Reminder> findByActiveTrue();
 }

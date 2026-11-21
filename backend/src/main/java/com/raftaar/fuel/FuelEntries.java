@@ -7,8 +7,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.NoSuchElementException;
 import com.raftaar.places.Places;
+import com.raftaar.common.Text;
 
 @Service
 public class FuelEntries {
@@ -30,8 +30,7 @@ public class FuelEntries {
 
     @Transactional
     public FuelEntry save(FuelEntry e, Input in) {
-        Vehicle v = vehicles.findById(in.vehicleId() != null ? in.vehicleId() : e.vehicleId)
-                .orElseThrow(() -> new NoSuchElementException("Vehicle not found"));
+        Vehicle v = vehicles.require(in.vehicleId() != null ? in.vehicleId() : e.vehicleId, "Vehicle");
         if (in.odometer() == null || in.odometer().signum() < 0) throw new IllegalArgumentException("Odometer reading is required");
         var fill = FuelMath.complete(in.volume(), in.pricePerUnit(), in.totalCost());
         e.vehicleId = v.id;
@@ -42,13 +41,13 @@ public class FuelEntries {
         e.totalCost = fill.totalCost();
         e.fullTank = in.fullTank() == null || in.fullTank();
         e.missedPrevious = Boolean.TRUE.equals(in.missedPrevious());
-        e.stationName = blank(in.stationName());
-        e.stationBrand = blank(in.stationBrand());
+        e.stationName = Text.trimToNull(in.stationName());
+        e.stationBrand = Text.trimToNull(in.stationBrand());
         e.latitude = in.latitude();
         e.longitude = in.longitude();
-        e.region = blank(in.region());
-        e.district = blank(in.district());
-        e.notes = blank(in.notes());
+        e.region = Text.trimToNull(in.region());
+        e.district = Text.trimToNull(in.district());
+        e.notes = Text.trimToNull(in.notes());
         if (e.region == null && e.latitude != null && e.longitude != null) {
             places.region(e.latitude, e.longitude).ifPresent(r -> {
                 e.region = r.state();
@@ -60,7 +59,4 @@ public class FuelEntries {
         return saved;
     }
 
-    static String blank(String s) {
-        return s == null || s.isBlank() ? null : s.trim();
-    }
 }
