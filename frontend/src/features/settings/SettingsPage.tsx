@@ -65,7 +65,7 @@ export function SettingsPage() {
 
 /** Each section with a one-line summary, then sign out and the version. */
 function SectionList({ active }: { active?: Key }) {
-  const qc = useQueryClient()
+  const queryClient = useQueryClient()
   const integrations = useIntegrations()
   const channels = useChannels()
   const prices = useFuelPrices()
@@ -83,7 +83,7 @@ function SectionList({ active }: { active?: Key }) {
   }
   const logout = async () => {
     await signOut()
-    qc.setQueryData(keys.me, null)
+    queryClient.setQueryData(keys.me, null)
   }
   return (
     <>
@@ -151,10 +151,10 @@ function Connections() {
 
 function FuelPrices() {
   const prices = useFuelPrices()
-  const [f, setF] = useState({ region: '', district: '', fuelType: 'PETROL' as FuelType, price: '' })
-  const add = useSave(() => api('/fuel-prices', { body: { ...f, district: f.district || null, price: num(f.price) } }), { refresh: refresh.fuelPrices, onDone: () => setF((o) => ({ ...o, price: '' })), done: 'Price saved' })
+  const [form, setForm] = useState({ region: '', district: '', fuelType: 'PETROL' as FuelType, price: '' })
+  const add = useSave(() => api('/fuel-prices', { body: { ...form, district: form.district || null, price: num(form.price) } }), { refresh: refresh.fuelPrices, onDone: () => setForm((o) => ({ ...o, price: '' })), done: 'Price saved' })
   const hiddenPrice = useHidden()
-  const remove = (p: FuelPrice) => deleteWithUndo({ refresh: refresh.fuelPrices, text: 'Price removed', what: 'the price', hide: `price:${p.id}`, run: () => api(`/fuel-prices/${p.id}`, { method: 'DELETE' }) })
+  const remove = (price: FuelPrice) => deleteWithUndo({ refresh: refresh.fuelPrices, text: 'Price removed', what: 'the price', hide: `price:${price.id}`, run: () => api(`/fuel-prices/${price.id}`, { method: 'DELETE' }) })
   const src = { MANUAL: 'you', FILL_UP: 'fill-up', LOOKUP: 'looked up' } as const
   return (
     <section className="space-y-3">
@@ -162,30 +162,30 @@ function FuelPrices() {
       <Card padded raised className="space-y-3">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Field label="State">
-            <Input list="states-s" value={f.region} onChange={(e) => setF({ ...f, region: e.target.value })} />
+            <Input list="states-s" value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
             <datalist id="states-s">{INDIAN_STATES.map((s) => <option key={s} value={s} />)}</datalist>
           </Field>
-          <Field label="District (optional)"><Input value={f.district} onChange={(e) => setF({ ...f, district: e.target.value })} /></Field>
+          <Field label="District (optional)"><Input value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value })} /></Field>
           <Field label="Fuel">
-            <Select value={f.fuelType} onChange={(e) => setF({ ...f, fuelType: e.target.value as FuelType })}>
-              {(Object.keys(fuelLabel) as FuelType[]).map((t) => <option key={t} value={t}>{fuelLabel[t]}</option>)}
+            <Select value={form.fuelType} onChange={(e) => setForm({ ...form, fuelType: e.target.value as FuelType })}>
+              {(Object.keys(fuelLabel) as FuelType[]).map((fuelType) => <option key={fuelType} value={fuelType}>{fuelLabel[fuelType]}</option>)}
             </Select>
           </Field>
-          <Field label="₹ per unit"><Input inputMode="decimal" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} /></Field>
+          <Field label="₹ per unit"><Input inputMode="decimal" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></Field>
         </div>
-        <Button variant="primary" busy={add.isPending} disabled={!f.region.trim() || !f.price.trim()} onClick={() => add.mutate(undefined)}><Plus size={16} /> Set price</Button>
+        <Button variant="primary" busy={add.isPending} disabled={!form.region.trim() || !form.price.trim()} onClick={() => add.mutate(undefined)}><Plus size={16} /> Set price</Button>
         <ErrorText error={add.error} />
       </Card>
       {(prices.data?.length ?? 0) > 0 && (
         <List>
-          {prices.data!.filter((p) => !hiddenPrice(`price:${p.id}`)).map((p) => (
-            <div key={p.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+          {prices.data!.filter((price) => !hiddenPrice(`price:${price.id}`)).map((price) => (
+            <div key={price.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
               <div className="min-w-0 flex-1">
-                <div className="font-medium">{p.region}{p.district ? `, ${p.district}` : ''} · {fuelLabel[p.fuelType]}</div>
-                <div className="text-xs text-stone-500">{date(p.effectiveAt)} · {src[p.source]}</div>
+                <div className="font-medium">{price.region}{price.district ? `, ${price.district}` : ''} · {fuelLabel[price.fuelType]}</div>
+                <div className="text-xs text-stone-500">{date(price.effectiveAt)} · {src[price.source]}</div>
               </div>
-              <div className="num font-semibold">{money2(p.price)}</div>
-              <button onClick={() => remove(p)} className="-m-1 rounded-lg p-2 text-stone-400 transition hover:text-red-600 active:scale-90 active:bg-red-500/10 active:text-red-600" aria-label="Remove price"><Trash size={16} /></button>
+              <div className="num font-semibold">{money2(price.price)}</div>
+              <button onClick={() => remove(price)} className="-m-1 rounded-lg p-2 text-stone-400 transition hover:text-red-600 active:scale-90 active:bg-red-500/10 active:text-red-600" aria-label="Remove price"><Trash size={16} /></button>
             </div>
           ))}
         </List>
@@ -203,10 +203,10 @@ function NotificationChannels() {
     setLabel('')
     setUrl('')
   }, done: 'Channel added' })
-  const test = useSave((id: number) => api<Channel>(`/notifications/channels/${id}/test`, { method: 'POST' }), { refresh: refresh.channels, done: (c) => (c.lastOk ? 'Test sent' : 'Test failed') })
+  const test = useSave((id: number) => api<Channel>(`/notifications/channels/${id}/test`, { method: 'POST' }), { refresh: refresh.channels, done: (channel) => (channel.lastOk ? 'Test sent' : 'Test failed') })
   const toggle = useSave((c: { id: number; enabled: boolean }) => api(`/notifications/channels/${c.id}`, { method: 'PUT', body: { enabled: c.enabled } }), { refresh: refresh.channels })
   const hidden = useHidden()
-  const remove = (c: Channel) => deleteWithUndo({ refresh: refresh.channels, text: 'Channel removed', what: 'the channel', hide: `channel:${c.id}`, run: () => api(`/notifications/channels/${c.id}`, { method: 'DELETE' }) })
+  const remove = (channel: Channel) => deleteWithUndo({ refresh: refresh.channels, text: 'Channel removed', what: 'the channel', hide: `channel:${channel.id}`, run: () => api(`/notifications/channels/${channel.id}`, { method: 'DELETE' }) })
   const data = list.data
 
   return (
@@ -229,28 +229,28 @@ function NotificationChannels() {
       {list.isLoading && <Loading />}
       {data && data.channels.length > 0 && (
         <List>
-          {data.channels.filter((c) => c.id == null || !hidden(`channel:${c.id}`)).map((c, i) => (
-            <div key={c.id ?? `env-${i}`} className="space-y-2 px-4 py-3">
+          {data.channels.filter((channel) => channel.id == null || !hidden(`channel:${channel.id}`)).map((channel, i) => (
+            <div key={channel.id ?? `env-${i}`} className="space-y-2 px-4 py-3">
               <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 font-medium">
-                    {c.label ?? c.service}
-                    {c.fromEnvironment && <Badge>fixed</Badge>}
-                    {c.lastOk === true && <Badge tone="ok"><CheckCircle size={12} /> worked</Badge>}
-                    {c.lastOk === false && <Badge tone="bad"><XCircle size={12} /> failed</Badge>}
+                    {channel.label ?? channel.service}
+                    {channel.fromEnvironment && <Badge>fixed</Badge>}
+                    {channel.lastOk === true && <Badge tone="ok"><CheckCircle size={12} /> worked</Badge>}
+                    {channel.lastOk === false && <Badge tone="bad"><XCircle size={12} /> failed</Badge>}
                   </div>
-                  <div className="truncate font-mono text-xs text-stone-500">{c.masked}</div>
+                  <div className="truncate font-mono text-xs text-stone-500">{channel.masked}</div>
                 </div>
-                {c.id != null && (
+                {channel.id != null && (
                   <>
-                    <Button variant="ghost" className="!py-1.5 text-xs" busy={test.isPending && test.variables === c.id} onClick={() => test.mutate(c.id!)}>Test</Button>
-                    <button onClick={() => remove(c)} className="-m-1 rounded-lg p-2 text-stone-400 transition hover:text-red-600 active:scale-90 active:bg-red-500/10 active:text-red-600" aria-label="Remove channel"><Trash size={16} /></button>
+                    <Button variant="ghost" className="!py-1.5 text-xs" busy={test.isPending && test.variables === channel.id} onClick={() => test.mutate(channel.id!)}>Test</Button>
+                    <button onClick={() => remove(channel)} className="-m-1 rounded-lg p-2 text-stone-400 transition hover:text-red-600 active:scale-90 active:bg-red-500/10 active:text-red-600" aria-label="Remove channel"><Trash size={16} /></button>
                   </>
                 )}
               </div>
-              {c.id != null && <Toggle checked={c.enabled} onChange={(v) => toggle.mutate({ id: c.id!, enabled: v })} label="Send reminders here" />}
-              {c.lastError && <p className="rounded-lg bg-red-500/10 px-2 py-1 text-xs text-red-700 dark:text-red-400">{c.lastError}</p>}
-              {c.lastSentAt && <p className="text-xs text-stone-500">Last sent {ago(c.lastSentAt)}</p>}
+              {channel.id != null && <Toggle checked={channel.enabled} onChange={(v) => toggle.mutate({ id: channel.id!, enabled: v })} label="Send reminders here" />}
+              {channel.lastError && <p className="rounded-lg bg-red-500/10 px-2 py-1 text-xs text-red-700 dark:text-red-400">{channel.lastError}</p>}
+              {channel.lastSentAt && <p className="text-xs text-stone-500">Last sent {ago(channel.lastSentAt)}</p>}
             </div>
           ))}
         </List>
@@ -278,9 +278,9 @@ function AccountSection() {
     setAgain('')
   }, done: 'Password changed' })
   const unlink = useSave(() => api('/account/oidc-link', { method: 'DELETE' }), { refresh: refresh.account, done: 'Unlinked' })
-  const a = acc.data
-  if (!a) return acc.isLoading ? <Loading /> : null
-  const username = name ?? a.username
+  const account = acc.data
+  if (!account) return acc.isLoading ? <Loading /> : null
+  const username = name ?? account.username
 
   return (
     <section className="space-y-3">
@@ -289,41 +289,41 @@ function AccountSection() {
           <Field label="Username" className="flex-1">
             <Input value={username} onChange={(e) => setName(e.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} />
           </Field>
-          {name != null && name.trim() !== a.username && (
+          {name != null && name.trim() !== account.username && (
             <Button variant="primary" busy={rename.isPending} disabled={!name.trim()} onClick={() => rename.mutate(undefined)}>Save</Button>
           )}
         </div>
         <ErrorText error={rename.error} />
 
         <form onSubmit={(e) => { e.preventDefault(); password.mutate(undefined) }} className="space-y-3 border-t border-stone-900/5 pt-4 dark:border-white/10">
-          <p className="text-sm font-medium">{a.hasPassword ? 'Change password' : 'Set a password'}</p>
-          {!a.hasPassword && <p className="text-xs text-stone-500">You signed up with {a.provider ?? 'your identity provider'}. A password gives you a second way in.</p>}
-          {!a.passwordLogin && <p className="text-xs text-stone-500">Password sign-in is turned off with <Code>PASSWORD_LOGIN=false</Code>, so this only matters if you turn it back on.</p>}
+          <p className="text-sm font-medium">{account.hasPassword ? 'Change password' : 'Set a password'}</p>
+          {!account.hasPassword && <p className="text-xs text-stone-500">You signed up with {account.provider ?? 'your identity provider'}. A password gives you a second way in.</p>}
+          {!account.passwordLogin && <p className="text-xs text-stone-500">Password sign-in is turned off with <Code>PASSWORD_LOGIN=false</Code>, so this only matters if you turn it back on.</p>}
           <div className="grid gap-3 sm:grid-cols-3">
-            {a.hasPassword && (
+            {account.hasPassword && (
               <Field label="Current password"><Input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} required /></Field>
             )}
             <Field label="New password"><Input type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} required minLength={8} /></Field>
             <Field label="New password again"><Input type="password" autoComplete="new-password" value={again} onChange={(e) => setAgain(e.target.value)} required /></Field>
           </div>
           <ErrorText error={password.error} />
-          <Button type="submit" busy={password.isPending} disabled={next.length < 8 || !again || (a.hasPassword && !current)}>{a.hasPassword ? 'Change password' : 'Set password'}</Button>
+          <Button type="submit" busy={password.isPending} disabled={next.length < 8 || !again || (account.hasPassword && !current)}>{account.hasPassword ? 'Change password' : 'Set password'}</Button>
         </form>
 
-        {a.provider && (
+        {account.provider && (
           <div className="flex items-center gap-3 border-t border-stone-900/5 pt-4 dark:border-white/10">
             <IconBadge square><LinkSimple size={18} /></IconBadge>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                {a.provider} {a.link.linked ? <Badge tone="ok"><CheckCircle size={12} /> linked</Badge> : <Badge>not linked</Badge>}
+                {account.provider} {account.link.linked ? <Badge tone="ok"><CheckCircle size={12} /> linked</Badge> : <Badge>not linked</Badge>}
               </div>
               <p className="truncate text-xs text-stone-500">
-                {a.link.linked ? `${a.link.email || 'Account'}${a.link.linkedAt ? ` · since ${date(a.link.linkedAt.slice(0, 10))}` : ''}` : `You'll be asked to link it the first time you sign in with ${a.provider}.`}
+                {account.link.linked ? `${account.link.email || 'Account'}${account.link.linkedAt ? ` · since ${date(account.link.linkedAt.slice(0, 10))}` : ''}` : `You'll be asked to link it the first time you sign in with ${account.provider}.`}
               </p>
             </div>
-            {a.link.linked && (
+            {account.link.linked && (
               <Button variant="ghost" className="shrink-0 !py-1.5 text-xs" busy={unlink.isPending}
-                onClick={() => confirm(`Unlink this ${a.provider} account? Signing in with ${a.provider} will ask to link again.`) && unlink.mutate(undefined)}>
+                onClick={() => confirm(`Unlink this ${account.provider} account? Signing in with ${account.provider} will ask to link again.`) && unlink.mutate(undefined)}>
                 Unlink
               </Button>
             )}

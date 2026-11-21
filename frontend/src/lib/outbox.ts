@@ -49,11 +49,11 @@ export function queueFill(vehicleId: number, vehicleName: string, body: Waiting[
 }
 
 /** Its three numbers, the missing one worked out (the form sends only the two you typed). */
-export function amounts(b: Waiting['body']) {
-  const v = b.volume, p = b.pricePerUnit, t = b.totalCost
+export function amounts(body: Waiting['body']) {
+  const volume = body.volume, price = body.pricePerUnit, total = body.totalCost
   return {
-    volume: v ?? (t != null && p ? t / p : null),
-    total: t ?? (v != null && p != null ? v * p : null),
+    volume: volume ?? (total != null && price ? total / price : null),
+    total: total ?? (volume != null && price != null ? volume * price : null),
   }
 }
 
@@ -74,7 +74,7 @@ export function useOutbox(): Waiting[] {
 let sending = false
 
 /** Sends what's waiting, oldest first. Stops at the first one that can't get through (still offline, signed out). */
-export async function flush(qc: QueryClient) {
+export async function flush(queryClient: QueryClient) {
   if (sending || !items.some((i) => !i.error)) return
   sending = true
   let sent = 0
@@ -94,14 +94,14 @@ export async function flush(qc: QueryClient) {
     sending = false
   }
   if (sent > 0) {
-    for (const queryKey of refresh.vehicleRecords) void qc.invalidateQueries({ queryKey })
+    for (const queryKey of refresh.vehicleRecords) void queryClient.invalidateQueries({ queryKey })
     toast(sent === 1 ? 'Fill-up sent' : `${sent} fill-ups sent`)
   }
 }
 
 /** Sends waiting fill-ups now, when the connection comes back, and every 30 seconds while any are waiting. */
-export function startOutbox(qc: QueryClient) {
-  const go = () => void flush(qc)
+export function startOutbox(queryClient: QueryClient) {
+  const go = () => void flush(queryClient)
   window.addEventListener('online', go)
   const timer = window.setInterval(() => items.some((i) => !i.error) && go(), 30_000)
   go()

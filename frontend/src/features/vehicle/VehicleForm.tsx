@@ -13,7 +13,7 @@ import { refresh } from '@/lib/queries'
 
 export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose: () => void; vehicle?: Vehicle }) {
   const nav = useNavigate()
-  const [f, setF] = useState(() => ({
+  const [form, setForm] = useState(() => ({
     name: vehicle?.name ?? '',
     kind: (vehicle?.kind ?? 'MOTORCYCLE') as Kind,
     fuelType: (vehicle?.fuelType ?? 'PETROL') as FuelType,
@@ -33,16 +33,16 @@ export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose
   const [photo, setPhoto] = useState<Blob | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((o) => ({ ...o, [k]: v }))
+  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((o) => ({ ...o, [k]: v }))
 
   const save = useSave(async () => {
       const body = {
-        ...f,
-        year: num(f.year),
-        tankCapacity: num(f.tankCapacity),
-        purchaseOdometer: num(f.purchaseOdometer),
-        purchasePrice: num(f.purchasePrice),
-        purchaseDate: f.purchaseDate || null,
+        ...form,
+        year: num(form.year),
+        tankCapacity: num(form.tankCapacity),
+        purchaseOdometer: num(form.purchaseOdometer),
+        purchasePrice: num(form.purchasePrice),
+        purchaseDate: form.purchaseDate || null,
       }
       const saved = vehicle ? await api<Vehicle>(`/vehicles/${vehicle.id}`, { method: 'PUT', body }) : await api<Vehicle>('/vehicles', { body })
       if (photo) {
@@ -88,7 +88,7 @@ export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose
             <VehicleArt vehicle={vehicle} className="aspect-[16/9] w-full" />
           ) : (
             <div className="flex aspect-[16/9] w-full items-center justify-center bg-stone-100 text-stone-400 dark:bg-stone-800">
-              <KindIcon kind={f.kind} size={64} />
+              <KindIcon kind={form.kind} size={64} />
             </div>
           )}
           <div className="absolute right-2 bottom-2 flex gap-2">
@@ -105,36 +105,36 @@ export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose
         </div>
 
         <Field label="Name">
-          <Input value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Duke, Activa, Creta" autoFocus={!vehicle} />
+          <Input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Duke, Activa, Creta" autoFocus={!vehicle} />
         </Field>
         <Segmented
-          value={f.kind}
-          onChange={(k) => set('kind', k)}
-          options={(['MOTORCYCLE', 'SCOOTER', 'CAR', 'OTHER'] as Kind[]).map((k) => ({ value: k, label: kindLabel[k] }))}
+          value={form.kind}
+          onChange={(kind) => set('kind', kind)}
+          options={(['MOTORCYCLE', 'SCOOTER', 'CAR', 'OTHER'] as Kind[]).map((kind) => ({ value: kind, label: kindLabel[kind] }))}
         />
         <div className="grid grid-cols-2 gap-3">
           <Field label="Fuel">
-            <Select value={f.fuelType} onChange={(e) => set('fuelType', e.target.value as FuelType)}>
-              {(Object.keys(fuelLabel) as FuelType[]).map((t) => <option key={t} value={t}>{fuelLabel[t]}</option>)}
+            <Select value={form.fuelType} onChange={(e) => set('fuelType', e.target.value as FuelType)}>
+              {(Object.keys(fuelLabel) as FuelType[]).map((fuelType) => <option key={fuelType} value={fuelType}>{fuelLabel[fuelType]}</option>)}
             </Select>
           </Field>
           <Field label="Registration">
-            <Input value={f.registration} onChange={(e) => set('registration', e.target.value)} placeholder="KA 01 AB 1234" autoCapitalize="characters" />
+            <Input value={form.registration} onChange={(e) => set('registration', e.target.value)} placeholder="KA 01 AB 1234" autoCapitalize="characters" />
           </Field>
-          <Field label="Make"><Input value={f.make} onChange={(e) => set('make', e.target.value)} placeholder="KTM" /></Field>
-          <Field label="Model"><Input value={f.model} onChange={(e) => set('model', e.target.value)} placeholder="390 Duke" /></Field>
-          <Field label="Year"><Input inputMode="numeric" value={f.year} onChange={(e) => set('year', e.target.value)} /></Field>
-          <Field label="Colour"><Input value={f.color} onChange={(e) => set('color', e.target.value)} /></Field>
-          <Field label={`Tank (${f.fuelType === 'ELECTRIC' ? 'kWh' : f.fuelType === 'CNG' ? 'kg' : 'L'})`}>
-            <Input inputMode="decimal" value={f.tankCapacity} onChange={(e) => set('tankCapacity', e.target.value)} />
+          <Field label="Make"><Input value={form.make} onChange={(e) => set('make', e.target.value)} placeholder="KTM" /></Field>
+          <Field label="Model"><Input value={form.model} onChange={(e) => set('model', e.target.value)} placeholder="390 Duke" /></Field>
+          <Field label="Year"><Input inputMode="numeric" value={form.year} onChange={(e) => set('year', e.target.value)} /></Field>
+          <Field label="Colour"><Input value={form.color} onChange={(e) => set('color', e.target.value)} /></Field>
+          <Field label={`Tank (${form.fuelType === 'ELECTRIC' ? 'kWh' : form.fuelType === 'CNG' ? 'kg' : 'L'})`}>
+            <Input inputMode="decimal" value={form.tankCapacity} onChange={(e) => set('tankCapacity', e.target.value)} />
           </Field>
-          <Field label="Odometer at purchase"><Input inputMode="decimal" value={f.purchaseOdometer} onChange={(e) => set('purchaseOdometer', e.target.value)} placeholder="km" /></Field>
-          <Field label="Purchase price (₹)"><Input inputMode="decimal" value={f.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} /></Field>
-          <Field label="Purchase date" className="col-span-2"><DateInput value={f.purchaseDate} onChange={(v) => set('purchaseDate', v)} allowEmpty placeholder="Optional" /></Field>
+          <Field label="Odometer at purchase"><Input inputMode="decimal" value={form.purchaseOdometer} onChange={(e) => set('purchaseOdometer', e.target.value)} placeholder="km" /></Field>
+          <Field label="Purchase price (₹)"><Input inputMode="decimal" value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} /></Field>
+          <Field label="Purchase date" className="col-span-2"><DateInput value={form.purchaseDate} onChange={(v) => set('purchaseDate', v)} allowEmpty placeholder="Optional" /></Field>
         </div>
-        <Field label="Notes"><TextArea value={f.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
-        <Toggle checked={f.isDefault} onChange={(v) => set('isDefault', v)} label="My usual ride" hint="Suggested first for new trips and fill-ups." />
-        {vehicle && <Toggle checked={f.archived} onChange={(v) => set('archived', v)} label="Sold or retired" hint="Its history stays; it's left out of new entries." />}
+        <Field label="Notes"><TextArea value={form.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
+        <Toggle checked={form.isDefault} onChange={(v) => set('isDefault', v)} label="My usual ride" hint="Suggested first for new trips and fill-ups." />
+        {vehicle && <Toggle checked={form.archived} onChange={(v) => set('archived', v)} label="Sold or retired" hint="Its history stays; it's left out of new entries." />}
         <ErrorText error={save.error ?? removePhoto.error} />
       </div>
     </FormScreen>

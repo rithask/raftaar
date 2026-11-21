@@ -27,7 +27,7 @@ export function nextTerm(issuedOn?: string | null, expiresOn?: string | null): {
 export function DocumentForm({ open, onClose, vehicles, vehicleId, doc, renewing = false }: { open: boolean; onClose: () => void; vehicles: Vehicle[]; vehicleId?: number | null; doc?: Doc; renewing?: boolean }) {
   // Renewing: the same paper with its dates moved to the next term, asking for the new certificate.
   const term = renewing && doc ? nextTerm(doc.issuedOn, doc.expiresOn) : null
-  const [f, setF] = useState({
+  const [form, setForm] = useState({
     vehicleId: doc ? doc.vehicleId : vehicleId ?? null,
     type: (doc?.type ?? 'INSURANCE') as DocType,
     title: doc?.title ?? '',
@@ -41,10 +41,10 @@ export function DocumentForm({ open, onClose, vehicles, vehicleId, doc, renewing
   })
   const [file, setFile] = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((o) => ({ ...o, [k]: v }))
+  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((o) => ({ ...o, [k]: v }))
 
   const save = useSave(async () => {
-    const body = { ...f, title: f.title || null, issuedOn: f.issuedOn || null, expiresOn: f.expiresOn || null, remindDaysBefore: num(f.remindDaysBefore), cost: num(f.cost) }
+    const body = { ...form, title: form.title || null, issuedOn: form.issuedOn || null, expiresOn: form.expiresOn || null, remindDaysBefore: num(form.remindDaysBefore), cost: num(form.cost) }
     const saved = doc ? await api<Doc>(`/documents/${doc.id}`, { method: 'PUT', body }) : await api<Doc>('/documents', { body })
     if (file) {
       const form = new FormData()
@@ -52,8 +52,8 @@ export function DocumentForm({ open, onClose, vehicles, vehicleId, doc, renewing
       await api(`/documents/${saved.id}/file`, { method: 'PUT', form })
     }
   }, { refresh: refresh.papers, onDone: onClose, done: renewing ? 'Renewed. Reminders start over for the new date.' : 'Saved' })
-  const renew = () => setF((o) => ({ ...o, ...nextTerm(o.issuedOn || null, o.expiresOn || null) }))
-  const from = f.issuedOn || undefined
+  const renew = () => setForm((o) => ({ ...o, ...nextTerm(o.issuedOn || null, o.expiresOn || null) }))
+  const from = form.issuedOn || undefined
 
   return (
     <FormScreen open={open} onClose={onClose} title={renewing && doc ? `Renew ${doc.title}` : doc ? doc.title : 'Add a paper'} onSave={() => save.mutate(undefined)} saving={save.isPending}
@@ -67,26 +67,26 @@ export function DocumentForm({ open, onClose, vehicles, vehicleId, doc, renewing
         )}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Type">
-            <Select value={f.type} onChange={(e) => set('type', e.target.value as DocType)}>
-              {(Object.keys(docLabel) as DocType[]).map((t) => <option key={t} value={t}>{docLabel[t]}</option>)}
+            <Select value={form.type} onChange={(e) => set('type', e.target.value as DocType)}>
+              {(Object.keys(docLabel) as DocType[]).map((type) => <option key={type} value={type}>{docLabel[type]}</option>)}
             </Select>
           </Field>
           <Field label="For">
-            <Select value={f.vehicleId ?? ''} onChange={(e) => set('vehicleId', e.target.value ? Number(e.target.value) : null)}>
+            <Select value={form.vehicleId ?? ''} onChange={(e) => set('vehicleId', e.target.value ? Number(e.target.value) : null)}>
               <option value="">Me</option>
-              {vehicles.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+              {vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.name}</option>)}
             </Select>
           </Field>
         </div>
-        <Field label="Name"><Input value={f.title} onChange={(e) => set('title', e.target.value)} placeholder={docLabel[f.type]} /></Field>
+        <Field label="Name"><Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder={docLabel[form.type]} /></Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Number"><Input value={f.number} onChange={(e) => set('number', e.target.value)} /></Field>
-          <Field label="Issued by"><Input value={f.provider} onChange={(e) => set('provider', e.target.value)} placeholder="Insurer, RTO" /></Field>
+          <Field label="Number"><Input value={form.number} onChange={(e) => set('number', e.target.value)} /></Field>
+          <Field label="Issued by"><Input value={form.provider} onChange={(e) => set('provider', e.target.value)} placeholder="Insurer, RTO" /></Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Issued on"><DateInput value={f.issuedOn} onChange={(v) => set('issuedOn', v)} allowEmpty placeholder="Date" /></Field>
+          <Field label="Issued on"><DateInput value={form.issuedOn} onChange={(v) => set('issuedOn', v)} allowEmpty placeholder="Date" /></Field>
           <Field label="Valid until">
-            <DateInput value={f.expiresOn} onChange={(v) => set('expiresOn', v)} allowEmpty placeholder="Date"
+            <DateInput value={form.expiresOn} onChange={(v) => set('expiresOn', v)} allowEmpty placeholder="Date"
               presets={[
                 { label: '+6 months', value: () => plusMonths(from, 6) },
                 { label: '+1 year', value: () => plusMonths(from, 12) },
@@ -94,17 +94,17 @@ export function DocumentForm({ open, onClose, vehicles, vehicleId, doc, renewing
               ]} />
           </Field>
         </div>
-        {doc && !renewing && f.expiresOn && <Button variant="secondary" className="w-full" onClick={renew}>Renewed? Move dates to the next term</Button>}
+        {doc && !renewing && form.expiresOn && <Button variant="secondary" className="w-full" onClick={renew}>Renewed? Move dates to the next term</Button>}
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Remind me (days before)"><Input inputMode="numeric" value={f.remindDaysBefore} onChange={(e) => set('remindDaysBefore', e.target.value)} /></Field>
-          <Field label="Cost (₹)"><Input inputMode="decimal" value={f.cost} onChange={(e) => set('cost', e.target.value)} /></Field>
+          <Field label="Remind me (days before)"><Input inputMode="numeric" value={form.remindDaysBefore} onChange={(e) => set('remindDaysBefore', e.target.value)} /></Field>
+          <Field label="Cost (₹)"><Input inputMode="decimal" value={form.cost} onChange={(e) => set('cost', e.target.value)} /></Field>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" onClick={() => fileRef.current?.click()}><Paperclip size={16} /> {file ? file.name : renewing ? 'Attach the new certificate' : doc?.fileOriginalName ? 'Replace file' : 'Attach a photo or PDF'}</Button>
           {doc?.fileOriginalName && !file && <a className="truncate text-sm text-sky-600 underline active:opacity-60" href={`/api/documents/${doc.id}/file`} target="_blank" rel="noreferrer">{doc.fileOriginalName}</a>}
           <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </div>
-        <Field label="Notes"><TextArea value={f.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
+        <Field label="Notes"><TextArea value={form.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
         <ErrorText error={save.error} />
       </div>
     </FormScreen>

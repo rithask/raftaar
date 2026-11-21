@@ -10,7 +10,7 @@ import { softSpring } from '@/ui'
 /** Fill-ups saved on this phone and not sent yet: how many, a way to send them now, and any the server refused. */
 export function OutboxBar() {
   const items = useOutbox()
-  const qc = useQueryClient()
+  const queryClient = useQueryClient()
   const [online, setOnline] = useState(navigator.onLine)
   const [busy, setBusy] = useState(false)
   useEffect(() => {
@@ -28,7 +28,7 @@ export function OutboxBar() {
   const refused = shown.filter((i) => i.error)
   const send = async () => {
     setBusy(true)
-    await flush(qc)
+    await flush(queryClient)
     setBusy(false)
   }
   return (

@@ -11,19 +11,19 @@ import { Badge, Button, EmptyState, IconBadge, List, listItem, ListRow, RowMeta,
 import { refresh } from '@/lib/queries'
 
 export const SOURCE = { MANUAL: '', HISAAB: 'Hisaab', GEOPULSE: 'GeoPulse', HISAAB_GEOPULSE: 'Hisaab + GeoPulse' } as const
-export function FuelTab({ vehicleId, summary, fills, onOpen }: { vehicleId: number; summary: Summary; fills: FuelRow[]; onOpen: (r: FuelRow) => void }) {
+export function FuelTab({ vehicleId, summary, fills, onOpen }: { vehicleId: number; summary: Summary; fills: FuelRow[]; onOpen: (fill: FuelRow) => void }) {
   const resolve = useSave((fid: number) => api(`/fuel/${fid}/resolve`, { method: 'POST' }), { refresh: refresh.vehicleRecords, done: 'Marked as checked' })
   const waiting = useOutbox().filter((w) => w.vehicleId === vehicleId)
   const hidden = useHidden()
-  const list = fills.filter((r) => !hidden(`fuel:${r.entry.id}`))
+  const list = fills.filter((fill) => !hidden(`fuel:${fill.entry.id}`))
   if (!list.length && !waiting.length) return <EmptyState icon={<GasPump size={40} />} title="No fill-ups yet">Add each fill-up with the odometer reading. Mileage shows after two full tanks.</EmptyState>
-  const byId = new Map(list.map((r) => [r.entry.id, r.entry]))
-  const chart = summary.economyHistory.map((st) => ({ when: date(byId.get(st.endId)?.filledAt, false), kmpl: st.kmPerUnit }))
+  const byId = new Map(list.map((fill) => [fill.entry.id, fill.entry]))
+  const chart = summary.economyHistory.map((stretch) => ({ when: date(byId.get(stretch.endId)?.filledAt, false), kmpl: stretch.kmPerUnit }))
   const unit = summary.unit
   const usual = usualRange(chart.map((c) => c.kmpl))
-  const prices = [...list].reverse().map((r) => ({ when: date(r.entry.filledAt, false), paid: r.entry.pricePerUnit, published: r.publishedPrice }))
+  const prices = [...list].reverse().map((fill) => ({ when: date(fill.entry.filledAt, false), paid: fill.entry.pricePerUnit, published: fill.publishedPrice }))
   const hasPublished = prices.some((p) => p.published != null)
-  const spent = list.reduce((t, r) => t + r.entry.totalCost, 0)
+  const spent = list.reduce((t, fill) => t + fill.entry.totalCost, 0)
   return (
     <>
       {chart.length >= 2 && (
@@ -58,28 +58,28 @@ export function FuelTab({ vehicleId, summary, fills, onOpen }: { vehicleId: numb
               </div>
             </motion.div>
           ))}
-          {list.map((r) => (
-            <div key={r.entry.id}>
-              <ListRow onClick={() => onOpen(r)}>
+          {list.map((fill) => (
+            <div key={fill.entry.id}>
+              <ListRow onClick={() => onOpen(fill)}>
                 <IconBadge><GasPump size={18} /></IconBadge>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium">{dateTime(r.entry.filledAt)}</div>
+                  <div className="truncate font-medium">{dateTime(fill.entry.filledAt)}</div>
                   <RowMeta>
-                    {km(r.entry.odometer)} · {n2(r.entry.volume)} {unit}
-                    {!r.entry.fullTank ? ' · partial' : ''}
-                    {r.entry.missedPrevious ? ' · after a skipped one' : ''}
-                    {r.entry.source !== 'MANUAL' ? ` · ${SOURCE[r.entry.source]}` : r.entry.stationName ? ` · ${r.entry.stationName}` : ''}
+                    {km(fill.entry.odometer)} · {n2(fill.entry.volume)} {unit}
+                    {!fill.entry.fullTank ? ' · partial' : ''}
+                    {fill.entry.missedPrevious ? ' · after a skipped one' : ''}
+                    {fill.entry.source !== 'MANUAL' ? ` · ${SOURCE[fill.entry.source]}` : fill.entry.stationName ? ` · ${fill.entry.stationName}` : ''}
                   </RowMeta>
                 </div>
                 <div className="shrink-0 text-right">
-                  <div className="num font-semibold">{money(r.entry.totalCost)}</div>
-                  <div className="num mt-0.5 text-[13px] text-stone-500">{r.kmPerUnit != null ? `${n1(r.kmPerUnit)} ${economyUnit(unit)}` : `@ ${money2(r.entry.pricePerUnit)}`}</div>
+                  <div className="num font-semibold">{money(fill.entry.totalCost)}</div>
+                  <div className="num mt-0.5 text-[13px] text-stone-500">{fill.kmPerUnit != null ? `${n1(fill.kmPerUnit)} ${economyUnit(unit)}` : `@ ${money2(fill.entry.pricePerUnit)}`}</div>
                 </div>
               </ListRow>
-              {r.entry.sourceIssue && (
+              {fill.entry.sourceIssue && (
                 <div className="flex items-center gap-2 bg-amber-500/10 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">
-                  <Warning size={16} /> <span className="flex-1">{r.entry.sourceIssue}</span>
-                  <Button variant="ghost" className="!py-1" onClick={() => resolve.mutate(r.entry.id)}>Checked</Button>
+                  <Warning size={16} /> <span className="flex-1">{fill.entry.sourceIssue}</span>
+                  <Button variant="ghost" className="!py-1" onClick={() => resolve.mutate(fill.entry.id)}>Checked</Button>
                 </div>
               )}
             </div>

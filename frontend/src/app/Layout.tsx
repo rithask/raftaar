@@ -115,13 +115,13 @@ function Highlight() {
 
 function Sidebar({ garage, waiting, collapsed, onToggle }: { garage?: GarageData; waiting: number; collapsed: boolean; onToggle: () => void }) {
   const { pathname } = useLocation()
-  const qc = useQueryClient()
+  const queryClient = useQueryClient()
   const current = pathname.startsWith('/settings') ? '/settings' : pathname
   const hidden = useHidden()
-  const vehicles = (garage?.vehicles ?? []).filter((c) => !c.vehicle.archived && !hidden(`vehicle:${c.vehicle.id}`))
+  const vehicles = (garage?.vehicles ?? []).filter((card) => !card.vehicle.archived && !hidden(`vehicle:${card.vehicle.id}`))
   const leave = async () => {
     await signOut()
-    qc.setQueryData(keys.me, { username: null })
+    queryClient.setQueryData(keys.me, { username: null })
   }
   // "wide" styles only apply on large screens, and only when not collapsed
   const wide = (cls: string) => (collapsed ? '' : cls)
@@ -168,26 +168,26 @@ function Sidebar({ garage, waiting, collapsed, onToggle }: { garage?: GarageData
             <div className="mb-1 px-3 text-[11px] font-semibold tracking-wider whitespace-nowrap text-stone-400 uppercase">Vehicles</div>
           )}
           <div className="-mx-1 flex flex-col gap-1 overflow-y-auto px-1">
-            {vehicles.map((c) => {
-              const v = c.vehicle
-              const on = pathname === `/vehicles/${v.id}`
-              const bad = c.attention.some((r) => r.status.state === 'OVERDUE') || c.papers.some((d) => d.state === 'EXPIRED')
-              const warn = c.attention.length + c.papers.length > 0
+            {vehicles.map((card) => {
+              const vehicle = card.vehicle
+              const on = pathname === `/vehicles/${vehicle.id}`
+              const bad = card.attention.some((reminderView) => reminderView.status.state === 'OVERDUE') || card.papers.some((paper) => paper.state === 'EXPIRED')
+              const warn = card.attention.length + card.papers.length > 0
               const dot = warn && <span className={cx('relative size-2 shrink-0 rounded-full', bad ? 'bg-red-500' : 'bg-amber-500')} aria-label="needs attention" />
               return (
-                <VehicleLink key={v.id} vehicleId={v.id} title={v.name} aria-current={on ? 'page' : undefined}
+                <VehicleLink key={vehicle.id} vehicleId={vehicle.id} title={vehicle.name} aria-current={on ? 'page' : undefined}
                   className={cx('relative flex h-10 items-center rounded-xl text-sm transition-colors active:scale-[0.97]', collapsed ? 'justify-center' : 'gap-2 px-2',
                     on ? chosen : 'font-medium text-stone-600 hover:bg-stone-900/[0.04] hover:text-stone-900 dark:text-stone-300 dark:hover:bg-white/5 dark:hover:text-stone-100')}>
                   {on && <Highlight />}
                   <span className="relative shrink-0">
-                    {imageUrl(v) ? (
-                      <img src={imageUrl(v, 'small')!} alt="" className="size-7 rounded-lg object-cover ring-1 ring-stone-900/10 dark:ring-white/10" />
+                    {imageUrl(vehicle) ? (
+                      <img src={imageUrl(vehicle, 'small')!} alt="" className="size-7 rounded-lg object-cover ring-1 ring-stone-900/10 dark:ring-white/10" />
                     ) : (
-                      <span className="flex size-7 items-center justify-center rounded-lg bg-accent-soft text-accent-strong"><KindIcon kind={v.kind} size={16} /></span>
+                      <span className="flex size-7 items-center justify-center rounded-lg bg-accent-soft text-accent-strong"><KindIcon kind={vehicle.kind} size={16} /></span>
                     )}
                     {collapsed && warn && <span className={cx('absolute -top-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-white dark:ring-stone-900', bad ? 'bg-red-500' : 'bg-amber-500')} />}
                   </span>
-                  {!collapsed && <span className="relative min-w-0 flex-1 truncate">{v.name}</span>}
+                  {!collapsed && <span className="relative min-w-0 flex-1 truncate">{vehicle.name}</span>}
                   {!collapsed && dot}
                 </VehicleLink>
               )

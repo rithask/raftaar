@@ -22,10 +22,10 @@ export function GaragePage() {
   if (garage.isLoading) return <Loading />
   if (garage.error) return <ErrorText error={garage.error} />
   const data = garage.data!
-  const all = data.vehicles.filter((c) => !hidden(`vehicle:${c.vehicle.id}`))
-  const active = all.filter((c) => !c.vehicle.archived)
-  const retired = all.filter((c) => c.vehicle.archived)
-  const vehicles: Vehicle[] = active.map((c) => c.vehicle)
+  const all = data.vehicles.filter((card) => !hidden(`vehicle:${card.vehicle.id}`))
+  const active = all.filter((card) => !card.vehicle.archived)
+  const retired = all.filter((card) => card.vehicle.archived)
+  const vehicles: Vehicle[] = active.map((card) => card.vehicle)
   const waiting = data.toConfirm + data.tripsToSort
 
   return (
@@ -55,9 +55,9 @@ export function GaragePage() {
         </EmptyState>
       ) : (
         <motion.div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3" variants={listParent} initial="hidden" animate="show">
-          {active.map((c) => (
-            <motion.div key={c.vehicle.id} variants={listItem} layout>
-              <VehicleCard card={c} onFuel={() => setFuelFor(c)} />
+          {active.map((card) => (
+            <motion.div key={card.vehicle.id} variants={listItem} layout>
+              <VehicleCard card={card} onFuel={() => setFuelFor(card)} />
             </motion.div>
           ))}
         </motion.div>
@@ -66,11 +66,11 @@ export function GaragePage() {
       {retired.length > 0 && (
         <Section title="Sold or retired">
           <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-            {retired.map((c) => (
-              <VehicleLink key={c.vehicle.id} vehicleId={c.vehicle.id} className={cx('flex items-center gap-3 rounded-2xl p-3 opacity-70 transition duration-100 active:scale-[0.99] active:opacity-100', surface)}>
-                <VehicleArt vehicle={c.vehicle} className="size-12 rounded-xl" iconSize={22} small />
-                <span className="font-medium">{c.vehicle.name}</span>
-                <span className="num ml-auto text-sm text-stone-500">{km(c.odometer.known)}</span>
+            {retired.map((card) => (
+              <VehicleLink key={card.vehicle.id} vehicleId={card.vehicle.id} className={cx('flex items-center gap-3 rounded-2xl p-3 opacity-70 transition duration-100 active:scale-[0.99] active:opacity-100', surface)}>
+                <VehicleArt vehicle={card.vehicle} className="size-12 rounded-xl" iconSize={22} small />
+                <span className="font-medium">{card.vehicle.name}</span>
+                <span className="num ml-auto text-sm text-stone-500">{km(card.odometer.known)}</span>
               </VehicleLink>
             ))}
           </div>
@@ -89,23 +89,23 @@ export function GaragePage() {
 }
 
 function VehicleCard({ card, onFuel }: { card: GarageCard; onFuel: () => void }) {
-  const v = card.vehicle
-  const odo = card.odometer.estimated ?? card.odometer.known
-  const subtitle = [v.make, v.model, v.year].filter(Boolean).join(' ')
-  const overdue = card.attention.some((r) => r.status.state === 'OVERDUE') || card.papers.some((d) => d.state === 'EXPIRED')
+  const vehicle = card.vehicle
+  const currentKm = card.odometer.estimated ?? card.odometer.known
+  const subtitle = [vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ')
+  const overdue = card.attention.some((reminderView) => reminderView.status.state === 'OVERDUE') || card.papers.some((paper) => paper.state === 'EXPIRED')
   return (
     <Card raised className="group relative overflow-hidden rounded-3xl transition-shadow hover:shadow-md">
-      <VehicleLink vehicleId={v.id} className="block transition duration-100 active:opacity-80">
-        {imageUrl(v) ? (
+      <VehicleLink vehicleId={vehicle.id} className="block transition duration-100 active:opacity-80">
+        {imageUrl(vehicle) ? (
         <div className="relative">
-          <VehicleArt vehicle={v} className="aspect-[16/10] w-full transition duration-300 group-hover:scale-[1.02]" iconSize={72} />
+          <VehicleArt vehicle={vehicle} className="aspect-[16/10] w-full transition duration-300 group-hover:scale-[1.02]" iconSize={72} />
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent p-4 pt-12 text-white">
             <div className="flex items-end justify-between gap-2">
               <div className="min-w-0">
-                <h2 className="truncate text-xl font-semibold">{v.name}</h2>
+                <h2 className="truncate text-xl font-semibold">{vehicle.name}</h2>
                 <p className="truncate text-sm text-white/75">{subtitle || ' '}</p>
               </div>
-              {v.registration && <span className="shrink-0 rounded-md bg-white/90 px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-stone-900">{v.registration}</span>}
+              {vehicle.registration && <span className="shrink-0 rounded-md bg-white/90 px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-stone-900">{vehicle.registration}</span>}
             </div>
           </div>
           {(card.attention.length > 0 || card.papers.length > 0) && (
@@ -118,11 +118,11 @@ function VehicleCard({ card, onFuel }: { card: GarageCard; onFuel: () => void })
         ) : (
           // no photo: a compact header instead of a big grey block
           <div className="flex items-center gap-3 px-4 pt-4">
-            <IconBadge size="lg" square className="ring-1 ring-accent-strong/15"><KindIcon kind={v.kind} size={26} /></IconBadge>
+            <IconBadge size="lg" square className="ring-1 ring-accent-strong/15"><KindIcon kind={vehicle.kind} size={26} /></IconBadge>
             <div className="min-w-0 flex-1">
-              <h2 className="truncate text-lg leading-tight font-semibold">{v.name}</h2>
+              <h2 className="truncate text-lg leading-tight font-semibold">{vehicle.name}</h2>
               {subtitle && <p className="truncate text-sm text-stone-500">{subtitle}</p>}
-              {v.registration && <span className="mt-1 inline-block whitespace-nowrap rounded-md bg-white px-1.5 py-0.5 font-mono text-[11px] font-bold tracking-wider text-stone-900 ring-1 ring-stone-900/15">{v.registration}</span>}
+              {vehicle.registration && <span className="mt-1 inline-block whitespace-nowrap rounded-md bg-white px-1.5 py-0.5 font-mono text-[11px] font-bold tracking-wider text-stone-900 ring-1 ring-stone-900/15">{vehicle.registration}</span>}
             </div>
             {(card.attention.length > 0 || card.papers.length > 0) && (
               <span className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${overdue ? 'bg-red-600 text-white' : 'bg-amber-400 text-stone-950'}`}>
@@ -133,21 +133,21 @@ function VehicleCard({ card, onFuel }: { card: GarageCard; onFuel: () => void })
           </div>
         )}
         <div className="grid grid-cols-3 gap-2 px-4 pt-3">
-          <Mini label="Odometer" value={odo != null ? km(odo) : '—'} approx={card.odometer.estimated != null} />
+          <Mini label="Odometer" value={currentKm != null ? km(currentKm) : '—'} approx={card.odometer.estimated != null} />
           <Mini label="Mileage" value={card.averageEconomy != null ? `${n1(card.averageEconomy)}` : '—'} unit={card.averageEconomy != null ? economyUnit(card.unit) : undefined} />
           <Mini label="This month" value={money(card.spentThisMonth)} />
         </div>
         <div className="space-y-1.5 px-4 pt-3">
-          {card.attention.slice(0, 2).map((r) => (
-            <div key={r.reminder.id} className="flex items-center gap-2 text-sm">
-              <Badge tone={r.status.state === 'OVERDUE' ? 'bad' : 'warn'}>{r.reminder.title}</Badge>
-              <span className="truncate text-stone-500">{r.status.summary.replace(/^Due /, '')}</span>
+          {card.attention.slice(0, 2).map((reminderView) => (
+            <div key={reminderView.reminder.id} className="flex items-center gap-2 text-sm">
+              <Badge tone={reminderView.status.state === 'OVERDUE' ? 'bad' : 'warn'}>{reminderView.reminder.title}</Badge>
+              <span className="truncate text-stone-500">{reminderView.status.summary.replace(/^Due /, '')}</span>
             </div>
           ))}
-          {card.papers.slice(0, 2).map((d) => (
-            <div key={d.document.id} className="flex items-center gap-2 text-sm">
-              <Badge tone={d.state === 'EXPIRED' ? 'bad' : 'warn'}><Scroll size={12} /> {d.document.title}</Badge>
-              <span className="truncate text-stone-500">{d.state === 'EXPIRED' ? `expired ${date(d.document.expiresOn)}` : d.daysLeft === 0 ? 'expires today' : `expires in ${d.daysLeft} days`}</span>
+          {card.papers.slice(0, 2).map((paper) => (
+            <div key={paper.document.id} className="flex items-center gap-2 text-sm">
+              <Badge tone={paper.state === 'EXPIRED' ? 'bad' : 'warn'}><Scroll size={12} /> {paper.document.title}</Badge>
+              <span className="truncate text-stone-500">{paper.state === 'EXPIRED' ? `expired ${date(paper.document.expiresOn)}` : paper.daysLeft === 0 ? 'expires today' : `expires in ${paper.daysLeft} days`}</span>
             </div>
           ))}
         </div>

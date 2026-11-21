@@ -7,7 +7,7 @@ import { MonthlyChart } from '../LazyCharts'
 import { AddLink, Card, cx, EmptyState, IconBadge, List, ListRow, RowMeta, Section, softSpring } from '@/ui'
 
 /** Where the money went, then the expenses list. */
-export function SpendTab({ summary, expenses, onOpen, onAdd }: { summary: Summary; expenses: Expense[]; onOpen: (e: Expense) => void; onAdd: () => void }) {
+export function SpendTab({ summary, expenses, onOpen, onAdd }: { summary: Summary; expenses: Expense[]; onOpen: (expense: Expense) => void; onAdd: () => void }) {
   const c = summary.costs
   const parts = [
     { label: 'Fuel', value: c.fuel, color: 'bg-accent' },
@@ -15,7 +15,7 @@ export function SpendTab({ summary, expenses, onOpen, onAdd }: { summary: Summar
     { label: 'Other', value: c.expenses, color: 'bg-violet-500' },
   ]
   const hidden = useHidden()
-  const list = expenses.filter((e) => !hidden(`expense:${e.id}`))
+  const list = expenses.filter((expense) => !hidden(`expense:${expense.id}`))
   const months = summary.monthly.some((m) => m.fuel + m.service + m.other > 0) ? summary.monthly : []
   const monthAvg = months.reduce((t, m) => t + m.fuel + m.service + m.other, 0) / Math.max(1, months.length)
   return (
@@ -51,14 +51,14 @@ export function SpendTab({ summary, expenses, onOpen, onAdd }: { summary: Summar
           <EmptyState icon={<Receipt size={36} />} title="No expenses">Upgrades, accessories, riding gear, tolls and parking.</EmptyState>
         ) : (
           <List>
-            {list.map((e) => (
-              <ListRow key={e.id} onClick={() => onOpen(e)}>
+            {list.map((expense) => (
+              <ListRow key={expense.id} onClick={() => onOpen(expense)}>
                 <IconBadge tone="violet"><Receipt size={18} /></IconBadge>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium">{e.title}</div>
-                  <RowMeta>{expenseLabel[e.category]} · {date(e.spentOn, false)}{e.hisaabTxnId ? ' · Hisaab' : e.vendor ? ` · ${e.vendor}` : ''}</RowMeta>
+                  <div className="truncate font-medium">{expense.title}</div>
+                  <RowMeta>{expenseLabel[expense.category]} · {date(expense.spentOn, false)}{expense.hisaabTxnId ? ' · Hisaab' : expense.vendor ? ` · ${expense.vendor}` : ''}</RowMeta>
                 </div>
-                <div className="num shrink-0 font-semibold">{money(e.amount)}</div>
+                <div className="num shrink-0 font-semibold">{money(expense.amount)}</div>
               </ListRow>
             ))}
           </List>

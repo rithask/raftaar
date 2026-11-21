@@ -28,7 +28,7 @@ export function useInView(ref: React.RefObject<HTMLElement | null>, ready: boole
  * On a phone, once the header has scrolled away: a slim bar with back, the vehicle's name and edit, so you
  * always know where you are and can get back. The tabs stick right under it (--sticky-top on the page).
  */
-export function CompactBar({ vehicle: v, visible, onEdit }: { vehicle: Vehicle; visible: boolean; onEdit: () => void }) {
+export function CompactBar({ vehicle, visible, onEdit }: { vehicle: Vehicle; visible: boolean; onEdit: () => void }) {
   return createPortal(
     <AnimatePresence>
       {visible && (
@@ -36,8 +36,8 @@ export function CompactBar({ vehicle: v, visible, onEdit }: { vehicle: Vehicle; 
           className="fixed inset-x-0 top-0 z-30 flex h-[3.25rem] items-center gap-1 border-b border-stone-900/10 bg-stone-100/90 px-2 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:hidden dark:border-white/10 dark:bg-stone-950/90">
           <Link to="/" className="rounded-full p-2.5 text-stone-700 transition active:scale-90 active:bg-stone-200 dark:text-stone-200 dark:active:bg-stone-800" aria-label="Back to garage"><ArrowLeft size={20} /></Link>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[15px] leading-tight font-semibold">{v.name}</div>
-            {v.registration && <div className="truncate font-mono text-[11px] leading-tight text-stone-500">{v.registration}</div>}
+            <div className="truncate text-[15px] leading-tight font-semibold">{vehicle.name}</div>
+            {vehicle.registration && <div className="truncate font-mono text-[11px] leading-tight text-stone-500">{vehicle.registration}</div>}
           </div>
           <button type="button" onClick={onEdit} className="rounded-full p-2.5 text-stone-700 transition active:scale-90 active:bg-stone-200 dark:text-stone-200 dark:active:bg-stone-800" aria-label="Edit vehicle"><PencilSimple size={20} /></button>
         </motion.div>
@@ -49,12 +49,12 @@ export function CompactBar({ vehicle: v, visible, onEdit }: { vehicle: Vehicle; 
 
 export const glass = 'rounded-full p-2.5 backdrop-blur transition active:scale-90'
 
-export function Header({ vehicle: v, onEdit, onFuel, onPick }: { vehicle: Vehicle; onEdit: () => void; onFuel: () => void; onPick: (o: Open) => void }) {
-  const subtitle = [v.make, v.model, v.year].filter(Boolean).join(' ')
-  const facts = [kindLabel[v.kind], fuelLabel[v.fuelType]].join(' · ')
-  const plate = v.registration && (
+export function Header({ vehicle, onEdit, onFuel, onPick }: { vehicle: Vehicle; onEdit: () => void; onFuel: () => void; onPick: (o: Open) => void }) {
+  const subtitle = [vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ')
+  const facts = [kindLabel[vehicle.kind], fuelLabel[vehicle.fuelType]].join(' · ')
+  const plate = vehicle.registration && (
     <span className="inline-block whitespace-nowrap rounded-md bg-white px-1.5 py-0.5 font-mono text-[11px] font-bold tracking-wider text-stone-900 ring-1 ring-stone-900/15">
-      {v.registration}
+      {vehicle.registration}
     </span>
   )
   const desktopFuel = (look: 'glass' | 'plain') => (
@@ -65,18 +65,18 @@ export function Header({ vehicle: v, onEdit, onFuel, onPick }: { vehicle: Vehicl
   )
 
   // With a photo: the photo leads, the name sits on it.
-  if (imageUrl(v)) {
+  if (imageUrl(vehicle)) {
     return (
       <div className="-mx-4 -mt-4 sm:mx-0 sm:mt-0">
         <div className="relative overflow-hidden sm:rounded-3xl">
-          <VehicleArt vehicle={v} className="h-44 w-full sm:h-72" />
+          <VehicleArt vehicle={vehicle} className="h-44 w-full sm:h-72" />
           <div className="absolute inset-x-0 top-0 flex justify-between p-3">
             <Link to="/" className={cx(glass, 'bg-black/35 text-white active:bg-black/55')} aria-label="Back to garage"><ArrowLeft size={20} /></Link>
             <button onClick={onEdit} className={cx(glass, 'bg-black/35 text-white active:bg-black/55')} aria-label="Edit vehicle"><PencilSimple size={20} /></button>
           </div>
           <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pt-14 pb-3.5 text-white sm:pt-20 sm:pb-4">
             <div className="min-w-0">
-              <h1 className="truncate text-2xl leading-tight font-bold tracking-tight sm:text-[26px]">{v.name}</h1>
+              <h1 className="truncate text-2xl leading-tight font-bold tracking-tight sm:text-[26px]">{vehicle.name}</h1>
               <p className="truncate text-sm text-white/75">{subtitle || facts}</p>
               {plate && <div className="mt-1.5">{plate}</div>}
             </div>
@@ -97,11 +97,11 @@ export function Header({ vehicle: v, onEdit, onFuel, onPick }: { vehicle: Vehicl
       <div className="flex items-center gap-4">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={spring}
           className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent-strong ring-1 ring-accent-strong/15">
-          <KindIcon kind={v.kind} size={34} />
+          <KindIcon kind={vehicle.kind} size={34} />
         </motion.div>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[26px] leading-tight font-bold tracking-tight">{v.name}</h1>
-          <p className="truncate text-sm text-stone-500">{subtitle ? `${subtitle} · ${fuelLabel[v.fuelType]}` : facts}</p>
+          <h1 className="truncate text-[26px] leading-tight font-bold tracking-tight">{vehicle.name}</h1>
+          <p className="truncate text-sm text-stone-500">{subtitle ? `${subtitle} · ${fuelLabel[vehicle.fuelType]}` : facts}</p>
           {plate && <div className="mt-1.5">{plate}</div>}
         </div>
         {desktopFuel('plain')}

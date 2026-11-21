@@ -19,8 +19,8 @@ let client: QueryClient | null = null
 const listeners = new Set<() => void>()
 const emit = () => listeners.forEach((l) => l())
 
-export function setUndoClient(qc: QueryClient) {
-  client = qc
+export function setUndoClient(queryClient: QueryClient) {
+  client = queryClient
 }
 
 function setHidden(key: string | undefined, on: boolean) {
@@ -43,11 +43,11 @@ export function deleteWithUndo({ text, what, hide, run, refresh = [] }: {
     action: {
       label: 'Undo',
       onClick: () => {
-        const p = pending.get(id)
-        if (!p) return
-        window.clearTimeout(p.timer)
+        const entry = pending.get(id)
+        if (!entry) return
+        window.clearTimeout(entry.timer)
         pending.delete(id)
-        setHidden(p.hide, false)
+        setHidden(entry.hide, false)
         toast('Restored')
       },
     },
@@ -55,16 +55,16 @@ export function deleteWithUndo({ text, what, hide, run, refresh = [] }: {
 }
 
 async function commit(id: number) {
-  const p = pending.get(id)
-  if (!p) return
+  const entry = pending.get(id)
+  if (!entry) return
   pending.delete(id)
   try {
-    await p.run()
-    await Promise.all(p.refresh.map((queryKey) => client?.invalidateQueries({ queryKey })))
+    await entry.run()
+    await Promise.all(entry.refresh.map((queryKey) => client?.invalidateQueries({ queryKey })))
   } catch (e) {
-    toast(`Couldn't delete ${p.what}: ${e instanceof Error ? e.message : 'try again'}`, 'bad')
+    toast(`Couldn't delete ${entry.what}: ${e instanceof Error ? e.message : 'try again'}`, 'bad')
   } finally {
-    setHidden(p.hide, false)
+    setHidden(entry.hide, false)
   }
 }
 

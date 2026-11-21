@@ -12,7 +12,7 @@ export function DocBadge({ d }: { d: DocView }) {
 }
 
 /** Expired or about to: worth a one-tap Renew. */
-export const needsRenewal = (d: DocView) => d.state === 'EXPIRED' || d.state === 'EXPIRING'
+export const needsRenewal = (paper: DocView) => paper.state === 'EXPIRED' || paper.state === 'EXPIRING'
 
 /**
  * One paper in a list: opens it on tap; expired and expiring ones also get a Renew button that opens it with the
@@ -39,5 +39,5 @@ export function PaperRow({ d, sub, onOpen, onRenew, icon = true }: { d: DocView;
   )
 }
 
-export const paperSub = (d: DocView, owner?: string) =>
-  [owner, docLabel[d.document.type], d.document.number].filter(Boolean).join(' · ')
+export const paperSub = (paper: DocView, owner?: string) =>
+  [owner, docLabel[paper.document.type], paper.document.number].filter(Boolean).join(' · ')

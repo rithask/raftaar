@@ -15,14 +15,14 @@ export function PapersPage() {
   const [open, setOpen] = useState<{ d?: DocView; renewing?: boolean } | null>(null)
   const hidden = useHidden()
   if (docs.isLoading) return <Loading />
-  const list = (docs.data ?? []).filter((d) => !hidden(`doc:${d.document.id}`))
-  const vs = (vehicles.data ?? []).filter((v) => !v.archived)
-  const name = (id: number | null) => (id == null ? 'You' : (vehicles.data ?? []).find((v) => v.id === id)?.name ?? '—')
-  const byExpiry = (a: DocView, b: DocView) => (a.document.expiresOn ?? '').localeCompare(b.document.expiresOn ?? '')
+  const list = (docs.data ?? []).filter((paper) => !hidden(`doc:${paper.document.id}`))
+  const vs = (vehicles.data ?? []).filter((vehicle) => !vehicle.archived)
+  const name = (id: number | null) => (id == null ? 'You' : (vehicles.data ?? []).find((vehicle) => vehicle.id === id)?.name ?? '—')
+  const byExpiry = (paper: DocView, b: DocView) => (paper.document.expiresOn ?? '').localeCompare(b.document.expiresOn ?? '')
   const groups = [
-    { title: 'Needs attention', items: list.filter(needsRenewal).sort((a, b) => Number(b.state === 'EXPIRED') - Number(a.state === 'EXPIRED') || byExpiry(a, b)) },
-    { title: 'Valid', items: list.filter((d) => d.state === 'VALID').sort(byExpiry) },
-    { title: 'No expiry', items: list.filter((d) => d.state === 'NO_EXPIRY') },
+    { title: 'Needs attention', items: list.filter(needsRenewal).sort((paper, b) => Number(b.state === 'EXPIRED') - Number(paper.state === 'EXPIRED') || byExpiry(paper, b)) },
+    { title: 'Valid', items: list.filter((paper) => paper.state === 'VALID').sort(byExpiry) },
+    { title: 'No expiry', items: list.filter((paper) => paper.state === 'NO_EXPIRY') },
   ].filter((g) => g.items.length)
 
   return (
@@ -34,9 +34,9 @@ export function PapersPage() {
         groups.map((g) => (
           <Section key={g.title} title={g.title} meta={String(g.items.length)}>
             <List>
-              {g.items.map((d) => (
-                <PaperRow key={d.document.id} d={d} icon={false} sub={paperSub(d, name(d.document.vehicleId))}
-                  onOpen={() => setOpen({ d })} onRenew={() => setOpen({ d, renewing: true })} />
+              {g.items.map((paper) => (
+                <PaperRow key={paper.document.id} d={paper} icon={false} sub={paperSub(paper, name(paper.document.vehicleId))}
+                  onOpen={() => setOpen({ d: paper })} onRenew={() => setOpen({ d: paper, renewing: true })} />
               ))}
             </List>
           </Section>

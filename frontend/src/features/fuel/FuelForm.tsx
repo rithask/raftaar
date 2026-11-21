@@ -36,9 +36,9 @@ export function FuelForm({
   estimatedOdometer?: number | null
   lastOdometer?: number | null
 }) {
-  const initialVehicle = entry?.vehicleId ?? vehicleId ?? suggestion?.suggestedVehicleId ?? vehicles.find((v) => v.isDefault)?.id ?? vehicles[0]?.id
+  const initialVehicle = entry?.vehicleId ?? vehicleId ?? suggestion?.suggestedVehicleId ?? vehicles.find((candidate) => candidate.isDefault)?.id ?? vehicles[0]?.id
   const [vid, setVid] = useState<number | undefined>(initialVehicle)
-  const vehicle = vehicles.find((v) => v.id === vid)
+  const vehicle = vehicles.find((candidate) => candidate.id === vid)
   const unit = vehicle ? fuelUnit[vehicle.fuelType] : 'L'
 
   const [when, setWhen] = useState(toLocalInput(entry?.filledAt ?? suggestion?.occurredAt))
@@ -84,10 +84,10 @@ export function FuelForm({
     return (['price', 'volume', 'total'] as Key[]).find((k) => !sources.includes(k)) ?? null
   }, [order, vals, touched])
   const computed = useMemo(() => {
-    const v = num(vals.volume), p = num(vals.price), t = num(vals.total)
-    if (derived === 'total' && v && p) return (v * p).toFixed(2)
-    if (derived === 'volume' && t && p) return (t / p).toFixed(3)
-    if (derived === 'price' && t && v) return (t / v).toFixed(2)
+    const volume = num(vals.volume), price = num(vals.price), total = num(vals.total)
+    if (derived === 'total' && volume && price) return (volume * price).toFixed(2)
+    if (derived === 'volume' && total && price) return (total / price).toFixed(3)
+    if (derived === 'price' && total && volume) return (total / volume).toFixed(2)
     return ''
   }, [vals, derived])
   const shown = (k: Key) => (k === derived ? computed : vals[k])
@@ -144,15 +144,15 @@ export function FuelForm({
   }
 
   const body = () => {
-    const v = num(shown('volume')), p = num(shown('price')), t = num(shown('total'))
+    const volume = num(shown('volume')), price = num(shown('price')), total = num(shown('total'))
     return {
       vehicleId: vid,
       filledAt: fromLocalInput(when),
       odometer: num(odometer),
       // send the two you typed; the server works out the third the same way
-      volume: derived === 'volume' ? null : v,
-      pricePerUnit: derived === 'price' ? null : p,
-      totalCost: derived === 'total' ? null : t,
+      volume: derived === 'volume' ? null : volume,
+      pricePerUnit: derived === 'price' ? null : price,
+      totalCost: derived === 'total' ? null : total,
       fullTank,
       missedPrevious: missed,
       stationName: station || null,
@@ -184,8 +184,8 @@ export function FuelForm({
     }
   }, { refresh: refresh.vehicleRecords, onDone: onClose, done: (r) => (r?.queued ? "Saved on this phone. It'll be sent when you're back online." : suggestion ? 'Fill-up added' : entry ? 'Fill-up updated' : 'Fill-up saved') })
 
-  const odo = num(odometer)
-  const below = odo != null && lastOdometer != null && !entry && odo < lastOdometer
+  const enteredKm = num(odometer)
+  const below = enteredKm != null && lastOdometer != null && !entry && enteredKm < lastOdometer
 
   return (
     <FormScreen
@@ -212,7 +212,7 @@ export function FuelForm({
         {vehicles.length > 1 && pickVehicle ? (
           <Field label="Vehicle">
             <Select value={vid ?? ''} onChange={(e) => setVid(Number(e.target.value))}>
-              {vehicles.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+              {vehicles.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
             </Select>
           </Field>
         ) : vehicles.length > 1 && vehicle ? (

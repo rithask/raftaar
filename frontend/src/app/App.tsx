@@ -18,17 +18,17 @@ const PapersPage = lazy(() => import('@/features/papers/PapersPage').then((page)
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then((page) => ({ default: page.SettingsPage })))
 
 export function App() {
-  const qc = useQueryClient()
+  const queryClient = useQueryClient()
   const me = useQuery({ queryKey: keys.me, queryFn: () => api<{ username: string | null }>('/auth/me'), retry: false, staleTime: Infinity })
   useEffect(() => {
-    const off = () => qc.setQueryData(keys.me, null)
+    const off = () => queryClient.setQueryData(keys.me, null)
     window.addEventListener('raftaar:unauthorized', off)
     return () => window.removeEventListener('raftaar:unauthorized', off)
-  }, [qc])
+  }, [queryClient])
 
   // fill-ups saved offline are sent once signed in (and whenever the connection comes back)
   const signedIn = !!me.data?.username
-  useEffect(() => (signedIn ? startOutbox(qc) : undefined), [signedIn, qc])
+  useEffect(() => (signedIn ? startOutbox(queryClient) : undefined), [signedIn, queryClient])
 
   if (me.isLoading) return <Loading />
   if (!me.data?.username) return <Suspense fallback={<Loading />}><Login /></Suspense>
