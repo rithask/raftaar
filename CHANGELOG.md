@@ -5,6 +5,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-22
+
 ### Added
 
 - The vehicle page's tabs slide side by side, like pages on iOS: tap a tab or swipe between them. Each tab keeps
