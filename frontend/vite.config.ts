@@ -4,6 +4,8 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // @/lib/api rather than ../../../lib/api (tsconfig.json has the same)
+  resolve: { alias: { '@': decodeURIComponent(new URL('./src', import.meta.url).pathname) } },
   server: {
     host: true,
     port: 5174,
