@@ -37,7 +37,7 @@ public class Papers {
     }
 
     public List<VehicleStats.DocumentView> forVehicle(Long vehicleId) {
-        return papers.findByVehicleIdOrderByExpiresOnAsc(vehicleId).stream().map(VehicleStats::documentView).toList();
+        return papers.findByVehicleIdOrderByExpiresOnAscIdAsc(vehicleId).stream().map(VehicleStats::documentView).toList();
     }
 
     public Document get(Long id) {

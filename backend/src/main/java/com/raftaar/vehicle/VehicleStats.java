@@ -1,5 +1,19 @@
 package com.raftaar.vehicle;
 
+import com.raftaar.expense.Expense;
+import com.raftaar.expense.ExpenseRepo;
+import com.raftaar.fuel.Economy;
+import com.raftaar.fuel.FuelEntry;
+import com.raftaar.fuel.FuelEntryRepo;
+import com.raftaar.inbox.Trip;
+import com.raftaar.inbox.TripRepo;
+import com.raftaar.papers.Document;
+import com.raftaar.papers.DocumentRepo;
+import com.raftaar.upkeep.Reminder;
+import com.raftaar.upkeep.ReminderRepo;
+import com.raftaar.upkeep.ReminderState;
+import com.raftaar.upkeep.ServiceRecord;
+import com.raftaar.upkeep.ServiceRecordRepo;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -7,41 +21,36 @@ import java.math.RoundingMode;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import com.raftaar.papers.Document;
-import com.raftaar.papers.DocumentRepo;
-import com.raftaar.fuel.Economy;
-import com.raftaar.expense.Expense;
-import com.raftaar.expense.ExpenseRepo;
-import com.raftaar.fuel.FuelEntry;
-import com.raftaar.fuel.FuelEntryRepo;
-import com.raftaar.upkeep.Reminder;
-import com.raftaar.upkeep.ReminderRepo;
-import com.raftaar.upkeep.ReminderState;
-import com.raftaar.upkeep.ServiceRecord;
-import com.raftaar.upkeep.ServiceRecordRepo;
-import com.raftaar.inbox.Trip;
-import com.raftaar.inbox.TripRepo;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
-/** Everything worked out about a vehicle: where its odometer is, its mileage, what it has cost, what's due. */
+/**
+ * Everything worked out about a vehicle: where its odometer is, its mileage, what it has cost, what's due.
+ * <p>
+ * The records of any number of vehicles are loaded together ({@link #histories}: one query per kind of record, however
+ * many vehicles), and the stats are then worked out in memory.
+ */
 @Service
 public class VehicleStats {
-    private final FuelEntryRepo fuel;
+    private static final Duration TRIP_RATE_WINDOW = Duration.ofDays(60);
+
+    private final FuelEntryRepo fills;
     private final ServiceRecordRepo services;
     private final ExpenseRepo expenses;
     private final OdometerReadingRepo readings;
     private final TripRepo trips;
     private final ReminderRepo reminders;
-    private final DocumentRepo documents;
+    private final DocumentRepo papers;
 
-    public VehicleStats(FuelEntryRepo fuel, ServiceRecordRepo services, ExpenseRepo expenses, OdometerReadingRepo readings,
-                        TripRepo trips, ReminderRepo reminders, DocumentRepo documents) {
-        this.fuel = fuel;
+    public VehicleStats(FuelEntryRepo fills, ServiceRecordRepo services, ExpenseRepo expenses, OdometerReadingRepo readings,
+                        TripRepo trips, ReminderRepo reminders, DocumentRepo papers) {
+        this.fills = fills;
         this.services = services;
         this.expenses = expenses;
         this.readings = readings;
         this.trips = trips;
         this.reminders = reminders;
-        this.documents = documents;
+        this.papers = papers;
     }
 
     /** One odometer reading; {@code id} is set only for manual readings, which are the ones you can delete. */
@@ -68,113 +77,199 @@ public class VehicleStats {
     /** What one calendar month cost, {@code month} as "2026-11". */
     public record MonthCost(String month, BigDecimal fuel, BigDecimal service, BigDecimal other) {}
 
-    public Summary summary(Vehicle v) {
-        List<FuelEntry> fills = fuel.findByVehicleIdOrderByFilledAtAscIdAsc(v.id);
-        List<ServiceRecord> svc = services.findByVehicleIdOrderByServicedOnDescIdDesc(v.id);
-        List<Expense> exp = expenses.findByVehicleIdOrderBySpentOnDescIdDesc(v.id);
+    // ---- loading ----------------------------------------------------------------------------------------------
 
-        Odometer odo = odometer(v, fills, svc, exp);
-        Economy.Result eco = economy(fills);
-        Economy.Stretch last = eco.stretches().isEmpty() ? null : eco.stretches().getLast();
+    /** The records of these vehicles, by vehicle id: one query per kind of record, however many vehicles. */
+    public Map<Long, VehicleHistory> histories(List<Vehicle> vehicles) {
+        return histories(vehicles, true);
+    }
+
+    /** Only what the odometer needs (no reminders or papers): for callers that want just where it stands. */
+    public Map<Long, VehicleHistory> odometerHistories(List<Vehicle> vehicles) {
+        return histories(vehicles, false);
+    }
+
+    private Map<Long, VehicleHistory> histories(List<Vehicle> vehicles, boolean withRemindersAndPapers) {
+        if (vehicles.isEmpty()) return Map.of();
+        List<Long> ids = vehicles.stream().map(vehicle -> vehicle.id).toList();
+        var fillsByVehicle = byVehicle(fills.findByVehicleIdInOrderByFilledAtAscIdAsc(ids), fill -> fill.vehicleId);
+        var servicesByVehicle = byVehicle(services.findByVehicleIdInOrderByServicedOnDescIdDesc(ids), service -> service.vehicleId);
+        var expensesByVehicle = byVehicle(expenses.findByVehicleIdInOrderBySpentOnDescIdDesc(ids), expense -> expense.vehicleId);
+        var readingsByVehicle = byVehicle(readings.findByVehicleIdInOrderByReadAtDesc(ids), reading -> reading.vehicleId);
+        Map<Long, List<Reminder>> remindersByVehicle = withRemindersAndPapers
+                ? byVehicle(reminders.findByVehicleIdInOrderByIdAsc(ids), reminder -> reminder.vehicleId) : Map.of();
+        Map<Long, List<Document>> papersByVehicle = withRemindersAndPapers
+                ? byVehicle(papers.findByVehicleIdInOrderByExpiresOnAscIdAsc(ids), paper -> paper.vehicleId) : Map.of();
+
+        // Trips count from each vehicle's last reading (and over the last 60 days for its daily km): one query from
+        // the earliest of those, then each vehicle keeps its own.
+        Instant rateWindowStart = Instant.now().minus(TRIP_RATE_WINDOW);
+        Instant earliest = rateWindowStart;
+        for (Vehicle vehicle : vehicles) {
+            var top = topReading(vehicle, fillsByVehicle.getOrDefault(vehicle.id, List.of()), servicesByVehicle.getOrDefault(vehicle.id, List.of()),
+                    expensesByVehicle.getOrDefault(vehicle.id, List.of()), readingsByVehicle.getOrDefault(vehicle.id, List.of()));
+            if (top.isPresent() && top.get().at().isBefore(earliest)) earliest = top.get().at();
+        }
+        var tripsByVehicle = byVehicle(trips.findByVehicleIdInAndStatusAndEndedAtAfter(ids, Trip.Status.ASSIGNED, earliest), trip -> trip.vehicleId);
+
+        Map<Long, VehicleHistory> histories = new LinkedHashMap<>();
+        for (Vehicle vehicle : vehicles) {
+            histories.put(vehicle.id, new VehicleHistory(vehicle, fillsByVehicle.getOrDefault(vehicle.id, List.of()),
+                    servicesByVehicle.getOrDefault(vehicle.id, List.of()), expensesByVehicle.getOrDefault(vehicle.id, List.of()),
+                    readingsByVehicle.getOrDefault(vehicle.id, List.of()), remindersByVehicle.getOrDefault(vehicle.id, List.of()),
+                    papersByVehicle.getOrDefault(vehicle.id, List.of()), tripsByVehicle.getOrDefault(vehicle.id, List.of())));
+        }
+        return histories;
+    }
+
+    public VehicleHistory history(Vehicle vehicle) {
+        return histories(List.of(vehicle)).get(vehicle.id);
+    }
+
+    private static <T> Map<Long, List<T>> byVehicle(List<T> records, Function<T, Long> vehicleId) {
+        // groupingBy keeps each vehicle's records in the order the query returned them
+        return records.stream().collect(Collectors.groupingBy(vehicleId, Collectors.toList()));
+    }
+
+    // ---- worked out -------------------------------------------------------------------------------------------
+
+    public Summary summary(Vehicle vehicle) {
+        return summary(history(vehicle));
+    }
+
+    /** Summaries of several vehicles from one round of queries, in the order given. */
+    public List<Summary> summaries(List<Vehicle> vehicles) {
+        return histories(vehicles).values().stream().map(this::summary).toList();
+    }
+
+    public Summary summary(VehicleHistory history) {
+        Vehicle vehicle = history.vehicle();
+        List<FuelEntry> vehicleFills = history.fills();
+        List<ServiceRecord> vehicleServices = history.services();
+        List<Expense> vehicleExpenses = history.expenses();
+
+        Odometer odometer = odometer(history);
+        Economy.Result economy = Economy.of(vehicleFills);
+        Economy.Stretch lastStretch = economy.stretches().isEmpty() ? null : economy.stretches().getLast();
 
         LocalDate today = LocalDate.now();
         ZoneId zone = ZoneId.systemDefault();
         LocalDate monthStart = today.withDayOfMonth(1);
-        BigDecimal fuelCost = sum(fills.stream().map(f -> f.totalCost).toList());
-        BigDecimal svcCost = sum(svc.stream().map(s -> s.cost).toList());
-        BigDecimal expCost = sum(exp.stream().map(e -> e.amount).toList());
-        BigDecimal total = fuelCost.add(svcCost).add(expCost);
-        BigDecimal month = sum(fills.stream().filter(f -> !f.filledAt.atZone(zone).toLocalDate().isBefore(monthStart)).map(f -> f.totalCost).toList())
-                .add(sum(svc.stream().filter(s -> !s.servicedOn.isBefore(monthStart)).map(s -> s.cost).toList()))
-                .add(sum(exp.stream().filter(e -> !e.spentOn.isBefore(monthStart)).map(e -> e.amount).toList()));
+        BigDecimal fuelCost = sum(vehicleFills.stream().map(fill -> fill.totalCost).toList());
+        BigDecimal serviceCost = sum(vehicleServices.stream().map(service -> service.cost).toList());
+        BigDecimal expenseCost = sum(vehicleExpenses.stream().map(expense -> expense.amount).toList());
+        BigDecimal total = fuelCost.add(serviceCost).add(expenseCost);
+        BigDecimal thisMonth = sum(vehicleFills.stream().filter(fill -> !fill.filledAt.atZone(zone).toLocalDate().isBefore(monthStart)).map(fill -> fill.totalCost).toList())
+                .add(sum(vehicleServices.stream().filter(service -> !service.servicedOn.isBefore(monthStart)).map(service -> service.cost).toList()))
+                .add(sum(vehicleExpenses.stream().filter(expense -> !expense.spentOn.isBefore(monthStart)).map(expense -> expense.amount).toList()));
         // Running cost per km, over the distance you've logged (purchase price left out).
-        BigDecimal first = firstOdometer(v, fills, svc, exp);
+        BigDecimal firstOdometer = firstOdometer(history);
         BigDecimal perKm = null;
-        if (first != null && odo.known() != null) {
-            BigDecimal dist = odo.known().subtract(first);
-            if (dist.compareTo(BigDecimal.valueOf(50)) > 0) perKm = fuelCost.add(svcCost).add(expCost).divide(dist, 2, RoundingMode.HALF_UP);
+        if (firstOdometer != null && odometer.known() != null) {
+            BigDecimal distance = odometer.known().subtract(firstOdometer);
+            if (distance.compareTo(BigDecimal.valueOf(50)) > 0) perKm = total.divide(distance, 2, RoundingMode.HALF_UP);
         }
 
-        BigDecimal current = odo.estimated() != null ? odo.estimated() : odo.known();
-        List<ReminderView> rems = reminders.findByVehicleIdOrderByIdAsc(v.id).stream()
-                .filter(r -> r.active)
-                .map(r -> new ReminderView(r, ReminderState.of(r, current, odo.kmPerDay(), today)))
-                .sorted(Comparator.comparingInt((ReminderView r) -> rank(r.status().state())).thenComparing(r -> r.status().dueOn(), Comparator.nullsLast(Comparator.naturalOrder())))
+        BigDecimal current = odometer.estimated() != null ? odometer.estimated() : odometer.known();
+        List<ReminderView> due = history.reminders().stream()
+                .filter(reminder -> reminder.active)
+                .map(reminder -> new ReminderView(reminder, ReminderState.of(reminder, current, odometer.kmPerDay(), today)))
+                .sorted(Comparator.comparingInt((ReminderView view) -> rank(view.status().state()))
+                        .thenComparing(view -> view.status().dueOn(), Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
-        List<DocumentView> docs = documents.findByVehicleIdOrderByExpiresOnAsc(v.id).stream().map(VehicleStats::documentView).toList();
+        List<DocumentView> papersDue = history.papers().stream().map(VehicleStats::documentView).toList();
 
-        return new Summary(v, odo, eco.average(), last == null ? null : last.kmPerUnit(), v.fuelType.unit,
-                fills.isEmpty() ? null : fills.getLast(), new Costs(fuelCost, svcCost, expCost, total, perKm, month),
-                rems, docs, eco.stretches(), eco.byEndId(), monthly(fills, svc, exp, today, zone));
+        return new Summary(vehicle, odometer, economy.average(), lastStretch == null ? null : lastStretch.kmPerUnit(), vehicle.fuelType.unit,
+                vehicleFills.isEmpty() ? null : vehicleFills.getLast(), new Costs(fuelCost, serviceCost, expenseCost, total, perKm, thisMonth),
+                due, papersDue, economy.stretches(), economy.byEndId(), monthly(vehicleFills, vehicleServices, vehicleExpenses, today, zone));
     }
 
     /** The last twelve months (or fewer, back to the first month with any spending), oldest first, empty months as zero. */
-    static List<MonthCost> monthly(List<FuelEntry> fills, List<ServiceRecord> svc, List<Expense> exp, LocalDate today, ZoneId zone) {
-        Map<YearMonth, BigDecimal[]> by = new HashMap<>();
-        fills.forEach(f -> add(by, YearMonth.from(f.filledAt.atZone(zone)), 0, f.totalCost));
-        svc.forEach(s -> add(by, YearMonth.from(s.servicedOn), 1, s.cost));
-        exp.forEach(e -> add(by, YearMonth.from(e.spentOn), 2, e.amount));
+    static List<MonthCost> monthly(List<FuelEntry> fills, List<ServiceRecord> services, List<Expense> expenses, LocalDate today, ZoneId zone) {
+        Map<YearMonth, BigDecimal[]> byMonth = new HashMap<>();
+        fills.forEach(fill -> add(byMonth, YearMonth.from(fill.filledAt.atZone(zone)), 0, fill.totalCost));
+        services.forEach(service -> add(byMonth, YearMonth.from(service.servicedOn), 1, service.cost));
+        expenses.forEach(expense -> add(byMonth, YearMonth.from(expense.spentOn), 2, expense.amount));
         YearMonth end = YearMonth.from(today);
-        YearMonth start = by.keySet().stream().filter(m -> !m.isAfter(end)).min(Comparator.naturalOrder()).orElse(end);
+        YearMonth start = byMonth.keySet().stream().filter(month -> !month.isAfter(end)).min(Comparator.naturalOrder()).orElse(end);
         if (start.isBefore(end.minusMonths(11))) start = end.minusMonths(11);
-        if (by.isEmpty()) return List.of();
-        List<MonthCost> out = new ArrayList<>();
-        for (YearMonth m = start; !m.isAfter(end); m = m.plusMonths(1)) {
-            BigDecimal[] v = by.getOrDefault(m, new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
-            out.add(new MonthCost(m.toString(), v[0], v[1], v[2]));
+        if (byMonth.isEmpty()) return List.of();
+        List<MonthCost> months = new ArrayList<>();
+        for (YearMonth month = start; !month.isAfter(end); month = month.plusMonths(1)) {
+            BigDecimal[] costs = byMonth.getOrDefault(month, new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
+            months.add(new MonthCost(month.toString(), costs[0], costs[1], costs[2]));
         }
-        return out;
+        return months;
     }
 
-    private static void add(Map<YearMonth, BigDecimal[]> by, YearMonth m, int slot, BigDecimal amount) {
+    private static void add(Map<YearMonth, BigDecimal[]> byMonth, YearMonth month, int slot, BigDecimal amount) {
         if (amount == null) return;
-        BigDecimal[] v = by.computeIfAbsent(m, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
-        v[slot] = v[slot].add(amount);
+        BigDecimal[] costs = byMonth.computeIfAbsent(month, unused -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
+        costs[slot] = costs[slot].add(amount);
     }
 
-    public static DocumentView documentView(Document d) {
-        if (d.expiresOn == null) return new DocumentView(d, null, "NO_EXPIRY");
-        long days = ChronoUnit.DAYS.between(LocalDate.now(), d.expiresOn);
-        String state = days < 0 ? "EXPIRED" : days <= d.remindDaysBefore ? "EXPIRING" : "VALID";
-        return new DocumentView(d, days, state);
+    public static DocumentView documentView(Document paper) {
+        if (paper.expiresOn == null) return new DocumentView(paper, null, "NO_EXPIRY");
+        long daysLeft = ChronoUnit.DAYS.between(LocalDate.now(), paper.expiresOn);
+        String state = daysLeft < 0 ? "EXPIRED" : daysLeft <= paper.remindDaysBefore ? "EXPIRING" : "VALID";
+        return new DocumentView(paper, daysLeft, state);
     }
 
     public Economy.Result economy(List<FuelEntry> fillsInOrder) {
         return Economy.of(fillsInOrder);
     }
 
-    /** Every odometer reading the vehicle has, from fill-ups, services, expenses and manual readings. */
-    public List<Reading> readings(Vehicle v, List<FuelEntry> fills, List<ServiceRecord> svc, List<Expense> exp) {
+    /** Every odometer reading the vehicle has, from fill-ups, services, expenses and manual readings, oldest first. */
+    public List<Reading> readings(VehicleHistory history) {
+        return readings(history.vehicle(), history.fills(), history.services(), history.expenses(), history.enteredReadings());
+    }
+
+    private static List<Reading> readings(Vehicle vehicle, List<FuelEntry> fills, List<ServiceRecord> services, List<Expense> expenses,
+                                          List<OdometerReading> entered) {
         ZoneId zone = ZoneId.systemDefault();
-        List<Reading> out = new ArrayList<>();
+        List<Reading> all = new ArrayList<>();
         // Without a purchase date the reading has no place in time, so it only counts as the starting point (below).
-        if (v.purchaseOdometer != null && v.purchaseDate != null) {
-            out.add(new Reading(v.purchaseDate.atStartOfDay(zone).toInstant(), v.purchaseOdometer, "PURCHASE"));
+        if (vehicle.purchaseOdometer != null && vehicle.purchaseDate != null) {
+            all.add(new Reading(vehicle.purchaseDate.atStartOfDay(zone).toInstant(), vehicle.purchaseOdometer, "PURCHASE"));
         }
-        fills.forEach(f -> out.add(new Reading(f.filledAt, f.odometer, "FUEL")));
-        svc.stream().filter(s -> s.odometer != null).forEach(s -> out.add(new Reading(s.servicedOn.atTime(12, 0).atZone(zone).toInstant(), s.odometer, "SERVICE")));
-        exp.stream().filter(e -> e.odometer != null).forEach(e -> out.add(new Reading(e.spentOn.atTime(12, 0).atZone(zone).toInstant(), e.odometer, "EXPENSE")));
-        readings.findByVehicleIdOrderByReadAtDesc(v.id).forEach(r -> out.add(new Reading(r.readAt, r.odometer, "MANUAL", r.id)));
-        out.sort(Comparator.comparing(Reading::at));
-        return out;
+        fills.forEach(fill -> all.add(new Reading(fill.filledAt, fill.odometer, "FUEL")));
+        services.stream().filter(service -> service.odometer != null)
+                .forEach(service -> all.add(new Reading(service.servicedOn.atTime(12, 0).atZone(zone).toInstant(), service.odometer, "SERVICE")));
+        expenses.stream().filter(expense -> expense.odometer != null)
+                .forEach(expense -> all.add(new Reading(expense.spentOn.atTime(12, 0).atZone(zone).toInstant(), expense.odometer, "EXPENSE")));
+        entered.forEach(reading -> all.add(new Reading(reading.readAt, reading.odometer, "MANUAL", reading.id)));
+        all.sort(Comparator.comparing(Reading::at));
+        return all;
     }
 
-    public Odometer odometer(Vehicle v) {
-        return odometer(v, fuel.findByVehicleIdOrderByFilledAtAscIdAsc(v.id), services.findByVehicleIdOrderByServicedOnDescIdDesc(v.id),
-                expenses.findByVehicleIdOrderBySpentOnDescIdDesc(v.id));
+    /** The highest reading is the truth; a later but lower one is a typo somewhere. */
+    private static Optional<Reading> topReading(Vehicle vehicle, List<FuelEntry> fills, List<ServiceRecord> services, List<Expense> expenses,
+                                                List<OdometerReading> entered) {
+        List<Reading> all = readings(vehicle, fills, services, expenses, entered);
+        if (all.isEmpty() && vehicle.purchaseOdometer != null) all = List.of(new Reading(vehicle.createdAt, vehicle.purchaseOdometer, "PURCHASE"));
+        return all.stream().max(Comparator.comparing(Reading::odometer).thenComparing(Reading::at));
     }
 
-    private Odometer odometer(Vehicle v, List<FuelEntry> fills, List<ServiceRecord> svc, List<Expense> exp) {
-        List<Reading> all = readings(v, fills, svc, exp);
-        if (all.isEmpty() && v.purchaseOdometer != null) all = List.of(new Reading(v.createdAt, v.purchaseOdometer, "PURCHASE"));
-        if (all.isEmpty()) return new Odometer(null, null, null, null, null, tripKmPerDay(v));
-        // The highest reading is the truth; a later but lower one is a typo somewhere.
+    public Odometer odometer(Vehicle vehicle) {
+        return odometer(odometerHistories(List.of(vehicle)).get(vehicle.id));
+    }
+
+    /** Every odometer reading of one vehicle, oldest first. */
+    public List<Reading> readings(Vehicle vehicle) {
+        return readings(odometerHistories(List.of(vehicle)).get(vehicle.id));
+    }
+
+    public Odometer odometer(VehicleHistory history) {
+        Vehicle vehicle = history.vehicle();
+        List<Reading> all = readings(history);
+        if (all.isEmpty() && vehicle.purchaseOdometer != null) all = List.of(new Reading(vehicle.createdAt, vehicle.purchaseOdometer, "PURCHASE"));
+        if (all.isEmpty()) return new Odometer(null, null, null, null, null, tripKmPerDay(history));
         Reading top = all.stream().max(Comparator.comparing(Reading::odometer).thenComparing(Reading::at)).orElseThrow();
-        BigDecimal tripKm = sum(trips.findByVehicleIdAndStatusAndEndedAtAfter(v.id, Trip.Status.ASSIGNED, top.at()).stream()
-                .map(t -> t.distanceM.divide(BigDecimal.valueOf(1000), 1, RoundingMode.HALF_UP)).toList());
+        BigDecimal tripKm = sum(history.assignedTrips().stream().filter(trip -> trip.endedAt.isAfter(top.at()))
+                .map(trip -> trip.distanceM.divide(BigDecimal.valueOf(1000), 1, RoundingMode.HALF_UP)).toList());
         BigDecimal estimated = tripKm.signum() > 0 ? top.odometer().add(tripKm) : null;
         BigDecimal perDay = kmPerDay(all);
-        if (perDay == null) perDay = tripKmPerDay(v);
+        if (perDay == null) perDay = tripKmPerDay(history);
         return new Odometer(top.odometer(), top.at(), top.source(), estimated, tripKm.signum() > 0 ? tripKm : null, perDay);
     }
 
@@ -182,34 +277,37 @@ public class VehicleStats {
     static BigDecimal kmPerDay(List<Reading> all) {
         if (all.size() < 2) return null;
         Instant cutoff = Instant.now().minus(Duration.ofDays(120));
-        List<Reading> recent = all.stream().filter(r -> r.at().isAfter(cutoff)).toList();
+        List<Reading> recent = all.stream().filter(reading -> reading.at().isAfter(cutoff)).toList();
         List<Reading> use = recent.size() >= 2 && Duration.between(recent.getFirst().at(), recent.getLast().at()).toDays() >= 7 ? recent : all;
-        Reading a = use.getFirst(), b = use.getLast();
-        double days = Duration.between(a.at(), b.at()).toHours() / 24.0;
+        Reading first = use.getFirst(), last = use.getLast();
+        double days = Duration.between(first.at(), last.at()).toHours() / 24.0;
         if (days < 3) return null;
-        BigDecimal km = b.odometer().subtract(a.odometer());
+        BigDecimal km = last.odometer().subtract(first.odometer());
         if (km.signum() <= 0) return null;
         return km.divide(BigDecimal.valueOf(days), 1, RoundingMode.HALF_UP);
     }
 
-    private BigDecimal tripKmPerDay(Vehicle v) {
-        Instant since = Instant.now().minus(Duration.ofDays(60));
-        var recent = trips.findByVehicleIdAndStatusAndEndedAtAfter(v.id, Trip.Status.ASSIGNED, since);
+    /** km per day from the trips of the last 60 days, for a vehicle without enough odometer readings. */
+    private static BigDecimal tripKmPerDay(VehicleHistory history) {
+        Instant since = Instant.now().minus(TRIP_RATE_WINDOW);
+        var recent = history.assignedTrips().stream().filter(trip -> trip.endedAt.isAfter(since)).toList();
         if (recent.isEmpty()) return null;
-        BigDecimal km = sum(recent.stream().map(t -> t.distanceM).toList()).divide(BigDecimal.valueOf(1000), 1, RoundingMode.HALF_UP);
-        Instant first = recent.stream().map(t -> t.startedAt).min(Comparator.naturalOrder()).orElse(since);
+        BigDecimal km = sum(recent.stream().map(trip -> trip.distanceM).toList()).divide(BigDecimal.valueOf(1000), 1, RoundingMode.HALF_UP);
+        Instant first = recent.stream().map(trip -> trip.startedAt).min(Comparator.naturalOrder()).orElse(since);
         long days = Math.max(7, Duration.between(first, Instant.now()).toDays());
         return km.divide(BigDecimal.valueOf(days), 1, RoundingMode.HALF_UP);
     }
 
-    private BigDecimal firstOdometer(Vehicle v, List<FuelEntry> fills, List<ServiceRecord> svc, List<Expense> exp) {
-        var lowest = readings(v, fills, svc, exp).stream().map(Reading::odometer).min(Comparator.naturalOrder());
-        if (v.purchaseOdometer != null && (lowest.isEmpty() || v.purchaseOdometer.compareTo(lowest.get()) < 0)) return v.purchaseOdometer;
+    private static BigDecimal firstOdometer(VehicleHistory history) {
+        Vehicle vehicle = history.vehicle();
+        var lowest = readings(history.vehicle(), history.fills(), history.services(), history.expenses(), history.enteredReadings())
+                .stream().map(Reading::odometer).min(Comparator.naturalOrder());
+        if (vehicle.purchaseOdometer != null && (lowest.isEmpty() || vehicle.purchaseOdometer.compareTo(lowest.get()) < 0)) return vehicle.purchaseOdometer;
         return lowest.orElse(null);
     }
 
-    static int rank(ReminderState.State s) {
-        return switch (s) {
+    static int rank(ReminderState.State state) {
+        return switch (state) {
             case OVERDUE -> 0;
             case DUE_SOON -> 1;
             case OK -> 2;
@@ -218,8 +316,8 @@ public class VehicleStats {
     }
 
     static BigDecimal sum(Collection<BigDecimal> values) {
-        BigDecimal t = BigDecimal.ZERO;
-        for (BigDecimal b : values) if (b != null) t = t.add(b);
-        return t;
+        BigDecimal total = BigDecimal.ZERO;
+        for (BigDecimal value : values) if (value != null) total = total.add(value);
+        return total;
     }
 }

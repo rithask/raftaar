@@ -7,7 +7,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** A vehicle's service history. Logging a service also restarts the reminders it took care of. */
 @Service
@@ -30,8 +33,14 @@ public class ServiceRecords {
 
     public List<ServiceRow> list(Long vehicleId) {
         vehicles.require(vehicleId, "Vehicle");
-        return services.findByVehicleIdOrderByServicedOnDescIdDesc(vehicleId).stream()
-                .map(service -> new ServiceRow(service, services.reminderIds(service.id))).toList();
+        List<ServiceRecord> history = services.findByVehicleIdOrderByServicedOnDescIdDesc(vehicleId);
+        if (history.isEmpty()) return List.of();
+        // which reminders each service completed: one query for all of them
+        Map<Long, List<Long>> completed = new HashMap<>();
+        for (Object[] link : services.reminderLinks(history.stream().map(service -> service.id).toList())) {
+            completed.computeIfAbsent(((Number) link[0]).longValue(), unused -> new ArrayList<>()).add(((Number) link[1]).longValue());
+        }
+        return history.stream().map(service -> new ServiceRow(service, completed.getOrDefault(service.id, List.of()))).toList();
     }
 
     @Transactional

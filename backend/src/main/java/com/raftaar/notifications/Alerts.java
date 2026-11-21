@@ -99,10 +99,14 @@ public class Alerts extends SyncJob {
         List<Runnable> afterSend = new ArrayList<>();
         boolean anyOverdue = false;
 
+        // each active vehicle's odometer, worked out once for all its reminders (one round of queries for all of them)
+        var odometers = new java.util.HashMap<Long, VehicleStats.Odometer>();
+        stats.odometerHistories(byId.values().stream().filter(vehicle -> !vehicle.archived).toList())
+                .forEach((vehicleId, history) -> odometers.put(vehicleId, stats.odometer(history)));
         for (Reminder r : reminders.findByActiveTrue()) {
             Vehicle v = byId.get(r.vehicleId);
             if (v == null || v.archived) continue;
-            var odo = stats.odometer(v);
+            var odo = odometers.get(v.id);
             var current = odo.estimated() != null ? odo.estimated() : odo.known();
             var status = ReminderState.of(r, current, odo.kmPerDay(), today);
             var state = status.state();

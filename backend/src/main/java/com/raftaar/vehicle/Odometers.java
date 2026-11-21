@@ -1,9 +1,6 @@
 package com.raftaar.vehicle;
 
 import com.raftaar.common.Text;
-import com.raftaar.expense.ExpenseRepo;
-import com.raftaar.fuel.FuelEntryRepo;
-import com.raftaar.upkeep.ServiceRecordRepo;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -16,18 +13,11 @@ public class Odometers {
     private final OdometerReadingRepo readings;
     private final VehicleRepo vehicles;
     private final VehicleStats stats;
-    private final FuelEntryRepo fills;
-    private final ServiceRecordRepo services;
-    private final ExpenseRepo expenses;
 
-    public Odometers(OdometerReadingRepo readings, VehicleRepo vehicles, VehicleStats stats, FuelEntryRepo fills,
-                     ServiceRecordRepo services, ExpenseRepo expenses) {
+    public Odometers(OdometerReadingRepo readings, VehicleRepo vehicles, VehicleStats stats) {
         this.readings = readings;
         this.vehicles = vehicles;
         this.stats = stats;
-        this.fills = fills;
-        this.services = services;
-        this.expenses = expenses;
     }
 
     public record Input(Instant readAt, BigDecimal odometer, String notes) {}
@@ -35,9 +25,7 @@ public class Odometers {
     /** Every reading of this vehicle's odometer, newest first, whatever it came from. */
     public List<VehicleStats.Reading> history(Long vehicleId) {
         Vehicle vehicle = vehicles.require(vehicleId, "Vehicle");
-        return stats.readings(vehicle, fills.findByVehicleIdOrderByFilledAtAscIdAsc(vehicleId),
-                services.findByVehicleIdOrderByServicedOnDescIdDesc(vehicleId),
-                expenses.findByVehicleIdOrderBySpentOnDescIdDesc(vehicleId)).reversed();
+        return stats.readings(vehicle).reversed();
     }
 
     public List<OdometerReading> entered(Long vehicleId) {

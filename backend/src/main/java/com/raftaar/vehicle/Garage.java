@@ -33,12 +33,13 @@ public class Garage {
     public record Overview(List<Card> vehicles, long tripsToSort, long toConfirm) {}
 
     public Overview overview() {
-        List<Card> cards = vehicles.findAllByOrderByArchivedAscSortOrderAscIdAsc().stream().map(this::card).toList();
+        // every vehicle's records in one round of queries, however many vehicles
+        List<Card> cards = stats.summaries(vehicles.findAllByOrderByArchivedAscSortOrderAscIdAsc()).stream().map(this::card).toList();
         return new Overview(cards, trips.countByStatus(Trip.Status.PENDING), suggestions.countByStatus(Suggestion.Status.PENDING));
     }
 
-    private Card card(Vehicle vehicle) {
-        VehicleStats.Summary summary = stats.summary(vehicle);
+    private Card card(VehicleStats.Summary summary) {
+        Vehicle vehicle = summary.vehicle();
         var attention = summary.reminders().stream().filter(reminder -> reminder.status().state() != ReminderState.State.OK
                 && reminder.status().state() != ReminderState.State.UNKNOWN).toList();
         var papers = summary.documents().stream().filter(paper -> !"VALID".equals(paper.state()) && !"NO_EXPIRY".equals(paper.state())).toList();
