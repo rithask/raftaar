@@ -23,6 +23,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Everything worked out about a vehicle: where its odometer is, its mileage, what it has cost, what's due.
@@ -31,6 +32,7 @@ import java.util.stream.Collectors;
  * many vehicles), and the stats are then worked out in memory.
  */
 @Service
+@Transactional(readOnly = true)
 public class VehicleStats {
     private static final Duration TRIP_RATE_WINDOW = Duration.ofDays(60);
 

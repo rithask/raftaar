@@ -10,9 +10,11 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 /** The garage page: a card per vehicle with what needs attention, and how much is waiting in the inbox. */
 @Service
+@Transactional(readOnly = true)
 public class Garage {
     private final VehicleRepo vehicles;
     private final VehicleStats stats;

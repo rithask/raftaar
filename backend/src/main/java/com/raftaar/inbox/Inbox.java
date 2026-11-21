@@ -9,9 +9,11 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 /** What's waiting for you: GeoPulse trips to put on a vehicle, fill-ups or expenses to confirm, and fill-ups to check. */
 @Service
+@Transactional(readOnly = true)
 public class Inbox {
     private final TripRepo trips;
     private final SuggestionRepo suggestions;

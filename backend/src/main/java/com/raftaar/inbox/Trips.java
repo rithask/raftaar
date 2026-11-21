@@ -17,6 +17,7 @@ public class Trips {
         this.vehicles = vehicles;
     }
 
+    @Transactional(readOnly = true)
     public List<Trip> forVehicle(Long vehicleId) {
         return trips.findByVehicleIdOrderByStartedAtDesc(vehicleId);
     }

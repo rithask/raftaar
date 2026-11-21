@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 import com.raftaar.common.Failures;
 import com.raftaar.places.Places;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The current fuel price for a state (and district, when known). Where it comes from, best first: a lookup from
@@ -41,6 +42,7 @@ public class FuelPrices {
     public record PlaceQuote(String region, String district, Quote quote) {}
 
     /** Latest price per state, district and fuel. */
+    @Transactional(readOnly = true)
     public List<FuelPrice> latest() {
         return prices.latest();
     }

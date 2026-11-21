@@ -44,6 +44,7 @@ public class FuelEntries {
     public record FuelRow(FuelEntry entry, BigDecimal kmPerUnit, BigDecimal distance, BigDecimal publishedPrice) {}
 
     /** Newest first, each full tank with the mileage of the stretch it closed. */
+    @Transactional(readOnly = true)
     public List<FuelRow> list(Long vehicleId) {
         Vehicle vehicle = vehicles.require(vehicleId, "Vehicle");
         List<FuelEntry> inOrder = fills.findByVehicleIdOrderByFilledAtAscIdAsc(vehicleId);

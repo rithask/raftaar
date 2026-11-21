@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Certificates and papers: insurance, PUC, RC, road tax… and your own, like a driving licence (no vehicle). */
 @Service
@@ -30,16 +31,19 @@ public class Papers {
                         LocalDate expiresOn, Integer remindDaysBefore, BigDecimal cost, String notes) {}
 
     /** Every paper, soonest to expire first (no expiry last). */
+    @Transactional(readOnly = true)
     public List<VehicleStats.DocumentView> all() {
         return papers.findAll().stream().map(VehicleStats::documentView)
                 .sorted(Comparator.comparing((VehicleStats.DocumentView view) -> view.document().expiresOn, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<VehicleStats.DocumentView> forVehicle(Long vehicleId) {
         return papers.findByVehicleIdOrderByExpiresOnAscIdAsc(vehicleId).stream().map(VehicleStats::documentView).toList();
     }
 
+    @Transactional(readOnly = true)
     public Document get(Long id) {
         return papers.require(id, "Document");
     }

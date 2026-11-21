@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Reminders for oil changes, chain lube, services…: by km, by date, or both. */
 @Service
@@ -28,6 +29,7 @@ public class Reminders {
                         String notes) {}
 
     /** All of a vehicle's reminders with how soon each is due, finished one-offs included. */
+    @Transactional(readOnly = true)
     public List<VehicleStats.ReminderView> list(Long vehicleId) {
         Vehicle vehicle = vehicles.require(vehicleId, "Vehicle");
         VehicleStats.Odometer odometer = stats.odometer(vehicle);

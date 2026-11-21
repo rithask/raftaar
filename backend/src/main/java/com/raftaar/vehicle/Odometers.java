@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Odometer readings: the ones you enter, and the full history from every fill-up, service and expense too. */
 @Service
@@ -23,11 +24,13 @@ public class Odometers {
     public record Input(Instant readAt, BigDecimal odometer, String notes) {}
 
     /** Every reading of this vehicle's odometer, newest first, whatever it came from. */
+    @Transactional(readOnly = true)
     public List<VehicleStats.Reading> history(Long vehicleId) {
         Vehicle vehicle = vehicles.require(vehicleId, "Vehicle");
         return stats.readings(vehicle).reversed();
     }
 
+    @Transactional(readOnly = true)
     public List<OdometerReading> entered(Long vehicleId) {
         return readings.findByVehicleIdOrderByReadAtDesc(vehicleId);
     }

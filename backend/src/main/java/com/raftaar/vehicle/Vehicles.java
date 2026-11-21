@@ -33,10 +33,12 @@ public class Vehicles {
                         String registration, String color, BigDecimal tankCapacity, LocalDate purchaseDate,
                         BigDecimal purchaseOdometer, BigDecimal purchasePrice, Boolean isDefault, Boolean archived, String notes) {}
 
+    @Transactional(readOnly = true)
     public List<Vehicle> list() {
         return vehicles.findAllByOrderByArchivedAscSortOrderAscIdAsc();
     }
 
+    @Transactional(readOnly = true)
     public Vehicle get(Long id) {
         return vehicles.require(id, "Vehicle");
     }

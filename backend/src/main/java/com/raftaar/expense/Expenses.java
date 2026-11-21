@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Money spent on a vehicle besides fuel and services: upgrades, accessories, gear, tolls, parking. */
 @Service
@@ -22,6 +23,7 @@ public class Expenses {
     public record Input(LocalDate spentOn, Expense.Category category, String title, BigDecimal amount, BigDecimal odometer,
                         String vendor, String notes) {}
 
+    @Transactional(readOnly = true)
     public List<Expense> list(Long vehicleId) {
         vehicles.require(vehicleId, "Vehicle");
         return expenses.findByVehicleIdOrderBySpentOnDescIdDesc(vehicleId);

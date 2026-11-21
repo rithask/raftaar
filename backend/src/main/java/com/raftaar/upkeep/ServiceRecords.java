@@ -31,6 +31,7 @@ public class ServiceRecords {
     public record Input(LocalDate servicedOn, BigDecimal odometer, String title, String workshop, BigDecimal cost, String notes,
                         List<Long> completes) {}
 
+    @Transactional(readOnly = true)
     public List<ServiceRow> list(Long vehicleId) {
         vehicles.require(vehicleId, "Vehicle");
         List<ServiceRecord> history = services.findByVehicleIdOrderByServicedOnDescIdDesc(vehicleId);
