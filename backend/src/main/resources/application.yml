@@ -29,6 +29,11 @@ spring:
 
 server:
   port: ${PORT:8080}
+  # JSON answers are compressed on the fly; the app's own files are compressed at build time (see StaticFiles)
+  compression:
+    enabled: true
+    mime-types: application/json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,application/manifest+json
+    min-response-size: 1KB
   forward-headers-strategy: native
   mime-mappings:
     webmanifest: application/manifest+json
