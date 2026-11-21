@@ -7,10 +7,10 @@ import { api } from '@/lib/api'
 import { ago, date, dateTime, km, money, money2, n2, time } from '@/lib/format'
 import { type Inbox, type Integration, type Trip, type Vehicle } from '@/lib/types'
 import { useSave } from '@/lib/useSave'
-import { Badge, Button, Chip, Empty, ErrorText, Loading, Panel, softSpring } from '@/ui/ui'
 import { ExpenseForm } from '@/features/expenses/ExpenseForm'
 import { FuelForm } from '@/features/fuel/FuelForm'
 import { KindIcon } from '@/features/vehicle/VehicleArt'
+import { Badge, Button, Card, Chip, easeOut, EmptyState, ErrorText, Loading, PageHeader, popSpring, Section, softSpring } from '@/ui'
 
 type Pending = Inbox['suggestions'][number]
 /** Cards come in softly, and slide off to the left when they're dealt with; the rest close the gap. */
@@ -18,7 +18,7 @@ const cardMotion = {
   layout: true,
   initial: { opacity: 0, y: 10 },
   animate: { opacity: 1, y: 0, x: 0, transition: softSpring },
-  exit: { opacity: 0, x: -90, transition: { duration: 0.22, ease: [0.4, 0, 1, 1] as const } },
+  exit: { opacity: 0, x: -90, transition: { duration: 0.22, ease: easeOut } },
 } as const
 const MODE: Record<string, string> = { CAR: 'Car', MOTORCYCLE: 'Motorcycle', UNKNOWN: 'Unknown mode' }
 
@@ -37,19 +37,18 @@ export function InboxPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-[28px] leading-none font-bold tracking-tight">Inbox</h1>
+      <PageHeader title="Inbox" />
       {empty && <InboxEmpty />}
 
       {data.suggestions.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-medium text-stone-500">To confirm</h2>
+        <Section title="To confirm" className="!space-y-3">
           <AnimatePresence initial={false} mode="popLayout">
           {data.suggestions.map((p) => {
             const s = p.suggestion
             const fuel = s.kind === 'FUEL'
             return (
               <motion.div key={s.id} {...cardMotion}>
-              <Panel className="space-y-3">
+              <Card padded raised className="space-y-3">
                 <div className="flex items-start gap-3">
                   <div className={`rounded-xl p-2 ${fuel ? 'bg-accent-soft text-accent-strong' : 'bg-sky-500/15 text-sky-600'}`}>{fuel ? <GasPump size={22} /> : <Receipt size={22} />}</div>
                   <div className="min-w-0 flex-1">
@@ -75,24 +74,23 @@ export function InboxPage() {
                   </Button>
                   <Button variant="ghost" busy={dismiss.isPending && dismiss.variables === s.id} onClick={() => dismiss.mutate(s.id)}><X size={16} /> Dismiss</Button>
                 </div>
-              </Panel>
+              </Card>
               </motion.div>
             )
           })}
           </AnimatePresence>
-        </section>
+        </Section>
       )}
 
       {data.issues.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-medium text-stone-500">Needs a look</h2>
+        <Section title="Needs a look" className="!space-y-3">
           {data.issues.map((f) => (
             <Link key={f.id} to={`/vehicles/${f.vehicleId}`} className="flex items-center gap-3 rounded-2xl bg-amber-500/10 p-3 text-sm transition duration-100 active:scale-[0.99] active:bg-amber-500/20">
               <Warning size={20} className="text-amber-600" />
               <span className="flex-1">{name(f.vehicleId) ?? 'Fill-up'} · {date(f.filledAt)} · {money(f.totalCost)} — {f.sourceIssue}</span>
             </Link>
           ))}
-        </section>
+        </Section>
       )}
 
       {data.trips.length > 0 && <Trips trips={data.trips} vehicles={active} />}
@@ -129,15 +127,12 @@ function Trips({ trips, vehicles }: { trips: Trip[]; vehicles: Vehicle[] }) {
   const toggle = (id: number) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-stone-500">Trips to sort <span className="num">({trips.length})</span></h2>
-        {picked.length === 0 && trips.length > 1 && <Button variant="ghost" className="!py-1 text-xs" onClick={() => setPicked(trips.map((t) => t.id))}>Select all</Button>}
-      </div>
+    <Section title="Trips to sort" meta={String(trips.length)} className="!space-y-3"
+      action={picked.length === 0 && trips.length > 1 && <Button variant="ghost" className="!py-1 text-xs" onClick={() => setPicked(trips.map((t) => t.id))}>Select all</Button>}>
       <AnimatePresence>
       {picked.length > 0 && (
         <motion.div key="bar" className="sticky top-2 z-20 sm:top-16" initial={{ opacity: 0, y: -8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.98 }} transition={softSpring}>
-        <Panel className="space-y-2 shadow-lg">
+        <Card padded raised className="space-y-2 shadow-lg">
           <div className="text-sm">Assign <b className="num">{picked.length}</b> trip{picked.length === 1 ? '' : 's'} to</div>
           <div className="flex flex-wrap gap-2">
             {vehicles.map((v) => (
@@ -148,7 +143,7 @@ function Trips({ trips, vehicles }: { trips: Trip[]; vehicles: Vehicle[] }) {
             <Button variant="secondary" className="!py-1.5" onClick={() => assign.mutate({ ids: picked, vehicleId: null })}>Not mine</Button>
             <Button variant="ghost" className="!py-1.5" onClick={() => setPicked([])}>Cancel</Button>
           </div>
-        </Panel>
+        </Card>
         </motion.div>
       )}
       </AnimatePresence>
@@ -162,13 +157,13 @@ function Trips({ trips, vehicles }: { trips: Trip[]; vehicles: Vehicle[] }) {
           <AnimatePresence initial={false} mode="popLayout">
           {list.map((t) => (
             <motion.div key={t.id} {...cardMotion}>
-            <Panel className={`!p-3 transition-shadow ${picked.includes(t.id) ? 'ring-2 !ring-accent' : ''}`}>
+            <Card padded raised className={`!p-3 transition-shadow ${picked.includes(t.id) ? 'ring-2 !ring-accent' : ''}`}>
               <div className="flex items-center gap-3">
                 <button onClick={() => toggle(t.id)} aria-pressed={picked.includes(t.id)} className={`-m-2 flex size-10 shrink-0 items-center justify-center rounded-lg transition active:scale-90 active:bg-stone-100 dark:active:bg-stone-800`} aria-label="Select trip">
                   <span className={`flex size-6 items-center justify-center rounded-md ring-1 ${picked.includes(t.id) ? 'bg-accent text-on-accent ring-accent' : 'ring-stone-300 dark:ring-stone-600'}`}>
                   <AnimatePresence>
                     {picked.includes(t.id) && (
-                      <motion.span key="tick" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={{ type: 'spring', stiffness: 600, damping: 25 }}>
+                      <motion.span key="tick" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={popSpring}>
                         <Check size={14} weight="bold" />
                       </motion.span>
                     )}
@@ -191,13 +186,13 @@ function Trips({ trips, vehicles }: { trips: Trip[]; vehicles: Vehicle[] }) {
                   <Chip onClick={() => assign.mutate({ ids: [t.id], vehicleId: null })} className="text-stone-500">Not mine</Chip>
                 </div>
               )}
-            </Panel>
+            </Card>
             </motion.div>
           ))}
           </AnimatePresence>
         </div>
       ))}
-    </section>
+    </Section>
   )
 }
 
@@ -218,27 +213,27 @@ function InboxEmpty() {
   )
   if (!on.length) {
     return (
-      <Empty icon={<Tray size={48} />} title="Nothing to sort">
+      <EmptyState icon={<Tray size={48} />} title="Nothing to sort">
         Connect GeoPulse to bring in your trips, or Hisaab to bring in fuel payments, and they'll show up here to confirm.
         <div>{settings}</div>
-      </Empty>
+      </EmptyState>
     )
   }
   if (failing.length) {
     const f = failing[0]
     return (
-      <Empty icon={<Warning size={48} />} title={`${f.name === 'geopulse' ? 'GeoPulse' : 'Hisaab'} isn't syncing`}>
+      <EmptyState icon={<Warning size={48} />} title={`${f.name === 'geopulse' ? 'GeoPulse' : 'Hisaab'} isn't syncing`}>
         {f.status.lastError}{/[.!?]$/.test(f.status.lastError ?? '') ? '' : '.'} Nothing new can arrive until it does.
         <div>{settings}</div>
-      </Empty>
+      </EmptyState>
     )
   }
   const lastRun = on.map((i) => i.status.lastRun).filter(Boolean).sort().at(-1)
   return (
-    <Empty icon={<Tray size={48} />} title="All caught up">
+    <EmptyState icon={<Tray size={48} />} title="All caught up">
       New {on.map((i) => what[i.name as 'geopulse' | 'hisaab']).join(' and ')} show up here.
       {lastRun && <span className="mt-1 block text-xs">Last checked {ago(lastRun)}.</span>}
-    </Empty>
+    </EmptyState>
   )
 }
 

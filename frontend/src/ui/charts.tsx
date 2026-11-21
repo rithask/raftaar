@@ -1,11 +1,13 @@
 import type { ReactElement } from 'react'
 import { CartesianGrid, ResponsiveContainer } from 'recharts'
 import { n1 } from '@/lib/format'
+import { surface } from './Card'
+import { cx } from './cx'
 
 /** Shared look for the small charts: a card, quiet axes, a soft grid. */
 export function ChartCard({ children, className = 'h-40' }: { children: ReactElement; className?: string }) {
   return (
-    <div className={`${className} rounded-2xl bg-white p-3 pt-4 ring-1 ring-stone-900/5 dark:bg-stone-900 dark:ring-white/10`}>
+    <div className={cx(className, 'rounded-2xl p-3 pt-4', surface)}>
       <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>
     </div>
   )

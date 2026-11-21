@@ -195,7 +195,8 @@ export interface Summary {
   monthly: { month: string; fuel: number; service: number; other: number }[]
 }
 
-export interface Card {
+/** A vehicle as the garage shows it: the figures for its card and what needs attention. */
+export interface GarageCard {
   vehicle: Vehicle
   odometer: Odometer
   averageEconomy: number | null
@@ -209,7 +210,7 @@ export interface Card {
 }
 
 export interface Garage {
-  vehicles: Card[]
+  vehicles: GarageCard[]
   tripsToSort: number
   toConfirm: number
 }

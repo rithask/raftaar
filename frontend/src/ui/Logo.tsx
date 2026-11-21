@@ -1,4 +1,4 @@
-import { cx } from './ui'
+import { cx } from './cx'
 
 /**
  * The Raftaar mark: a classic scooter in profile, white line on a graphite tile with blue details — the same

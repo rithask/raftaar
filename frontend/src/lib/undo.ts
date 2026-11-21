@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { useSyncExternalStore } from 'react'
-import { toast } from '@/ui/toast'
+import { toast } from '@/ui'
 
 /**
  * Deleting without a "are you sure?": the thing disappears at once and a toast offers Undo for a few seconds.

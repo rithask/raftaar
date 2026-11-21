@@ -5,8 +5,7 @@ import { docLabel, num, today, toLocalDate } from '@/lib/format'
 import { type Doc, type DocType, type Vehicle } from '@/lib/types'
 import { deleteWithUndo } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
-import { DateInput, plusMonths } from '@/ui/DateField'
-import { Button, ErrorText, Field, FormScreen, Input, Select, TextArea } from '@/ui/ui'
+import { Button, DateInput, ErrorText, Field, FormScreen, Input, plusMonths, Select, TextArea } from '@/ui'
 
 /**
  * The next term of a paper: it starts the day after the old one ends (or today, if that's already past) and runs as

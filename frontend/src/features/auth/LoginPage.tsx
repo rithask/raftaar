@@ -4,9 +4,8 @@ import { motion } from 'motion/react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { api } from '@/lib/api'
 import { type AuthOptions } from '@/lib/types'
-import { Logo } from '@/ui/Logo'
-import { Button, ErrorText, Field, Input, spring } from '@/ui/ui'
 import { clearSignedOut, markSignedOut, wasSignedOut } from './session'
+import { Button, ErrorText, Field, Input, Logo, spring } from '@/ui'
 
 type Me = { username: string }
 

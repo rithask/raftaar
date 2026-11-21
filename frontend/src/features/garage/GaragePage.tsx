@@ -5,18 +5,18 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { date, economyUnit, km, money, n1 } from '@/lib/format'
-import { type Card, type Garage, type Vehicle } from '@/lib/types'
+import { type Garage, type GarageCard, type Vehicle } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
-import { Badge, Button, Empty, ErrorText, listItem, listParent, Loading, softSpring } from '@/ui/ui'
 import { FuelForm } from '@/features/fuel/FuelForm'
 import { KindIcon, VehicleArt } from '@/features/vehicle/VehicleArt'
 import { VehicleForm } from '@/features/vehicle/VehicleForm'
 import { imageUrl } from '@/features/vehicle/photo'
+import { Badge, Button, Card, cx, EmptyState, ErrorText, IconBadge, listItem, listParent, Loading, PageHeader, Section, softSpring, surface } from '@/ui'
 
 export function GaragePage() {
   const garage = useQuery({ queryKey: ['garage'], queryFn: () => api<Garage>('/garage') })
   const [adding, setAdding] = useState(false)
-  const [fuelFor, setFuelFor] = useState<Card | null>(null)
+  const [fuelFor, setFuelFor] = useState<GarageCard | null>(null)
   const hidden = useHidden()
 
   if (garage.isLoading) return <Loading />
@@ -30,10 +30,7 @@ export function GaragePage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-[28px] leading-none font-bold tracking-tight">Garage</h1>
-        <Button variant="secondary" onClick={() => setAdding(true)}><Plus size={16} /> Add</Button>
-      </div>
+      <PageHeader title="Garage" action={<Button variant="secondary" onClick={() => setAdding(true)}><Plus size={16} /> Add</Button>} />
 
       <AnimatePresence initial={false}>
       {waiting > 0 && (
@@ -52,10 +49,10 @@ export function GaragePage() {
       </AnimatePresence>
 
       {all.length === 0 ? (
-        <Empty icon={<Gauge size={48} />} title="Your garage is empty">
+        <EmptyState icon={<Gauge size={48} />} title="Your garage is empty">
           Add a vehicle to start tracking fuel, mileage and services.
           <div className="mt-4"><Button variant="primary" onClick={() => setAdding(true)}><Plus size={16} /> Add a vehicle</Button></div>
-        </Empty>
+        </EmptyState>
       ) : (
         <motion.div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3" variants={listParent} initial="hidden" animate="show">
           {active.map((c) => (
@@ -67,18 +64,17 @@ export function GaragePage() {
       )}
 
       {retired.length > 0 && (
-        <div>
-          <h2 className="mb-2 text-sm font-medium text-stone-500">Sold or retired</h2>
+        <Section title="Sold or retired">
           <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
             {retired.map((c) => (
-              <Link key={c.vehicle.id} to={`/vehicles/${c.vehicle.id}`} className="flex items-center gap-3 rounded-2xl bg-white p-3 opacity-70 ring-1 ring-stone-900/5 transition duration-100 active:scale-[0.99] active:opacity-100 dark:bg-stone-900 dark:ring-white/10">
+              <Link key={c.vehicle.id} to={`/vehicles/${c.vehicle.id}`} className={cx('flex items-center gap-3 rounded-2xl p-3 opacity-70 transition duration-100 active:scale-[0.99] active:opacity-100', surface)}>
                 <VehicleArt vehicle={c.vehicle} className="size-12 rounded-xl" iconSize={22} small />
                 <span className="font-medium">{c.vehicle.name}</span>
                 <span className="num ml-auto text-sm text-stone-500">{km(c.odometer.known)}</span>
               </Link>
             ))}
           </div>
-        </div>
+        </Section>
       )}
 
       <AnimatePresence>
@@ -92,13 +88,13 @@ export function GaragePage() {
   )
 }
 
-function VehicleCard({ card, onFuel }: { card: Card; onFuel: () => void }) {
+function VehicleCard({ card, onFuel }: { card: GarageCard; onFuel: () => void }) {
   const v = card.vehicle
   const odo = card.odometer.estimated ?? card.odometer.known
   const subtitle = [v.make, v.model, v.year].filter(Boolean).join(' ')
   const overdue = card.attention.some((r) => r.status.state === 'OVERDUE') || card.papers.some((d) => d.state === 'EXPIRED')
   return (
-    <div className="group relative overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-stone-900/5 transition-shadow hover:shadow-md dark:bg-stone-900 dark:ring-white/10">
+    <Card raised className="group relative overflow-hidden rounded-3xl transition-shadow hover:shadow-md">
       <Link to={`/vehicles/${v.id}`} className="block transition duration-100 active:opacity-80">
         {imageUrl(v) ? (
         <div className="relative">
@@ -122,9 +118,7 @@ function VehicleCard({ card, onFuel }: { card: Card; onFuel: () => void }) {
         ) : (
           // no photo: a compact header instead of a big grey block
           <div className="flex items-center gap-3 px-4 pt-4">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent-strong ring-1 ring-accent-strong/15">
-              <KindIcon kind={v.kind} size={26} />
-            </span>
+            <IconBadge size="lg" square className="ring-1 ring-accent-strong/15"><KindIcon kind={v.kind} size={26} /></IconBadge>
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-lg leading-tight font-semibold">{v.name}</h2>
               {subtitle && <p className="truncate text-sm text-stone-500">{subtitle}</p>}
@@ -162,7 +156,7 @@ function VehicleCard({ card, onFuel }: { card: Card; onFuel: () => void }) {
         <span className="truncate text-xs text-stone-500">{card.lastFill ? `Last filled ${date(card.lastFill.filledAt, false)}` : 'No fill-ups yet'}</span>
         <Button variant="primary" className="!py-2" onClick={onFuel}><GasPump size={16} /> Fuel</Button>
       </div>
-    </div>
+    </Card>
   )
 }
 

@@ -8,8 +8,7 @@ import { INDIAN_STATES } from '@/lib/states'
 import { type FuelEntry, type Quote, type Suggestion, type Vehicle } from '@/lib/types'
 import { deleteWithUndo } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
-import { DateTimeInput } from '@/ui/DateField'
-import { Badge, Button, ErrorText, Field, FormScreen, Input, Select, TextArea, Toggle } from '@/ui/ui'
+import { Badge, Button, DateTimeInput, ErrorText, Field, FormScreen, Input, Select, TextArea, Toggle } from '@/ui'
 
 type Key = 'volume' | 'price' | 'total'
 

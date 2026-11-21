@@ -1,7 +1,7 @@
 import { CalendarBlank, CaretLeft, CaretRight, Clock } from '@phosphor-icons/react'
 import { useAnimate } from 'motion/react'
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { cx } from './ui'
+import { cx } from './cx'
 
 /*
  * Date and time fields that work the same whether you type or tap.

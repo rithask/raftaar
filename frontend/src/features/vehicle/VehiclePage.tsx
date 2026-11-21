@@ -7,8 +7,6 @@ import { api } from '@/lib/api'
 import { economyUnit, money, money2, n1 } from '@/lib/format'
 import { type Summary, type Vehicle } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
-import { ErrorBoundary } from '@/ui/ErrorBoundary'
-import { ErrorText, Loading, Tabs } from '@/ui/ui'
 import { ExpenseForm } from '@/features/expenses/ExpenseForm'
 import { FuelForm } from '@/features/fuel/FuelForm'
 import { OdometerForm } from '@/features/odometer/OdometerForm'
@@ -24,6 +22,7 @@ import { PapersSection } from './tabs/PapersTab'
 import { SpendTab } from './tabs/SpendTab'
 import { TripsTab } from './tabs/TripsTab'
 import { RemindersSection, ServicesSection } from './tabs/UpkeepTab'
+import { Card, ErrorBoundary, ErrorText, Loading, Tabs } from '@/ui'
 
 export type Tab = 'fuel' | 'upkeep' | 'papers' | 'spend' | 'trips'
 export const TABS: Tab[] = ['fuel', 'upkeep', 'papers', 'spend', 'trips']
@@ -66,7 +65,7 @@ export function VehiclePage() {
       <div className="space-y-5 xl:grid xl:grid-cols-[minmax(0,1fr)_19rem] xl:items-start xl:gap-6 xl:space-y-0">
       <aside className="space-y-5 xl:sticky xl:top-6 xl:col-start-2 xl:row-start-1">
       {/* the three numbers that matter, and one quiet line under them */}
-      <div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-stone-900/5 dark:bg-stone-900 dark:ring-white/10">
+      <Card padded raised className="rounded-3xl">
         <div className="grid grid-cols-3 divide-x divide-stone-900/5 dark:divide-white/10">
           <div className="min-w-0 pr-2">
             <button type="button" onClick={() => setOpen({ kind: 'odometer' })} aria-label="Update odometer"
@@ -89,7 +88,7 @@ export function VehiclePage() {
             s.averageEconomy == null ? 'mileage after two full tanks' : null,
           ].filter(Boolean).join('  ·  ')}
         </p>
-      </div>
+      </Card>
 
       {(due.length > 0 || papers.length > 0) && (
         // what needs doing soon, as one row of chips (the tabs below have the details)

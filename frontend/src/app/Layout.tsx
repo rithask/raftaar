@@ -9,10 +9,8 @@ import { imageUrl } from '@/features/vehicle/photo'
 import { api } from '@/lib/api'
 import { type Garage as GarageData } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
-import { ErrorBoundary } from '@/ui/ErrorBoundary'
-import { Logo } from '@/ui/Logo'
-import { cx, spring } from '@/ui/ui'
 import { OutboxBar } from './OutboxBar'
+import { cx, ErrorBoundary, exitFast, Logo, pageSpring, slideSpring, spring } from '@/ui'
 
 const tabs = [
   { to: '/', label: 'Garage', Icon: Garage, end: true },
@@ -52,8 +50,8 @@ export function Layout() {
           <motion.div
             key={location.pathname.startsWith('/settings') ? '/settings' : location.pathname}
             initial={enter}
-            animate={{ opacity: 1, x: 0, y: 0, transition: { type: 'spring', stiffness: 380, damping: 36 } }}
-            exit={{ opacity: 0, transition: { duration: 0.12 } }}
+            animate={{ opacity: 1, x: 0, y: 0, transition: pageSpring }}
+            exit={{ opacity: 0, transition: exitFast }}
           >
             {/* a page that fails shows a message in its place; the navigation around it keeps working */}
             <ErrorBoundary resetKey={location.pathname}>{outlet}</ErrorBoundary>
@@ -229,7 +227,7 @@ function BottomBar({ waiting }: { waiting: number }) {
       aria-label="Sections"
       initial={false}
       animate={{ y: hidden ? 'calc(100% + 24px)' : 0, opacity: hidden ? 0 : 1 }}
-      transition={{ type: 'spring', stiffness: 420, damping: 38 }}
+      transition={slideSpring}
       className="fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex justify-center px-4 sm:hidden"
     >
       <div className="flex items-center gap-1 rounded-full bg-white/75 p-1.5 shadow-[0_8px_30px_-6px_rgba(0,0,0,0.25)] ring-1 ring-stone-900/[0.07] backdrop-blur-xl backdrop-saturate-150 dark:bg-stone-900/75 dark:ring-white/10">

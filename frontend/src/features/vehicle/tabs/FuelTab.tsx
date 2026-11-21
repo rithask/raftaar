@@ -9,8 +9,7 @@ import { type FuelRow, type Summary } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
 import { axis, ChartCard, grid, margin, Swatch, tooltipStyle, usualRange } from '@/ui/charts'
-import { Badge, Button, Empty, listItem, Loading, SectionHeader } from '@/ui/ui'
-import { List, Row, Small } from './rows'
+import { Badge, Button, EmptyState, IconBadge, List, listItem, ListRow, Loading, RowMeta, Section } from '@/ui'
 
 export const SOURCE = { MANUAL: '', HISAAB: 'Hisaab', GEOPULSE: 'GeoPulse', HISAAB_GEOPULSE: 'Hisaab + GeoPulse' } as const
 export function FuelTab({ id, summary, onOpen }: { id: number; summary: Summary; onOpen: (r: FuelRow) => void }) {
@@ -20,7 +19,7 @@ export function FuelTab({ id, summary, onOpen }: { id: number; summary: Summary;
   const hidden = useHidden()
   if (rows.isLoading && !waiting.length) return <Loading />
   const list = (rows.data ?? []).filter((r) => !hidden(`fuel:${r.entry.id}`))
-  if (!list.length && !waiting.length) return <Empty icon={<GasPump size={40} />} title="No fill-ups yet">Add each fill-up with the odometer reading. Mileage shows after two full tanks.</Empty>
+  if (!list.length && !waiting.length) return <EmptyState icon={<GasPump size={40} />} title="No fill-ups yet">Add each fill-up with the odometer reading. Mileage shows after two full tanks.</EmptyState>
   const byId = new Map(list.map((r) => [r.entry.id, r.entry]))
   const chart = summary.economyHistory.map((st) => ({ when: date(byId.get(st.endId)?.filledAt, false), kmpl: st.kmPerUnit }))
   const unit = summary.unit
@@ -31,8 +30,7 @@ export function FuelTab({ id, summary, onOpen }: { id: number; summary: Summary;
   return (
     <>
       {chart.length >= 2 && (
-        <section className="space-y-2">
-          <SectionHeader title="Mileage per tank" meta={usual ? `${economyUnit(unit)} · usually ${n1(usual.low)}–${n1(usual.high)}` : economyUnit(unit)} />
+        <Section title="Mileage per tank" meta={usual ? `${economyUnit(unit)} · usually ${n1(usual.low)}–${n1(usual.high)}` : economyUnit(unit)}>
           <ChartCard>
             <LineChart data={chart} margin={margin}>
               {grid}
@@ -47,17 +45,16 @@ export function FuelTab({ id, summary, onOpen }: { id: number; summary: Summary;
                 }} />
             </LineChart>
           </ChartCard>
-        </section>
+        </Section>
       )}
       {prices.length >= 2 && (
-        <section className="space-y-2">
-          <SectionHeader title="Price paid" meta={hasPublished ? (
+        <Section title="Price paid" meta={hasPublished ? (
             <span className="inline-flex items-center gap-3">
               <span>₹/{unit}</span>
               <span className="inline-flex items-center gap-1"><Swatch color="var(--color-accent-strong)" /> you</span>
               <span className="inline-flex items-center gap-1"><Swatch color="var(--color-stone-400, #a8a29e)" dashed /> published</span>
             </span>
-          ) : `₹/${unit}`} />
+          ) : `₹/${unit}`}>
           <ChartCard>
             <LineChart data={prices} margin={margin}>
               {grid}
@@ -68,18 +65,17 @@ export function FuelTab({ id, summary, onOpen }: { id: number; summary: Summary;
               <Line type="monotone" dataKey="paid" stroke="var(--color-accent-strong)" strokeWidth={2.5} dot={{ r: 2.5 }} isAnimationActive={false} />
             </LineChart>
           </ChartCard>
-        </section>
+        </Section>
       )}
-      <section className="space-y-2">
-        <SectionHeader title="Fill-ups" meta={`${list.length} · ${money(spent)}`} />
+      <Section title="Fill-ups" meta={`${list.length} · ${money(spent)}`}>
         <List>
           {waiting.map((w) => (
             // saved on this phone, not sent yet
             <motion.div variants={listItem} key={w.key} className="flex items-center gap-3 px-4 py-3">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sky-500/12 text-sky-600"><CloudArrowUp size={18} /></span>
+              <IconBadge tone="sky"><CloudArrowUp size={18} /></IconBadge>
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{dateTime(w.body.filledAt)}</div>
-                <Small>{w.body.odometer != null ? km(w.body.odometer) : '—'}{amounts(w.body).volume != null ? ` · ${n2(amounts(w.body).volume!)} ${unit}` : ''}</Small>
+                <RowMeta>{w.body.odometer != null ? km(w.body.odometer) : '—'}{amounts(w.body).volume != null ? ` · ${n2(amounts(w.body).volume!)} ${unit}` : ''}</RowMeta>
               </div>
               <div className="shrink-0 text-right">
                 <div className="num font-semibold">{amounts(w.body).total != null ? money(amounts(w.body).total!) : '—'}</div>
@@ -89,22 +85,22 @@ export function FuelTab({ id, summary, onOpen }: { id: number; summary: Summary;
           ))}
           {list.map((r) => (
             <div key={r.entry.id}>
-              <Row onClick={() => onOpen(r)}>
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong"><GasPump size={18} /></span>
+              <ListRow onClick={() => onOpen(r)}>
+                <IconBadge><GasPump size={18} /></IconBadge>
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium">{dateTime(r.entry.filledAt)}</div>
-                  <Small>
+                  <RowMeta>
                     {km(r.entry.odometer)} · {n2(r.entry.volume)} {unit}
                     {!r.entry.fullTank ? ' · partial' : ''}
                     {r.entry.missedPrevious ? ' · after a skipped one' : ''}
                     {r.entry.source !== 'MANUAL' ? ` · ${SOURCE[r.entry.source]}` : r.entry.stationName ? ` · ${r.entry.stationName}` : ''}
-                  </Small>
+                  </RowMeta>
                 </div>
                 <div className="shrink-0 text-right">
                   <div className="num font-semibold">{money(r.entry.totalCost)}</div>
                   <div className="num mt-0.5 text-[13px] text-stone-500">{r.kmPerUnit != null ? `${n1(r.kmPerUnit)} ${economyUnit(unit)}` : `@ ${money2(r.entry.pricePerUnit)}`}</div>
                 </div>
-              </Row>
+              </ListRow>
               {r.entry.sourceIssue && (
                 <div className="flex items-center gap-2 bg-amber-500/10 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">
                   <Warning size={16} /> <span className="flex-1">{r.entry.sourceIssue}</span>
@@ -114,7 +110,7 @@ export function FuelTab({ id, summary, onOpen }: { id: number; summary: Summary;
             </div>
           ))}
         </List>
-      </section>
+      </Section>
     </>
   )
 }

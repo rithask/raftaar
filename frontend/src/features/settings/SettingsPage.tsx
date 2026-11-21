@@ -8,8 +8,8 @@ import { INDIAN_STATES } from '@/lib/states'
 import { type AccountView, type Channel, type ChannelList, type FuelPrice, type FuelType, type Integration } from '@/lib/types'
 import { deleteWithUndo, useHidden } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
-import { Badge, Button, cx, ErrorText, Field, Input, Loading, Panel, rowPress, Select, Toggle } from '@/ui/ui'
 import { signOut } from '@/features/auth/session'
+import { Badge, Button, Card, cx, ErrorText, Field, IconBadge, Input, List, Loading, PageHeader, rowPress, Select, Toggle } from '@/ui'
 
 const META: Record<Integration['name'], { title: string; icon: ReactNode; off: ReactNode; what: string; run?: string }> = {
   geopulse: { title: 'GeoPulse', icon: <Path size={20} />, off: <>Set <Code>GEOPULSE_URL</Code> and <Code>GEOPULSE_TOKEN</Code> to connect.</>, what: 'Brings in your trips and spots stops at fuel pumps.', run: 'Sync now' },
@@ -43,7 +43,7 @@ export function SettingsPage() {
     <div className="sm:grid sm:grid-cols-[15rem_minmax(0,1fr)] sm:items-start sm:gap-8">
       {/* the list: the whole page on a phone with no section open; always on the left on larger screens */}
       <div className={cx('space-y-5 sm:sticky sm:top-6', active && 'max-sm:hidden')}>
-        <h1 className="text-[28px] leading-none font-bold tracking-tight">Settings</h1>
+        <PageHeader title="Settings" />
         <SectionList active={active?.key} />
       </div>
       <div className={cx('min-w-0', !active && 'max-sm:hidden')}>
@@ -86,11 +86,11 @@ function SectionList({ active }: { active?: Key }) {
   }
   return (
     <>
-      <nav aria-label="Settings sections" className="divide-y divide-stone-900/5 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-900/5 dark:divide-white/5 dark:bg-stone-900 dark:ring-white/10">
+      <List as="nav" label="Settings sections">
         {SECTIONS.map((x) => (
           <Link key={x.key} to={`/settings/${x.key}`} aria-current={x.key === active ? 'page' : undefined}
             className={cx('flex items-center gap-3 px-4 py-3.5', rowPress, 'sm:aria-[current=page]:bg-stone-900/[0.05] sm:dark:aria-[current=page]:bg-white/[0.07]')}>
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-200">{x.icon}</span>
+            <IconBadge tone="neutral" square>{x.icon}</IconBadge>
             <span className="min-w-0 flex-1">
               <span className="block font-medium">{x.title}</span>
               <span className="block truncate text-xs text-stone-500">{summary[x.key]}</span>
@@ -98,7 +98,7 @@ function SectionList({ active }: { active?: Key }) {
             <CaretRight size={16} className="shrink-0 text-stone-300 sm:hidden" />
           </Link>
         ))}
-      </nav>
+      </List>
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" onClick={logout}><SignOut size={16} /> Sign out</Button>
         <Version />
@@ -117,7 +117,7 @@ function Connections() {
         const m = META[i.name]
         const s = i.status
         return (
-          <Panel key={i.name} className="space-y-2">
+          <Card padded raised key={i.name} className="space-y-2">
             <div className="flex items-center gap-3">
               <div className="rounded-xl bg-stone-100 p-2 dark:bg-stone-800">{m.icon}</div>
               <div className="min-w-0 flex-1">
@@ -140,7 +140,7 @@ function Connections() {
               </p>
             )}
             {s.lastError && <p className="rounded-lg bg-red-500/10 px-2 py-1 text-xs text-red-700 dark:text-red-400">{s.lastError}</p>}
-          </Panel>
+          </Card>
         )
       })}
       <ErrorText error={run.error} />
@@ -158,7 +158,7 @@ function FuelPrices() {
   return (
     <section className="space-y-3">
       <p className="text-sm text-stone-500">Picked up from your fill-ups. Set one here when prices change.</p>
-      <Panel className="space-y-3">
+      <Card padded raised className="space-y-3">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Field label="State">
             <Input list="states-s" value={f.region} onChange={(e) => setF({ ...f, region: e.target.value })} />
@@ -174,9 +174,9 @@ function FuelPrices() {
         </div>
         <Button variant="primary" busy={add.isPending} disabled={!f.region.trim() || !f.price.trim()} onClick={() => add.mutate(undefined)}><Plus size={16} /> Set price</Button>
         <ErrorText error={add.error} />
-      </Panel>
+      </Card>
       {(prices.data?.length ?? 0) > 0 && (
-        <div className="divide-y divide-stone-900/5 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-900/5 dark:divide-white/5 dark:bg-stone-900 dark:ring-white/10">
+        <List>
           {prices.data!.filter((p) => !hiddenPrice(`price:${p.id}`)).map((p) => (
             <div key={p.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
               <div className="min-w-0 flex-1">
@@ -187,7 +187,7 @@ function FuelPrices() {
               <button onClick={() => remove(p)} className="-m-1 rounded-lg p-2 text-stone-400 transition hover:text-red-600 active:scale-90 active:bg-red-500/10 active:text-red-600" aria-label="Remove price"><Trash size={16} /></button>
             </div>
           ))}
-        </div>
+        </List>
       )}
     </section>
   )
@@ -217,17 +217,17 @@ function NotificationChannels() {
       {data && !data.apprise && (
         <p className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">Apprise isn't available, so nothing can be sent. Use the Docker image, or set <Code>APPRISE_BIN</Code>.</p>
       )}
-      <Panel className="space-y-3">
+      <Card padded raised className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-[1fr_2fr]">
           <Field label="Name"><Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="My phone" /></Field>
           <Field label="Apprise URL"><Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="ntfys://ntfy.sh/my-topic" autoComplete="off" spellCheck={false} autoCapitalize="none" /></Field>
         </div>
         <Button variant="primary" busy={add.isPending} disabled={!url.trim()} onClick={() => add.mutate(undefined)}><Plus size={16} /> Add channel</Button>
         <ErrorText error={add.error} />
-      </Panel>
+      </Card>
       {list.isLoading && <Loading />}
       {data && data.channels.length > 0 && (
-        <div className="divide-y divide-stone-900/5 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-900/5 dark:divide-white/5 dark:bg-stone-900 dark:ring-white/10">
+        <List>
           {data.channels.filter((c) => c.id == null || !hidden(`channel:${c.id}`)).map((c, i) => (
             <div key={c.id ?? `env-${i}`} className="space-y-2 px-4 py-3">
               <div className="flex items-center gap-3">
@@ -252,7 +252,7 @@ function NotificationChannels() {
               {c.lastSentAt && <p className="text-xs text-stone-500">Last sent {ago(c.lastSentAt)}</p>}
             </div>
           ))}
-        </div>
+        </List>
       )}
       {data?.apprise && <p className="text-xs text-stone-500">{data.apprise}</p>}
       <ErrorText error={test.error ?? toggle.error} />
@@ -283,7 +283,7 @@ function AccountSection() {
 
   return (
     <section className="space-y-3">
-      <Panel className="space-y-4">
+      <Card padded raised className="space-y-4">
         <div className="flex items-end gap-2">
           <Field label="Username" className="flex-1">
             <Input value={username} onChange={(e) => setName(e.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} />
@@ -311,7 +311,7 @@ function AccountSection() {
 
         {a.provider && (
           <div className="flex items-center gap-3 border-t border-stone-900/5 pt-4 dark:border-white/10">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-strong"><LinkSimple size={18} /></span>
+            <IconBadge square><LinkSimple size={18} /></IconBadge>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
                 {a.provider} {a.link.linked ? <Badge tone="ok"><CheckCircle size={12} /> linked</Badge> : <Badge>not linked</Badge>}
@@ -329,7 +329,7 @@ function AccountSection() {
           </div>
         )}
         <ErrorText error={unlink.error} />
-      </Panel>
+      </Card>
     </section>
   )
 }

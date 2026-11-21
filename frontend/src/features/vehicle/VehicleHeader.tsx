@@ -5,11 +5,11 @@ import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { fuelLabel, kindLabel } from '@/lib/format'
 import { type Vehicle } from '@/lib/types'
-import { Button, cx, spring } from '@/ui/ui'
 import { QuickAddMenu } from './QuickAdd'
 import { KindIcon, VehicleArt } from './VehicleArt'
 import { type Open } from './open'
 import { imageUrl } from './photo'
+import { Button, cx, spring } from '@/ui'
 
 /** Whether the element is on screen; true until it's known. Re-checks once {@code ready} (the element exists). */
 export function useInView(ref: React.RefObject<HTMLElement | null>, ready: boolean) {

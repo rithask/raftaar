@@ -1,13 +1,13 @@
 import { Plus, Scroll } from '@phosphor-icons/react'
 import { useQuery } from '@tanstack/react-query'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence } from 'motion/react'
 import { useState } from 'react'
 import { api } from '@/lib/api'
 import { type DocView, type Vehicle } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
-import { Button, Empty, listParent, Loading, SectionHeader } from '@/ui/ui'
 import { DocumentForm } from './DocumentForm'
 import { needsRenewal, PaperRow, paperSub } from './PaperRow'
+import { Button, EmptyState, List, Loading, PageHeader, Section } from '@/ui'
 
 /** Every certificate and paper in one place: what needs attention first (expired, then expiring), then the rest. */
 export function PapersPage() {
@@ -28,23 +28,19 @@ export function PapersPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-[28px] leading-none font-bold tracking-tight">Papers</h1>
-        <Button onClick={() => setOpen({})}><Plus size={16} /> Add</Button>
-      </div>
+      <PageHeader title="Papers" action={<Button onClick={() => setOpen({})}><Plus size={16} /> Add</Button>} />
       {list.length === 0 ? (
-        <Empty icon={<Scroll size={48} />} title="No papers yet">Insurance, PUC, RC, road tax and your driving licence. You'll be reminded before they expire.</Empty>
+        <EmptyState icon={<Scroll size={48} />} title="No papers yet">Insurance, PUC, RC, road tax and your driving licence. You'll be reminded before they expire.</EmptyState>
       ) : (
         groups.map((g) => (
-          <section key={g.title} className="space-y-2">
-            <SectionHeader title={g.title} meta={String(g.items.length)} />
-            <motion.div variants={listParent} initial="hidden" animate="show" className="divide-y divide-stone-900/5 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-900/5 dark:divide-white/5 dark:bg-stone-900 dark:ring-white/10">
+          <Section key={g.title} title={g.title} meta={String(g.items.length)}>
+            <List>
               {g.items.map((d) => (
                 <PaperRow key={d.document.id} d={d} icon={false} sub={paperSub(d, name(d.document.vehicleId))}
                   onOpen={() => setOpen({ d })} onRenew={() => setOpen({ d, renewing: true })} />
               ))}
-            </motion.div>
-          </section>
+            </List>
+          </Section>
         ))
       )}
       <AnimatePresence>

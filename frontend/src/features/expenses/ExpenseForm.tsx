@@ -4,8 +4,7 @@ import { expenseLabel, num, today, toLocalDate } from '@/lib/format'
 import { type Expense, type ExpenseCategory, type Suggestion, type Vehicle } from '@/lib/types'
 import { deleteWithUndo } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
-import { DateInput } from '@/ui/DateField'
-import { ErrorText, Field, FormScreen, Input, Select, TextArea } from '@/ui/ui'
+import { DateInput, ErrorText, Field, FormScreen, Input, Select, TextArea } from '@/ui'
 
 export function ExpenseForm({ open, onClose, vehicles, vehicleId, expense, suggestion }: {
   open: boolean; onClose: () => void; vehicles: Vehicle[]; vehicleId?: number; expense?: Expense; suggestion?: Suggestion

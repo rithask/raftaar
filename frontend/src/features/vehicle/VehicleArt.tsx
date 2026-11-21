@@ -1,7 +1,7 @@
 import { Car, Cube, Motorcycle, Scooter } from '@phosphor-icons/react'
 import { type Kind, type Vehicle } from '@/lib/types'
-import { cx } from '@/ui/ui'
 import { imageUrl } from './photo'
+import { cx } from '@/ui'
 
 export function KindIcon({ kind, size = 20, className }: { kind: Kind; size?: number; className?: string }) {
   const Icon = kind === 'CAR' ? Car : kind === 'SCOOTER' ? Scooter : kind === 'MOTORCYCLE' ? Motorcycle : Cube

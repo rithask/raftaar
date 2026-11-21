@@ -2,8 +2,8 @@ import { Bell, GasPump, Gauge, Plus, Receipt, Scroll, Wrench } from '@phosphor-i
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { cx, spring } from '@/ui/ui'
 import { type Open } from './open'
+import { cx, exitFast, spring } from '@/ui'
 
 /**
  * The main actions on a phone, above the tab bar within reach of the thumb: Fuel (the common one), and a small
@@ -17,7 +17,7 @@ export function FuelFab({ onClick, onPick, hidden }: { onClick: () => void; onPi
           key="fab"
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1, transition: { ...spring, delay: 0.15 } }}
-          exit={{ scale: 0.6, opacity: 0, transition: { duration: 0.12 } }}
+          exit={{ scale: 0.6, opacity: 0, transition: exitFast }}
           data-fab
           className="fixed right-4 bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+4.75rem)] z-40 flex items-center gap-2 sm:hidden"
         >

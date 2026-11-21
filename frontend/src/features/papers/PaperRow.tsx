@@ -2,7 +2,7 @@ import { ArrowsClockwise, Scroll } from '@phosphor-icons/react'
 import { motion } from 'motion/react'
 import { date, docLabel } from '@/lib/format'
 import { type DocView } from '@/lib/types'
-import { Badge, cx, listItem, rowPress } from '@/ui/ui'
+import { Badge, cx, IconBadge, listItem, rowPress } from '@/ui'
 
 export function DocBadge({ d }: { d: DocView }) {
   if (d.state === 'NO_EXPIRY') return <Badge className="shrink-0">no expiry</Badge>
@@ -22,7 +22,7 @@ export function PaperRow({ d, sub, onOpen, onRenew, icon = true }: { d: DocView;
   return (
     <motion.div variants={listItem} className="flex items-center">
       <button type="button" onClick={onOpen} className={cx('flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 text-left', needsRenewal(d) ? 'pr-2' : 'pr-4', rowPress)}>
-        {icon && <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-violet-500/12 text-violet-600"><Scroll size={18} /></span>}
+        {icon && <IconBadge tone="violet"><Scroll size={18} /></IconBadge>}
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium">{d.document.title}</div>
           <div className="num mt-0.5 truncate text-[13px] text-stone-500">{sub}</div>

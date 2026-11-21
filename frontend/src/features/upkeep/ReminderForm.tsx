@@ -4,8 +4,7 @@ import { num, today } from '@/lib/format'
 import { type Reminder } from '@/lib/types'
 import { deleteWithUndo } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
-import { DateInput } from '@/ui/DateField'
-import { Chip, ErrorText, Field, FormScreen, Input, Segmented, Toggle } from '@/ui/ui'
+import { Chip, DateInput, ErrorText, Field, FormScreen, Input, Segmented, Toggle } from '@/ui'
 
 export const PRESETS: { title: string; km?: number; months?: number }[] = [
   { title: 'Engine oil', km: 5000, months: 6 },

@@ -7,8 +7,7 @@ import { date, km, money, today } from '@/lib/format'
 import { type ReminderView, type ServiceRow } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
-import { AddLink, Badge, Button, cx, Empty, ErrorText, listItem, Loading, rowPress, SectionHeader, softSpring } from '@/ui/ui'
-import { List, Row, Small } from './rows'
+import { AddLink, Badge, Button, cx, EmptyState, ErrorText, IconBadge, List, listItem, ListRow, Loading, RowMeta, rowPress, Section, softSpring } from '@/ui'
 
 /** When a reminder is due, compactly: km left on top, days below (whichever exist), coloured by urgency. */
 export function DueSoonest({ status: st }: { status: ReminderView['status'] }) {
@@ -37,10 +36,9 @@ export function RemindersSection({ id, odometer, onOpen, onAdd }: { id: number; 
   const list = (rows.data ?? []).filter((r) => !hidden(`reminder:${r.reminder.id}`))
   const due = (r: ReminderView) => r.reminder.active && (r.status.state === 'OVERDUE' || r.status.state === 'DUE_SOON')
   return (
-    <section className="space-y-2">
-      <SectionHeader title="Reminders" action={<AddLink label="Add" onClick={onAdd} />} />
+    <Section title="Reminders" action={<AddLink label="Add" onClick={onAdd} />}>
       {rows.isLoading ? <Loading /> : !list.length ? (
-        <Empty icon={<Bell size={36} />} title="No reminders">Oil changes, chain lube, services: by km, by date, or both.</Empty>
+        <EmptyState icon={<Bell size={36} />} title="No reminders">Oil changes, chain lube, services: by km, by date, or both.</EmptyState>
       ) : (
         <List>
           {list.map((r) => (
@@ -52,10 +50,10 @@ export function RemindersSection({ id, odometer, onOpen, onAdd }: { id: number; 
                       <span className="truncate font-medium">{r.reminder.title}</span>
                       {!r.reminder.active && <Badge>done</Badge>}
                     </div>
-                    <Small>
+                    <RowMeta>
                       {[r.reminder.intervalKm ? `every ${km(r.reminder.intervalKm)}` : null, r.reminder.intervalMonths ? `${r.reminder.intervalMonths} mo` : null].filter(Boolean).join(' / ') || 'once'}
                       {r.status.dueOdometer != null && r.status.kmLeft == null && ` · at ${km(r.status.dueOdometer)}`}
-                    </Small>
+                    </RowMeta>
                   </div>
                   {r.reminder.active && <DueSoonest status={r.status} />}
                 </button>
@@ -84,7 +82,7 @@ export function RemindersSection({ id, odometer, onOpen, onAdd }: { id: number; 
           ))}
         </List>
       )}
-    </section>
+    </Section>
   )
 }
 
@@ -93,25 +91,24 @@ export function ServicesSection({ id, onOpen, onAdd }: { id: number; onOpen: (r:
   const hidden = useHidden()
   const list = (rows.data ?? []).filter((r) => !hidden(`service:${r.record.id}`))
   return (
-    <section className="space-y-2">
-      <SectionHeader title="Service history" meta={list.length ? `${list.length} · ${money(list.reduce((t, r) => t + r.record.cost, 0))}` : undefined}
-        action={<AddLink label="Log service" onClick={onAdd} />} />
+    <Section title="Service history" meta={list.length ? `${list.length} · ${money(list.reduce((t, r) => t + r.record.cost, 0))}` : undefined}
+      action={<AddLink label="Log service" onClick={onAdd} />}>
       {rows.isLoading ? <Loading /> : !list.length ? (
-        <Empty icon={<Wrench size={36} />} title="No services yet">Logging a service also resets the reminders it covers.</Empty>
+        <EmptyState icon={<Wrench size={36} />} title="No services yet">Logging a service also resets the reminders it covers.</EmptyState>
       ) : (
         <List>
           {list.map((r) => (
-            <Row key={r.record.id} onClick={() => onOpen(r)}>
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sky-500/12 text-sky-600"><Wrench size={18} /></span>
+            <ListRow key={r.record.id} onClick={() => onOpen(r)}>
+              <IconBadge tone="sky"><Wrench size={18} /></IconBadge>
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{r.record.title}</div>
-                <Small>{date(r.record.servicedOn)}{r.record.odometer != null ? ` · ${km(r.record.odometer)}` : ''}{r.record.workshop ? ` · ${r.record.workshop}` : ''}</Small>
+                <RowMeta>{date(r.record.servicedOn)}{r.record.odometer != null ? ` · ${km(r.record.odometer)}` : ''}{r.record.workshop ? ` · ${r.record.workshop}` : ''}</RowMeta>
               </div>
               <div className="num shrink-0 font-semibold">{money(r.record.cost)}</div>
-            </Row>
+            </ListRow>
           ))}
         </List>
       )}
-    </section>
+    </Section>
   )
 }

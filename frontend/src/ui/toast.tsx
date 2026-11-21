@@ -1,6 +1,7 @@
 import { CheckCircle, WarningCircle } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useSyncExternalStore } from 'react'
+import { exitSoft, spring } from './motion'
 
 type Action = { label: string; onClick: () => void }
 type Toast = { id: number; text: string; tone: 'ok' | 'bad'; action?: Action }
@@ -44,8 +45,8 @@ export function Toasts() {
           key={t.id}
           layout
           initial={{ opacity: 0, y: 24, scale: 0.9 }}
-          animate={{ opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 520, damping: 30 } }}
-          exit={{ opacity: 0, y: 8, scale: 0.96, transition: { duration: 0.18 } }}
+          animate={{ opacity: 1, y: 0, scale: 1, transition: spring }}
+          exit={{ opacity: 0, y: 8, scale: 0.96, transition: exitSoft }}
           className="flex items-center gap-2 rounded-full bg-stone-900 px-4 py-2.5 text-sm font-medium text-white shadow-lg dark:bg-stone-100 dark:text-stone-900"
         >
           {t.tone === 'ok' ? <CheckCircle size={18} weight="fill" className="text-emerald-400 dark:text-emerald-600" /> : <WarningCircle size={18} weight="fill" className="text-red-400" />}

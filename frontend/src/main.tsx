@@ -5,10 +5,9 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MotionConfig } from 'motion/react'
 import { BrowserRouter } from 'react-router-dom'
-import { App } from './app/App'
-import { setUndoClient } from './lib/undo'
-import { ErrorBoundary } from './ui/ErrorBoundary'
-import { Toasts } from './ui/toast'
+import { App } from '@/app/App'
+import { setUndoClient } from '@/lib/undo'
+import { ErrorBoundary, Toasts } from '@/ui'
 
 // Offline is handled by the app itself: data loads are still tried (the service worker answers from what it
 // kept), and saves always run (a fill-up goes to the outbox; others say there's no connection) instead of

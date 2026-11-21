@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from '@/ui/toast'
+import { toast } from '@/ui'
 
 /**
  * A mutation that refreshes everything afterwards (small app: simpler than tracking which lists changed).

@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { money } from '@/lib/format'
 import { amounts, discard, flush, useOutbox } from '@/lib/outbox'
 import { deleteWithUndo, useHidden } from '@/lib/undo'
-import { softSpring } from '@/ui/ui'
+import { softSpring } from '@/ui'
 
 /** Fill-ups saved on this phone and not sent yet: how many, a way to send them now, and any the server refused. */
 export function OutboxBar() {

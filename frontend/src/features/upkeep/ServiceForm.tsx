@@ -4,8 +4,7 @@ import { km, num, today } from '@/lib/format'
 import { type ReminderView, type ServiceRow } from '@/lib/types'
 import { deleteWithUndo } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
-import { DateInput } from '@/ui/DateField'
-import { Chip, ErrorText, Field, FormScreen, Input, TextArea } from '@/ui/ui'
+import { Chip, DateInput, ErrorText, Field, FormScreen, Input, TextArea } from '@/ui'
 
 export function ServiceForm({ open, onClose, vehicleId, row, reminders, odometer }: {
   open: boolean; onClose: () => void; vehicleId: number; row?: ServiceRow; reminders: ReminderView[]; odometer?: number | null

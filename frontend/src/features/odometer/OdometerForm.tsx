@@ -6,9 +6,8 @@ import { api } from '@/lib/api'
 import { date, fromLocalInput, km, n1, num, time, toLocalInput } from '@/lib/format'
 import { type Odometer, type OdometerReading } from '@/lib/types'
 import { useSave } from '@/lib/useSave'
-import { DateTimeInput } from '@/ui/DateField'
 import { axis, ChartCard, evenTicks, grid, margin, short, tooltipStyle } from '@/ui/charts'
-import { ErrorText, Field, FormScreen, Input, SectionHeader } from '@/ui/ui'
+import { DateTimeInput, ErrorText, Field, FormScreen, Input, List, Section } from '@/ui'
 
 export function OdometerForm({ open, onClose, vehicleId, current, odometer }: {
   open: boolean; onClose: () => void; vehicleId: number; current?: number | null; odometer?: Odometer
@@ -54,8 +53,7 @@ export function OdometerHistory({ vehicleId, odometer }: { vehicleId: number; od
     odometer?.tripKmSince != null ? `≈ ${km(odometer.tripKmSince)} since the last reading` : null,
   ].filter(Boolean).join(' · ')
   return (
-    <section className="space-y-2 pt-2">
-      <SectionHeader title="History" meta={meta || undefined} />
+    <Section title="History" meta={meta || undefined} className="pt-2">
       {spansTime && (
         <ChartCard className="h-32">
           <LineChart data={chart} margin={{ ...margin, left: -4 }}>
@@ -68,7 +66,7 @@ export function OdometerHistory({ vehicleId, odometer }: { vehicleId: number; od
           </LineChart>
         </ChartCard>
       )}
-      <div className="divide-y divide-stone-900/5 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-900/5 dark:divide-white/5 dark:bg-stone-900 dark:ring-white/10">
+      <List>
         {list.map((r, i) => {
           const prev = list[i + 1]
           const gone = prev ? r.odometer - prev.odometer : null
@@ -97,7 +95,7 @@ export function OdometerHistory({ vehicleId, odometer }: { vehicleId: number; od
             </div>
           )
         })}
-      </div>
-    </section>
+      </List>
+    </Section>
   )
 }

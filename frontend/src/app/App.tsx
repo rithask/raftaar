@@ -9,8 +9,8 @@ import { SettingsPage } from '@/features/settings/SettingsPage'
 import { VehiclePage } from '@/features/vehicle/VehiclePage'
 import { api } from '@/lib/api'
 import { startOutbox } from '@/lib/outbox'
-import { Loading } from '@/ui/ui'
 import { Layout } from './Layout'
+import { Loading } from '@/ui'
 
 export function App() {
   const qc = useQueryClient()

@@ -7,9 +7,8 @@ import { shrinkImage } from '@/lib/images'
 import { type FuelType, type Kind, type Vehicle } from '@/lib/types'
 import { deleteWithUndo } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
-import { DateInput } from '@/ui/DateField'
-import { Button, ErrorText, Field, FormScreen, Input, Segmented, Select, TextArea, Toggle } from '@/ui/ui'
 import { KindIcon, VehicleArt } from './VehicleArt'
+import { Button, DateInput, ErrorText, Field, FormScreen, Input, Segmented, Select, TextArea, Toggle } from '@/ui'
 
 export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose: () => void; vehicle?: Vehicle }) {
   const nav = useNavigate()

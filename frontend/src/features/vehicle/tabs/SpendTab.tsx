@@ -7,8 +7,7 @@ import { date, expenseLabel, money, money2 } from '@/lib/format'
 import { type Expense, type Summary } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
 import { axis, ChartCard, grid, margin, monthLabel, short, tooltipStyle } from '@/ui/charts'
-import { AddLink, cx, Empty, Loading, SectionHeader, softSpring } from '@/ui/ui'
-import { List, Row, Small } from './rows'
+import { AddLink, Card, cx, EmptyState, IconBadge, List, ListRow, Loading, RowMeta, Section, softSpring } from '@/ui'
 
 /** Where the money went, then the expenses list. */
 export function SpendTab({ id, summary, onOpen, onAdd }: { id: number; summary: Summary; onOpen: (e: Expense) => void; onAdd: () => void }) {
@@ -25,9 +24,8 @@ export function SpendTab({ id, summary, onOpen, onAdd }: { id: number; summary: 
   const monthAvg = months.reduce((t, m) => t + m.fuel + m.service + m.other, 0) / Math.max(1, months.length)
   return (
     <>
-      <section className="space-y-2">
-        <SectionHeader title="Where it went" />
-        <div className="rounded-2xl bg-white p-4 ring-1 ring-stone-900/5 dark:bg-stone-900 dark:ring-white/10">
+      <Section title="Where it went">
+        <Card padded>
           <div className="flex items-baseline justify-between">
             <span className="num text-2xl font-bold tracking-tight">{money(c.total)}</span>
             {c.perKm != null && <span className="num text-sm text-stone-500">{money2(c.perKm)} per km</span>}
@@ -45,11 +43,10 @@ export function SpendTab({ id, summary, onOpen, onAdd }: { id: number; summary: 
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </Card>
+      </Section>
       {months.length >= 2 && (
-        <section className="space-y-2">
-          <SectionHeader title="By month" meta={`last ${months.length} months · avg ${money(monthAvg)}`} />
+        <Section title="By month" meta={`last ${months.length} months · avg ${money(monthAvg)}`}>
           <ChartCard>
             <BarChart data={months} margin={{ ...margin, left: -12 }}>
               {grid}
@@ -62,27 +59,26 @@ export function SpendTab({ id, summary, onOpen, onAdd }: { id: number; summary: 
               <Bar dataKey="other" stackId="m" fill="var(--color-violet-500, #8b5cf6)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
             </BarChart>
           </ChartCard>
-        </section>
+        </Section>
       )}
-      <section className="space-y-2">
-        <SectionHeader title="Expenses" meta={list.length ? `${list.length} · ${money(c.expenses)}` : undefined} action={<AddLink label="Add" onClick={onAdd} />} />
+      <Section title="Expenses" meta={list.length ? `${list.length} · ${money(c.expenses)}` : undefined} action={<AddLink label="Add" onClick={onAdd} />}>
         {rows.isLoading ? <Loading /> : !list.length ? (
-          <Empty icon={<Receipt size={36} />} title="No expenses">Upgrades, accessories, riding gear, tolls and parking.</Empty>
+          <EmptyState icon={<Receipt size={36} />} title="No expenses">Upgrades, accessories, riding gear, tolls and parking.</EmptyState>
         ) : (
           <List>
             {list.map((e) => (
-              <Row key={e.id} onClick={() => onOpen(e)}>
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-violet-500/12 text-violet-600"><Receipt size={18} /></span>
+              <ListRow key={e.id} onClick={() => onOpen(e)}>
+                <IconBadge tone="violet"><Receipt size={18} /></IconBadge>
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium">{e.title}</div>
-                  <Small>{expenseLabel[e.category]} · {date(e.spentOn, false)}{e.hisaabTxnId ? ' · Hisaab' : e.vendor ? ` · ${e.vendor}` : ''}</Small>
+                  <RowMeta>{expenseLabel[e.category]} · {date(e.spentOn, false)}{e.hisaabTxnId ? ' · Hisaab' : e.vendor ? ` · ${e.vendor}` : ''}</RowMeta>
                 </div>
                 <div className="num shrink-0 font-semibold">{money(e.amount)}</div>
-              </Row>
+              </ListRow>
             ))}
           </List>
         )}
-      </section>
+      </Section>
     </>
   )
 }

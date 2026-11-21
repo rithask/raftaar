@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { useSyncExternalStore } from 'react'
-import { toast } from '@/ui/toast'
 import { api, ApiError } from './api'
+import { toast } from '@/ui'
 
 /**
  * Fill-ups saved without a connection (at a pump with no signal), kept on this phone until they can be sent.
