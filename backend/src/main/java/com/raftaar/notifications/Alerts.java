@@ -24,6 +24,7 @@ import com.raftaar.papers.DocumentRepo;
 import com.raftaar.upkeep.ReminderRepo;
 import com.raftaar.upkeep.ReminderState;
 import com.raftaar.inbox.SuggestionRepo;
+import com.raftaar.common.SyncJob;
 import com.raftaar.common.SyncLog;
 import com.raftaar.inbox.TripRepo;
 import com.raftaar.vehicle.VehicleRepo;
@@ -35,7 +36,7 @@ import com.raftaar.vehicle.VehicleStats;
  * warning (e.g. 30 days), then 7 days, 1 day, on the day and the day after it expires.
  */
 @Service
-public class Alerts {
+public class Alerts extends SyncJob {
     private static final Logger log = LoggerFactory.getLogger(Alerts.class);
     public static final String NAME = "alerts";
     private static final int[] DOC_STEPS = {7, 1, 0, -1};
@@ -48,10 +49,10 @@ public class Alerts {
     private final TripRepo trips;
     private final SuggestionRepo suggestions;
     private final VehicleStats stats;
-    private final SyncLog syncLog;
 
     public Alerts(Notifications notifier, VehicleRepo vehicles, ReminderRepo reminders, DocumentRepo documents, TripRepo trips,
                   SuggestionRepo suggestions, VehicleStats stats, SyncLog syncLog) {
+        super(syncLog);
         this.notifier = notifier;
         this.vehicles = vehicles;
         this.reminders = reminders;
@@ -59,23 +60,36 @@ public class Alerts {
         this.trips = trips;
         this.suggestions = suggestions;
         this.stats = stats;
-        this.syncLog = syncLog;
     }
 
     @Scheduled(cron = "${app.alerts.cron:0 0 9 * * *}")
     void scheduled() {
-        if (!notifier.configured()) return;
-        try {
-            log.info("Alerts: {}", run());
-        } catch (Exception e) {
-            // already logged by SyncLog
-            log.debug("Alerts failed", e);
-        }
+        runOnSchedule();
     }
 
-    public String run() {
-        if (!notifier.configured()) throw new IllegalStateException("No notification channels yet. Add one in Settings → Notifications.");
-        return syncLog.run(NAME, this::check);
+    @Override
+    public String name() {
+        return NAME;
+    }
+
+    @Override
+    protected String title() {
+        return "Daily reminders";
+    }
+
+    @Override
+    protected boolean configured() {
+        return notifier.configured();
+    }
+
+    @Override
+    protected String notConfiguredMessage() {
+        return "No notification channels yet. Add one in Settings → Notifications.";
+    }
+
+    @Override
+    protected String work() {
+        return check();
     }
 
     private String check() {

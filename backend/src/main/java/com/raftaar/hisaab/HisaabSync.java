@@ -18,6 +18,7 @@ import java.util.Locale;
 import com.raftaar.geopulse.GeoPulseSync;
 import com.raftaar.common.Settings;
 import com.raftaar.inbox.Suggestions;
+import com.raftaar.common.SyncJob;
 import com.raftaar.common.SyncLog;
 import com.raftaar.common.Text;
 
@@ -27,7 +28,7 @@ import com.raftaar.common.Text;
  * moved out of the token's categories just stops appearing, so pending suggestions are checked one by one too.
  */
 @Service
-public class HisaabSync {
+public class HisaabSync extends SyncJob {
     private static final Logger log = LoggerFactory.getLogger(HisaabSync.class);
     public static final String NAME = "hisaab";
 
@@ -38,10 +39,10 @@ public class HisaabSync {
     private final FuelEntryRepo fuel;
     private final GeoPulseSync geopulse;
     private final Settings settings;
-    private final SyncLog syncLog;
 
     public HisaabSync(HisaabClient client, AppProperties props, Suggestions suggestions, SuggestionRepo suggestionRepo, FuelEntryRepo fuel,
                       GeoPulseSync geopulse, Settings settings, SyncLog syncLog) {
+        super(syncLog);
         this.client = client;
         this.cfg = props.hisaab();
         this.suggestions = suggestions;
@@ -49,23 +50,36 @@ public class HisaabSync {
         this.fuel = fuel;
         this.geopulse = geopulse;
         this.settings = settings;
-        this.syncLog = syncLog;
     }
 
     @Scheduled(initialDelayString = "PT2M", fixedDelayString = "${app.hisaab.poll-interval:PT15M}")
     void scheduled() {
-        if (!client.configured()) return;
-        try {
-            log.info("Hisaab: {}", run());
-        } catch (Exception e) {
-            // already logged by SyncLog
-            log.debug("Hisaab sync failed", e);
-        }
+        runOnSchedule();
     }
 
-    public String run() {
-        if (!client.configured()) throw new IllegalStateException("Hisaab isn't set up (HISAAB_URL, HISAAB_TOKEN)");
-        return syncLog.run(NAME, this::sync);
+    @Override
+    public String name() {
+        return NAME;
+    }
+
+    @Override
+    protected String title() {
+        return "Hisaab sync";
+    }
+
+    @Override
+    protected boolean configured() {
+        return client.configured();
+    }
+
+    @Override
+    protected String notConfiguredMessage() {
+        return "Hisaab isn't set up (HISAAB_URL, HISAAB_TOKEN)";
+    }
+
+    @Override
+    protected String work() {
+        return sync();
     }
 
     private String sync() {

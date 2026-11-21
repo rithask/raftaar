@@ -28,8 +28,8 @@ public class SyncLog {
         String run() throws Exception;
     }
 
-    /** Runs {@code job} unless it's already running; returns what it did. */
-    public String run(String name, Job job) {
+    /** Runs {@code job} unless it's already running; returns what it did. {@code title} names it in the log. */
+    public String run(String name, String title, Job job) {
         ReentrantLock lock = locks.computeIfAbsent(name, k -> new ReentrantLock());
         if (!lock.tryLock()) return "Already running";
         try {
@@ -39,7 +39,7 @@ public class SyncLog {
             settings.set(name + ".lastError", null);
             return result;
         } catch (Exception e) {
-            Failures.log(log, title(name), e);
+            Failures.log(log, title, e);
             String msg = Failures.reason(e);
             if (msg.length() > 500) msg = msg.substring(0, 500);
             settings.set(name + ".lastRun", Instant.now());
@@ -56,14 +56,5 @@ public class SyncLog {
         return new Status(settings.instant(name + ".lastRun").orElse(null), settings.get(name + ".lastResult").orElse(null),
                 settings.get(name + ".lastError").orElse(null), settings.instant(name + ".lastErrorAt").orElse(null),
                 lock != null && lock.isLocked());
-    }
-
-    private static String title(String name) {
-        return switch (name) {
-            case "geopulse" -> "GeoPulse sync";
-            case "hisaab" -> "Hisaab sync";
-            case "alerts" -> "Daily reminders";
-            default -> name;
-        };
     }
 }

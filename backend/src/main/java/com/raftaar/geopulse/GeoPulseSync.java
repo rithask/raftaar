@@ -18,6 +18,7 @@ import com.raftaar.hisaab.HisaabSync;
 import com.raftaar.places.Places;
 import com.raftaar.common.Settings;
 import com.raftaar.inbox.Suggestions;
+import com.raftaar.common.SyncJob;
 import com.raftaar.common.SyncLog;
 import com.raftaar.common.Text;
 
@@ -27,7 +28,7 @@ import com.raftaar.common.Text;
  * points next to a pump.
  */
 @Service
-public class GeoPulseSync {
+public class GeoPulseSync extends SyncJob {
     private static final Logger log = LoggerFactory.getLogger(GeoPulseSync.class);
     public static final String NAME = "geopulse";
     private static final Duration OVERLAP = Duration.ofDays(2); // GeoPulse can rebuild recent timeline
@@ -39,33 +40,46 @@ public class GeoPulseSync {
     private final Suggestions suggestions;
     private final Places places;
     private final Settings settings;
-    private final SyncLog syncLog;
 
     public GeoPulseSync(GeoPulseClient client, AppProperties props, TripRepo trips, Suggestions suggestions, Places places,
                         Settings settings, SyncLog syncLog) {
+        super(syncLog);
         this.client = client;
         this.cfg = props.geopulse();
         this.trips = trips;
         this.suggestions = suggestions;
         this.places = places;
         this.settings = settings;
-        this.syncLog = syncLog;
     }
 
     @Scheduled(initialDelayString = "PT1M", fixedDelayString = "${app.geopulse.poll-interval:PT30M}")
     void scheduled() {
-        if (!client.configured()) return;
-        try {
-            log.info("GeoPulse: {}", run());
-        } catch (Exception e) {
-            // already logged by SyncLog
-            log.debug("GeoPulse sync failed", e);
-        }
+        runOnSchedule();
     }
 
-    public String run() {
-        if (!client.configured()) throw new IllegalStateException("GeoPulse isn't set up (GEOPULSE_URL, GEOPULSE_TOKEN)");
-        return syncLog.run(NAME, this::sync);
+    @Override
+    public String name() {
+        return NAME;
+    }
+
+    @Override
+    protected String title() {
+        return "GeoPulse sync";
+    }
+
+    @Override
+    protected boolean configured() {
+        return client.configured();
+    }
+
+    @Override
+    protected String notConfiguredMessage() {
+        return "GeoPulse isn't set up (GEOPULSE_URL, GEOPULSE_TOKEN)";
+    }
+
+    @Override
+    protected String work() {
+        return sync();
     }
 
     private String sync() {
