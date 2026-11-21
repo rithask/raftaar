@@ -3,6 +3,7 @@ package com.raftaar.fuel;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,14 @@ public final class Economy {
     }
 
     /** {@code fills} in the order they happened. */
+    /** Mileage of a vehicle's fill-ups, in odometer order (a fill-up entered late still lands in the right place). */
+    public static Result of(List<FuelEntry> fills) {
+        List<FuelEntry> byOdometer = new ArrayList<>(fills);
+        byOdometer.sort(Comparator.comparing((FuelEntry fill) -> fill.odometer).thenComparing(fill -> fill.filledAt));
+        return compute(byOdometer.stream()
+                .map(fill -> new Fill(fill.id, fill.odometer, fill.volume, fill.totalCost, fill.fullTank, fill.missedPrevious)).toList());
+    }
+
     public static Result compute(List<Fill> fills) {
         Map<Long, Stretch> out = new LinkedHashMap<>();
         Fill anchor = null;

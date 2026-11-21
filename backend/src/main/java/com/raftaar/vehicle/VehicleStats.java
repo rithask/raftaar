@@ -140,11 +140,7 @@ public class VehicleStats {
     }
 
     public Economy.Result economy(List<FuelEntry> fillsInOrder) {
-        // Mileage follows the odometer; sort by it so a fill-up entered late still lands in the right place.
-        List<FuelEntry> sorted = new ArrayList<>(fillsInOrder);
-        sorted.sort(Comparator.comparing((FuelEntry f) -> f.odometer).thenComparing(f -> f.filledAt));
-        return Economy.compute(sorted.stream()
-                .map(f -> new Economy.Fill(f.id, f.odometer, f.volume, f.totalCost, f.fullTank, f.missedPrevious)).toList());
+        return Economy.of(fillsInOrder);
     }
 
     /** Every odometer reading the vehicle has, from fill-ups, services, expenses and manual readings. */
