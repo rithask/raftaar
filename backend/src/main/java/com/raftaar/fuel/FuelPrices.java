@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import com.raftaar.common.Failures;
+import com.raftaar.places.Places;
 
 /**
  * The current fuel price for a state (and district, when known). Where it comes from, best first: a lookup from
@@ -25,14 +26,50 @@ public class FuelPrices {
     private final FuelPriceRepo prices;
     private final FuelEntryRepo fuel;
     private final FuelPriceSourceClient source;
+    private final Places places;
 
-    public FuelPrices(FuelPriceRepo prices, FuelEntryRepo fuel, FuelPriceSourceClient source) {
+    public FuelPrices(FuelPriceRepo prices, FuelEntryRepo fuel, FuelPriceSourceClient source, Places places) {
         this.prices = prices;
         this.fuel = fuel;
         this.source = source;
+        this.places = places;
     }
 
     public record Quote(BigDecimal price, String source, Instant asOf, String region, String district) {}
+
+    /** The place a quote is for, and the quote (null when no price is known there). */
+    public record PlaceQuote(String region, String district, Quote quote) {}
+
+    /** Latest price per state, district and fuel. */
+    public List<FuelPrice> latest() {
+        return prices.latest();
+    }
+
+    /** For the fill-up form: the price where you are (a point: its state is looked up) or in a state. */
+    public PlaceQuote quote(String region, String district, Double latitude, Double longitude, FuelType fuelType, Long vehicleId) {
+        if (region == null && latitude != null && longitude != null) {
+            var place = places.region(latitude, longitude);
+            if (place.isPresent()) {
+                region = place.get().state();
+                district = place.get().district();
+            }
+        }
+        return new PlaceQuote(region, district, current(region, district, fuelType, vehicleId).orElse(null));
+    }
+
+    public record ManualPrice(String region, String district, FuelType fuelType, BigDecimal price, Instant effectiveAt) {}
+
+    /** A price you entered yourself, e.g. when prices changed. */
+    public FuelPrice setManually(ManualPrice input) {
+        if (input.region() == null || input.region().isBlank()) throw new IllegalArgumentException("Which state?");
+        if (input.price() == null || input.price().signum() <= 0) throw new IllegalArgumentException("Enter the price");
+        return record(input.region(), input.district(), input.fuelType() != null ? input.fuelType() : FuelType.PETROL, input.price(),
+                input.effectiveAt() != null ? input.effectiveAt() : Instant.now(), FuelPrice.Source.MANUAL);
+    }
+
+    public void delete(Long id) {
+        prices.deleteById(id);
+    }
 
     public Optional<Quote> current(String region, String district, FuelType type, Long vehicleId) {
         if (type == null) type = FuelType.PETROL;
