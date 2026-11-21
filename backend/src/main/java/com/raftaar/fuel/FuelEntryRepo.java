@@ -1,0 +1,15 @@
+package com.raftaar.fuel;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+
+public interface FuelEntryRepo extends JpaRepository<FuelEntry, Long> {
+    List<FuelEntry> findByVehicleIdOrderByFilledAtAscIdAsc(Long vehicleId);
+    Optional<FuelEntry> findByHisaabTxnId(String id);
+    List<FuelEntry> findByHisaabTxnIdNotNullAndFilledAtAfter(Instant after);
+    Optional<FuelEntry> findFirstByVehicleIdOrderByFilledAtDescIdDesc(Long vehicleId);
+    Optional<FuelEntry> findFirstByVehicleIdAndFilledAtAndOdometer(Long vehicleId, java.time.Instant filledAt, java.math.BigDecimal odometer);
+}
