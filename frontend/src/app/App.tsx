@@ -11,12 +11,13 @@ import { api } from '@/lib/api'
 import { startOutbox } from '@/lib/outbox'
 import { Layout } from './Layout'
 import { Loading } from '@/ui'
+import { keys } from '@/lib/queries'
 
 export function App() {
   const qc = useQueryClient()
-  const me = useQuery({ queryKey: ['me'], queryFn: () => api<{ username: string | null }>('/auth/me'), retry: false, staleTime: Infinity })
+  const me = useQuery({ queryKey: keys.me, queryFn: () => api<{ username: string | null }>('/auth/me'), retry: false, staleTime: Infinity })
   useEffect(() => {
-    const off = () => qc.setQueryData(['me'], null)
+    const off = () => qc.setQueryData(keys.me, null)
     window.addEventListener('raftaar:unauthorized', off)
     return () => window.removeEventListener('raftaar:unauthorized', off)
   }, [qc])

@@ -5,6 +5,7 @@ import { type Reminder } from '@/lib/types'
 import { deleteWithUndo } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
 import { Chip, DateInput, ErrorText, Field, FormScreen, Input, Segmented, Toggle } from '@/ui'
+import { refresh } from '@/lib/queries'
 
 export const PRESETS: { title: string; km?: number; months?: number }[] = [
   { title: 'Engine oil', km: 5000, months: 6 },
@@ -46,10 +47,10 @@ export function ReminderForm({ open, onClose, vehicleId, reminder, odometer }: {
     active: f.active,
     notes: f.notes || null,
   })
-  const save = useSave(() => (reminder ? api(`/reminders/${reminder.id}`, { method: 'PUT', body: body() }) : api(`/vehicles/${vehicleId}/reminders`, { body: body() })), onClose, 'Reminder saved')
+  const save = useSave(() => (reminder ? api(`/reminders/${reminder.id}`, { method: 'PUT', body: body() }) : api(`/vehicles/${vehicleId}/reminders`, { body: body() })), { refresh: refresh.vehicleRecords, onDone: onClose, done: 'Reminder saved' })
 
   return (
-    <FormScreen open={open} onClose={onClose} title={reminder ? 'Edit reminder' : 'New reminder'} onSave={() => save.mutate(undefined)} saving={save.isPending} onDelete={reminder ? () => { deleteWithUndo({ text: 'Reminder deleted', what: 'the reminder', hide: `reminder:${reminder.id}`, run: () => api(`/reminders/${reminder.id}`, { method: 'DELETE' }) }); onClose() } : undefined}>
+    <FormScreen open={open} onClose={onClose} title={reminder ? 'Edit reminder' : 'New reminder'} onSave={() => save.mutate(undefined)} saving={save.isPending} onDelete={reminder ? () => { deleteWithUndo({ refresh: refresh.vehicleRecords, text: 'Reminder deleted', what: 'the reminder', hide: `reminder:${reminder.id}`, run: () => api(`/reminders/${reminder.id}`, { method: 'DELETE' }) }); onClose() } : undefined}>
       <div className="space-y-4">
         {!reminder && (
           <div className="flex flex-wrap gap-2">

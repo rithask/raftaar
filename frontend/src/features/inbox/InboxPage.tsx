@@ -1,16 +1,17 @@
 import { Check, GasPump, MapPin, Path, Receipt, Tray, Warning, X } from '@phosphor-icons/react'
-import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { ago, date, dateTime, km, money, money2, n2, time } from '@/lib/format'
-import { type Inbox, type Integration, type Trip, type Vehicle } from '@/lib/types'
+import { type Inbox, type Trip, type Vehicle } from '@/lib/types'
 import { useSave } from '@/lib/useSave'
 import { ExpenseForm } from '@/features/expenses/ExpenseForm'
 import { FuelForm } from '@/features/fuel/FuelForm'
 import { KindIcon } from '@/features/vehicle/VehicleArt'
 import { Badge, Button, Card, Chip, easeOut, EmptyState, ErrorText, Loading, PageHeader, popSpring, Section, softSpring } from '@/ui'
+import { refresh, useInbox, useIntegrations, useVehicles } from '@/lib/queries'
+import { VehicleLink } from '@/features/vehicle/VehicleLink'
 
 type Pending = Inbox['suggestions'][number]
 /** Cards come in softly, and slide off to the left when they're dealt with; the rest close the gap. */
@@ -23,10 +24,10 @@ const cardMotion = {
 const MODE: Record<string, string> = { CAR: 'Car', MOTORCYCLE: 'Motorcycle', UNKNOWN: 'Unknown mode' }
 
 export function InboxPage() {
-  const inbox = useQuery({ queryKey: ['inbox'], queryFn: () => api<Inbox>('/inbox') })
-  const vehicles = useQuery({ queryKey: ['vehicles'], queryFn: () => api<Vehicle[]>('/vehicles') })
+  const inbox = useInbox()
+  const vehicles = useVehicles()
   const [confirming, setConfirming] = useState<Pending | null>(null)
-  const dismiss = useSave((id: number) => api(`/suggestions/${id}/dismiss`, { body: { reason: 'Dismissed' } }), undefined, 'Dismissed')
+  const dismiss = useSave((id: number) => api(`/suggestions/${id}/dismiss`, { body: { reason: 'Dismissed' } }), { refresh: refresh.inbox, done: 'Dismissed' })
 
   if (inbox.isLoading || vehicles.isLoading) return <Loading />
   if (inbox.error) return <ErrorText error={inbox.error} />
@@ -85,10 +86,10 @@ export function InboxPage() {
       {data.issues.length > 0 && (
         <Section title="Needs a look" className="!space-y-3">
           {data.issues.map((f) => (
-            <Link key={f.id} to={`/vehicles/${f.vehicleId}`} className="flex items-center gap-3 rounded-2xl bg-amber-500/10 p-3 text-sm transition duration-100 active:scale-[0.99] active:bg-amber-500/20">
+            <VehicleLink key={f.id} vehicleId={f.vehicleId} className="flex items-center gap-3 rounded-2xl bg-amber-500/10 p-3 text-sm transition duration-100 active:scale-[0.99] active:bg-amber-500/20">
               <Warning size={20} className="text-amber-600" />
               <span className="flex-1">{name(f.vehicleId) ?? 'Fill-up'} · {date(f.filledAt)} · {money(f.totalCost)} — {f.sourceIssue}</span>
-            </Link>
+            </VehicleLink>
           ))}
         </Section>
       )}
@@ -111,11 +112,7 @@ export function InboxPage() {
 function Trips({ trips, vehicles }: { trips: Trip[]; vehicles: Vehicle[] }) {
   const [picked, setPicked] = useState<number[]>([])
   const vname = (id: number | null) => vehicles.find((v) => v.id === id)?.name
-  const assign = useSave(
-    (a: { ids: number[]; vehicleId: number | null }) => api('/trips/assign', { body: { tripIds: a.ids, vehicleId: a.vehicleId } }).then(() => a),
-    () => setPicked([]),
-    (a) => (a.vehicleId ? `${a.ids.length === 1 ? 'Trip' : `${a.ids.length} trips`} added to ${vname(a.vehicleId)}` : a.ids.length === 1 ? 'Trip hidden' : `${a.ids.length} trips hidden`),
-  )
+  const assign = useSave((a: { ids: number[]; vehicleId: number | null }) => api('/trips/assign', { body: { tripIds: a.ids, vehicleId: a.vehicleId } }).then(() => a), { refresh: refresh.inbox, onDone: () => setPicked([]), done: (a) => (a.vehicleId ? `${a.ids.length === 1 ? 'Trip' : `${a.ids.length} trips`} added to ${vname(a.vehicleId)}` : a.ids.length === 1 ? 'Trip hidden' : `${a.ids.length} trips hidden`) })
   const days = useMemo(() => {
     const m = new Map<string, Trip[]>()
     for (const t of trips) {
@@ -201,7 +198,7 @@ function Trips({ trips, vehicles }: { trips: Trip[]; vehicles: Vehicle[] }) {
  * (what comes from each, and when it last looked), or a connection that's failing.
  */
 function InboxEmpty() {
-  const integrations = useQuery({ queryKey: ['integrations'], queryFn: () => api<Integration[]>('/integrations') })
+  const integrations = useIntegrations()
   if (integrations.isLoading) return <Loading />
   const on = (integrations.data ?? []).filter((i) => (i.name === 'geopulse' || i.name === 'hisaab') && i.configured)
   const failing = on.filter((i) => i.status.lastError)

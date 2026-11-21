@@ -1,15 +1,16 @@
 import { ArrowsClockwise, Bell, CaretLeft, CaretRight, CheckCircle, GasPump, LinkSimple, MapPin, Path, Plus, SignOut, Trash, UserCircle, Wallet, XCircle } from '@phosphor-icons/react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { ago, date, fuelLabel, money2, num } from '@/lib/format'
 import { INDIAN_STATES } from '@/lib/states'
-import { type AccountView, type Channel, type ChannelList, type FuelPrice, type FuelType, type Integration } from '@/lib/types'
+import { type Channel, type FuelPrice, type FuelType, type Integration } from '@/lib/types'
 import { deleteWithUndo, useHidden } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
 import { signOut } from '@/features/auth/session'
 import { Badge, Button, Card, cx, ErrorText, Field, IconBadge, Input, List, Loading, PageHeader, rowPress, Select, Toggle } from '@/ui'
+import { keys, refresh, useAccount, useChannels, useFuelPrices, useHealth, useIntegrations } from '@/lib/queries'
 
 const META: Record<Integration['name'], { title: string; icon: ReactNode; off: ReactNode; what: string; run?: string }> = {
   geopulse: { title: 'GeoPulse', icon: <Path size={20} />, off: <>Set <Code>GEOPULSE_URL</Code> and <Code>GEOPULSE_TOKEN</Code> to connect.</>, what: 'Brings in your trips and spots stops at fuel pumps.', run: 'Sync now' },
@@ -65,10 +66,10 @@ export function SettingsPage() {
 /** Each section with a one-line summary, then sign out and the version. */
 function SectionList({ active }: { active?: Key }) {
   const qc = useQueryClient()
-  const integrations = useQuery({ queryKey: ['integrations'], queryFn: () => api<Integration[]>('/integrations') })
-  const channels = useQuery({ queryKey: ['channels'], queryFn: () => api<ChannelList>('/notifications/channels') })
-  const prices = useQuery({ queryKey: ['fuel-prices'], queryFn: () => api<FuelPrice[]>('/fuel-prices') })
-  const account = useQuery({ queryKey: ['account'], queryFn: () => api<AccountView>('/account') })
+  const integrations = useIntegrations()
+  const channels = useChannels()
+  const prices = useFuelPrices()
+  const account = useAccount()
   const failing = (integrations.data ?? []).filter((i) => i.status.lastError)
   const on = (integrations.data ?? []).filter((i) => i.configured).length
   const nChannels = channels.data?.channels.length ?? 0
@@ -82,7 +83,7 @@ function SectionList({ active }: { active?: Key }) {
   }
   const logout = async () => {
     await signOut()
-    qc.setQueryData(['me'], null)
+    qc.setQueryData(keys.me, null)
   }
   return (
     <>
@@ -108,8 +109,8 @@ function SectionList({ active }: { active?: Key }) {
 }
 
 function Connections() {
-  const integrations = useQuery({ queryKey: ['integrations'], queryFn: () => api<Integration[]>('/integrations'), refetchInterval: 10_000 })
-  const run = useSave((name: string) => api<{ result: string }>(`/integrations/${name}/run`, { method: 'POST' }), undefined, (r) => r.result)
+  const integrations = useIntegrations(true)
+  const run = useSave((name: string) => api<{ result: string }>(`/integrations/${name}/run`, { method: 'POST' }), { refresh: refresh.integrations, done: (r) => r.result })
   return (
     <section className="space-y-3">
       {integrations.isLoading && <Loading />}
@@ -149,11 +150,11 @@ function Connections() {
 }
 
 function FuelPrices() {
-  const prices = useQuery({ queryKey: ['fuel-prices'], queryFn: () => api<FuelPrice[]>('/fuel-prices') })
+  const prices = useFuelPrices()
   const [f, setF] = useState({ region: '', district: '', fuelType: 'PETROL' as FuelType, price: '' })
-  const add = useSave(() => api('/fuel-prices', { body: { ...f, district: f.district || null, price: num(f.price) } }), () => setF((o) => ({ ...o, price: '' })), 'Price saved')
+  const add = useSave(() => api('/fuel-prices', { body: { ...f, district: f.district || null, price: num(f.price) } }), { refresh: refresh.fuelPrices, onDone: () => setF((o) => ({ ...o, price: '' })), done: 'Price saved' })
   const hiddenPrice = useHidden()
-  const remove = (p: FuelPrice) => deleteWithUndo({ text: 'Price removed', what: 'the price', hide: `price:${p.id}`, run: () => api(`/fuel-prices/${p.id}`, { method: 'DELETE' }) })
+  const remove = (p: FuelPrice) => deleteWithUndo({ refresh: refresh.fuelPrices, text: 'Price removed', what: 'the price', hide: `price:${p.id}`, run: () => api(`/fuel-prices/${p.id}`, { method: 'DELETE' }) })
   const src = { MANUAL: 'you', FILL_UP: 'fill-up', LOOKUP: 'looked up' } as const
   return (
     <section className="space-y-3">
@@ -195,17 +196,17 @@ function FuelPrices() {
 
 /** Where notifications go: Apprise URLs. Saved URLs are only ever shown masked, as they contain tokens. */
 function NotificationChannels() {
-  const list = useQuery({ queryKey: ['channels'], queryFn: () => api<ChannelList>('/notifications/channels') })
+  const list = useChannels()
   const [label, setLabel] = useState('')
   const [url, setUrl] = useState('')
-  const add = useSave(() => api('/notifications/channels', { body: { label, url } }), () => {
+  const add = useSave(() => api('/notifications/channels', { body: { label, url } }), { refresh: refresh.channels, onDone: () => {
     setLabel('')
     setUrl('')
-  }, 'Channel added')
-  const test = useSave((id: number) => api<Channel>(`/notifications/channels/${id}/test`, { method: 'POST' }), undefined, (c) => (c.lastOk ? 'Test sent' : 'Test failed'))
-  const toggle = useSave((c: { id: number; enabled: boolean }) => api(`/notifications/channels/${c.id}`, { method: 'PUT', body: { enabled: c.enabled } }))
+  }, done: 'Channel added' })
+  const test = useSave((id: number) => api<Channel>(`/notifications/channels/${id}/test`, { method: 'POST' }), { refresh: refresh.channels, done: (c) => (c.lastOk ? 'Test sent' : 'Test failed') })
+  const toggle = useSave((c: { id: number; enabled: boolean }) => api(`/notifications/channels/${c.id}`, { method: 'PUT', body: { enabled: c.enabled } }), { refresh: refresh.channels })
   const hidden = useHidden()
-  const remove = (c: Channel) => deleteWithUndo({ text: 'Channel removed', what: 'the channel', hide: `channel:${c.id}`, run: () => api(`/notifications/channels/${c.id}`, { method: 'DELETE' }) })
+  const remove = (c: Channel) => deleteWithUndo({ refresh: refresh.channels, text: 'Channel removed', what: 'the channel', hide: `channel:${c.id}`, run: () => api(`/notifications/channels/${c.id}`, { method: 'DELETE' }) })
   const data = list.data
 
   return (
@@ -262,21 +263,21 @@ function NotificationChannels() {
 
 /** Your username and password, and the identity-provider account you sign in with. */
 function AccountSection() {
-  const acc = useQuery({ queryKey: ['account'], queryFn: () => api<AccountView>('/account') })
+  const acc = useAccount()
   const [name, setName] = useState<string | null>(null)
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [again, setAgain] = useState('')
-  const rename = useSave(() => api('/account/username', { method: 'PUT', body: { username: name } }), () => setName(null), 'Username changed')
+  const rename = useSave(() => api('/account/username', { method: 'PUT', body: { username: name } }), { refresh: refresh.account, onDone: () => setName(null), done: 'Username changed' })
   const password = useSave(() => {
     if (next !== again) return Promise.reject(new Error("The new passwords don't match"))
     return api('/account/password', { method: 'PUT', body: { current, password: next } })
-  }, () => {
+  }, { refresh: refresh.account, onDone: () => {
     setCurrent('')
     setNext('')
     setAgain('')
-  }, 'Password changed')
-  const unlink = useSave(() => api('/account/oidc-link', { method: 'DELETE' }), undefined, 'Unlinked')
+  }, done: 'Password changed' })
+  const unlink = useSave(() => api('/account/oidc-link', { method: 'DELETE' }), { refresh: refresh.account, done: 'Unlinked' })
   const a = acc.data
   if (!a) return acc.isLoading ? <Loading /> : null
   const username = name ?? a.username
@@ -336,7 +337,7 @@ function AccountSection() {
 
 /** The running version (the image's release tag), so you know what you're on before upgrading. */
 function Version() {
-  const health = useQuery({ queryKey: ['health'], queryFn: () => api<{ version: string }>('/health'), staleTime: Infinity })
+  const health = useHealth()
   if (!health.data) return null
   const v = health.data.version
   return <span className="num text-xs text-stone-500">Raftaar {v === 'dev' ? 'dev build' : `v${v}`}</span>

@@ -5,6 +5,7 @@ import { type ReminderView, type ServiceRow } from '@/lib/types'
 import { deleteWithUndo } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
 import { Chip, DateInput, ErrorText, Field, FormScreen, Input, TextArea } from '@/ui'
+import { refresh } from '@/lib/queries'
 
 export function ServiceForm({ open, onClose, vehicleId, row, reminders, odometer }: {
   open: boolean; onClose: () => void; vehicleId: number; row?: ServiceRow; reminders: ReminderView[]; odometer?: number | null
@@ -22,11 +23,11 @@ export function ServiceForm({ open, onClose, vehicleId, row, reminders, odometer
   const set = (k: keyof typeof f, v: string) => setF((o) => ({ ...o, [k]: v }))
   const titleFromReminders = () => reminders.filter((x) => completes.includes(x.reminder.id)).map((x) => x.reminder.title).join(', ')
   const body = () => ({ ...f, title: f.title || titleFromReminders(), odometer: num(f.odometer), cost: num(f.cost) ?? 0, completes })
-  const save = useSave(() => (r ? api(`/services/${r.id}`, { method: 'PUT', body: body() }) : api(`/vehicles/${vehicleId}/services`, { body: body() })), onClose, 'Service saved')
+  const save = useSave(() => (r ? api(`/services/${r.id}`, { method: 'PUT', body: body() }) : api(`/vehicles/${vehicleId}/services`, { body: body() })), { refresh: refresh.vehicleRecords, onDone: onClose, done: 'Service saved' })
   const toggle = (id: number) => setCompletes((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
 
   return (
-    <FormScreen open={open} onClose={onClose} title={r ? 'Edit service' : 'Log a service'} onSave={() => save.mutate(undefined)} saving={save.isPending} onDelete={r ? () => { deleteWithUndo({ text: 'Service deleted', what: 'the service', hide: `service:${r.id}`, run: () => api(`/services/${r.id}`, { method: 'DELETE' }) }); onClose() } : undefined}>
+    <FormScreen open={open} onClose={onClose} title={r ? 'Edit service' : 'Log a service'} onSave={() => save.mutate(undefined)} saving={save.isPending} onDelete={r ? () => { deleteWithUndo({ refresh: refresh.vehicleRecords, text: 'Service deleted', what: 'the service', hide: `service:${r.id}`, run: () => api(`/services/${r.id}`, { method: 'DELETE' }) }); onClose() } : undefined}>
       <div className="space-y-4">
         {reminders.length > 0 && (
           <div>

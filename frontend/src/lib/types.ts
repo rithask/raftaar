@@ -304,3 +304,13 @@ export interface ChannelList {
   apprise: string | null
   channels: Channel[]
 }
+
+/** Everything the vehicle page shows, in one request: its tabs are ready before you switch to them. */
+export interface VehiclePageData {
+  summary: Summary
+  fuel: FuelRow[]
+  reminders: ReminderView[]
+  services: ServiceRow[]
+  expenses: Expense[]
+  trips: Trip[]
+}

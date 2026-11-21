@@ -1,22 +1,20 @@
 import { Path } from '@phosphor-icons/react'
-import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { api } from '@/lib/api'
 import { dateTime, km } from '@/lib/format'
 import { type Trip } from '@/lib/types'
 import { useSave } from '@/lib/useSave'
-import { Button, EmptyState, IconBadge, List, listItem, Loading, RowMeta, Section } from '@/ui'
+import { Button, EmptyState, IconBadge, List, listItem, RowMeta, Section } from '@/ui'
+import { refresh } from '@/lib/queries'
 
-export function TripsTab({ id }: { id: number }) {
-  const rows = useQuery({ queryKey: ['trips', id], queryFn: () => api<Trip[]>(`/vehicles/${id}/trips`) })
-  const unassign = useSave((tid: number) => api(`/trips/${tid}/unassign`, { method: 'POST' }), undefined, 'Moved back to Inbox')
-  if (rows.isLoading) return <Loading />
-  if (!rows.data?.length) return <EmptyState icon={<Path size={40} />} title="No trips">Trips you assign to this vehicle in the Inbox show up here.</EmptyState>
-  const total = rows.data.reduce((t, x) => t + x.distanceM, 0) / 1000
+export function TripsTab({ trips }: { trips: Trip[] }) {
+  const unassign = useSave((tid: number) => api(`/trips/${tid}/unassign`, { method: 'POST' }), { refresh: refresh.inbox, done: 'Moved back to Inbox' })
+  if (!trips.length) return <EmptyState icon={<Path size={40} />} title="No trips">Trips you assign to this vehicle in the Inbox show up here.</EmptyState>
+  const total = trips.reduce((t, x) => t + x.distanceM, 0) / 1000
   return (
-    <Section title="Trips" meta={`${rows.data.length} · ≈ ${km(total)}`}>
+    <Section title="Trips" meta={`${trips.length} · ≈ ${km(total)}`}>
       <List>
-        {rows.data.map((t) => (
+        {trips.map((t) => (
           <motion.div variants={listItem} key={t.id} className="flex items-center gap-3 px-4 py-3">
             <IconBadge tone="emerald"><Path size={18} /></IconBadge>
             <div className="min-w-0 flex-1">

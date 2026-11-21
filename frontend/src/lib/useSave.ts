@@ -1,18 +1,21 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { toast } from '@/ui'
 
 /**
- * A mutation that refreshes everything afterwards (small app: simpler than tracking which lists changed).
- * {@code done} is shown as a short confirmation when it works.
+ * A save: runs {@code save}, then fetches again what it made out of date ({@code refresh}, from refresh in
+ * queries.ts), shows {@code done} as a short confirmation, and calls {@code onDone}.
  */
-export function useSave<A, R = unknown>(fn: (a: A) => Promise<R>, onDone?: (r: R) => void, done?: string | ((r: R) => string)) {
-  const qc = useQueryClient()
+export function useSave<Input, Result = unknown>(
+  save: (input: Input) => Promise<Result>,
+  { refresh, onDone, done }: { refresh: readonly QueryKey[]; onDone?: (result: Result) => void; done?: string | ((result: Result) => string) },
+) {
+  const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: fn,
-    onSuccess: (r) => {
-      qc.invalidateQueries()
-      if (done) toast(typeof done === 'function' ? done(r) : done)
-      onDone?.(r)
+    mutationFn: save,
+    onSuccess: (result) => {
+      for (const queryKey of refresh) void queryClient.invalidateQueries({ queryKey })
+      if (done) toast(typeof done === 'function' ? done(result) : done)
+      onDone?.(result)
     },
   })
 }

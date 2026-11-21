@@ -1,11 +1,8 @@
 import { Scroll, Wrench } from '@phosphor-icons/react'
-import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { api } from '@/lib/api'
 import { economyUnit, money, money2, n1 } from '@/lib/format'
-import { type Summary, type Vehicle } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
 import { ExpenseForm } from '@/features/expenses/ExpenseForm'
 import { FuelForm } from '@/features/fuel/FuelForm'
@@ -23,13 +20,14 @@ import { SpendTab } from './tabs/SpendTab'
 import { TripsTab } from './tabs/TripsTab'
 import { RemindersSection, ServicesSection } from './tabs/UpkeepTab'
 import { Card, ErrorBoundary, ErrorText, Loading, Tabs } from '@/ui'
+import { useVehiclePage, useVehicles } from '@/lib/queries'
 
 export type Tab = 'fuel' | 'upkeep' | 'papers' | 'spend' | 'trips'
 export const TABS: Tab[] = ['fuel', 'upkeep', 'papers', 'spend', 'trips']
 export function VehiclePage() {
   const id = Number(useParams().id)
-  const summary = useQuery({ queryKey: ['vehicle', id], queryFn: () => api<Summary>(`/vehicles/${id}`) })
-  const vehicles = useQuery({ queryKey: ['vehicles'], queryFn: () => api<Vehicle[]>('/vehicles') })
+  const page = useVehiclePage(id)
+  const vehicles = useVehicles()
   const [tab, setTab] = useState<Tab>('fuel')
   // tab content slides in from the side you moved towards
   const tabDir = useRef(0)
@@ -40,12 +38,12 @@ export function VehiclePage() {
   const [open, setOpen] = useState<Open>(null)
   const close = () => setOpen(null)
   const headRef = useRef<HTMLDivElement>(null)
-  const headInView = useInView(headRef, !summary.isLoading)
+  const headInView = useInView(headRef, !page.isLoading)
   const hidden = useHidden()
 
-  if (summary.isLoading) return <Loading />
-  if (summary.error) return <ErrorText error={summary.error} />
-  const s = summary.data!
+  if (page.isLoading) return <Loading />
+  if (page.error) return <ErrorText error={page.error} />
+  const { summary: s, fuel, reminders, services, expenses, trips } = page.data!
   const v = s.vehicle
   const odo = s.odometer.estimated ?? s.odometer.known
   const activeVehicles = (vehicles.data ?? [v]).filter((x) => !x.archived || x.id === v.id)
@@ -130,16 +128,16 @@ export function VehiclePage() {
           className="space-y-6"
         >
           <ErrorBoundary resetKey={tab} fallback="section">
-          {tab === 'fuel' && <FuelTab id={id} summary={s} onOpen={(row) => setOpen({ kind: 'fuel', row })} />}
+          {tab === 'fuel' && <FuelTab vehicleId={id} summary={s} fills={fuel} onOpen={(row) => setOpen({ kind: 'fuel', row })} />}
           {tab === 'upkeep' && (
             <>
-              <RemindersSection id={id} odometer={odo} onOpen={(r) => setOpen({ kind: 'reminder', r })} onAdd={() => setOpen({ kind: 'reminder' })} />
-              <ServicesSection id={id} onOpen={(row) => setOpen({ kind: 'service', row })} onAdd={() => setOpen({ kind: 'service' })} />
+              <RemindersSection vehicleId={id} reminders={reminders} odometer={odo} onOpen={(r) => setOpen({ kind: 'reminder', r })} onAdd={() => setOpen({ kind: 'reminder' })} />
+              <ServicesSection services={services} onOpen={(row) => setOpen({ kind: 'service', row })} onAdd={() => setOpen({ kind: 'service' })} />
             </>
           )}
           {tab === 'papers' && <PapersSection docs={docs} onOpen={(d) => setOpen({ kind: 'doc', d })} onRenew={(d) => setOpen({ kind: 'doc', d, renewing: true })} onAdd={() => setOpen({ kind: 'doc' })} />}
-          {tab === 'spend' && <SpendTab id={id} summary={s} onOpen={(e) => setOpen({ kind: 'expense', e })} onAdd={() => setOpen({ kind: 'expense' })} />}
-          {tab === 'trips' && <TripsTab id={id} />}
+          {tab === 'spend' && <SpendTab summary={s} expenses={expenses} onOpen={(e) => setOpen({ kind: 'expense', e })} onAdd={() => setOpen({ kind: 'expense' })} />}
+          {tab === 'trips' && <TripsTab trips={trips} />}
           </ErrorBoundary>
         </motion.div>
       </AnimatePresence>

@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query'
+import type { QueryClient, QueryKey } from '@tanstack/react-query'
 import { useSyncExternalStore } from 'react'
 import { toast } from '@/ui'
 
@@ -8,9 +8,10 @@ import { toast } from '@/ui'
  * pending delete straight away (the request is keepalive), so nothing waits forever.
  *
  * {@code hide} names what disappears meanwhile ("fuel:12"); lists skip anything {@link useHidden} reports.
+ * {@code refresh} is what to fetch again once it's gone (see refresh in queries.ts).
  */
 const WAIT = 5000
-type Pending = { run: () => Promise<unknown>; hide?: string; timer: number; what: string }
+type Pending = { run: () => Promise<unknown>; hide?: string; timer: number; what: string; refresh: readonly QueryKey[] }
 const pending = new Map<number, Pending>()
 let hidden = new Set<string>()
 let next = 1
@@ -30,11 +31,13 @@ function setHidden(key: string | undefined, on: boolean) {
   emit()
 }
 
-export function deleteWithUndo({ text, what, hide, run }: { text: string; what: string; hide?: string; run: () => Promise<unknown> }) {
+export function deleteWithUndo({ text, what, hide, run, refresh = [] }: {
+  text: string; what: string; hide?: string; run: () => Promise<unknown>; refresh?: readonly QueryKey[]
+}) {
   const id = next++
   setHidden(hide, true)
   const timer = window.setTimeout(() => commit(id), WAIT)
-  pending.set(id, { run, hide, timer, what })
+  pending.set(id, { run, hide, timer, what, refresh })
   toast(text, 'ok', {
     duration: WAIT,
     action: {
@@ -57,7 +60,7 @@ async function commit(id: number) {
   pending.delete(id)
   try {
     await p.run()
-    await client?.invalidateQueries()
+    await Promise.all(p.refresh.map((queryKey) => client?.invalidateQueries({ queryKey })))
   } catch (e) {
     toast(`Couldn't delete ${p.what}: ${e instanceof Error ? e.message : 'try again'}`, 'bad')
   } finally {

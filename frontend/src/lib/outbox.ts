@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { useSyncExternalStore } from 'react'
 import { api, ApiError } from './api'
+import { refresh } from './queries'
 import { toast } from '@/ui'
 
 /**
@@ -93,7 +94,7 @@ export async function flush(qc: QueryClient) {
     sending = false
   }
   if (sent > 0) {
-    qc.invalidateQueries()
+    for (const queryKey of refresh.vehicleRecords) void qc.invalidateQueries({ queryKey })
     toast(sent === 1 ? 'Fill-up sent' : `${sent} fill-ups sent`)
   }
 }

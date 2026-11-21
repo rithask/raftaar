@@ -1,18 +1,17 @@
 import { Plus, Scroll } from '@phosphor-icons/react'
-import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence } from 'motion/react'
 import { useState } from 'react'
-import { api } from '@/lib/api'
-import { type DocView, type Vehicle } from '@/lib/types'
+import { type DocView } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
 import { DocumentForm } from './DocumentForm'
 import { needsRenewal, PaperRow, paperSub } from './PaperRow'
 import { Button, EmptyState, List, Loading, PageHeader, Section } from '@/ui'
+import { useDocuments, useVehicles } from '@/lib/queries'
 
 /** Every certificate and paper in one place: what needs attention first (expired, then expiring), then the rest. */
 export function PapersPage() {
-  const docs = useQuery({ queryKey: ['documents'], queryFn: () => api<DocView[]>('/documents') })
-  const vehicles = useQuery({ queryKey: ['vehicles'], queryFn: () => api<Vehicle[]>('/vehicles') })
+  const docs = useDocuments()
+  const vehicles = useVehicles()
   const [open, setOpen] = useState<{ d?: DocView; renewing?: boolean } | null>(null)
   const hidden = useHidden()
   if (docs.isLoading) return <Loading />

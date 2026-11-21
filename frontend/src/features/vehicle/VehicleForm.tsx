@@ -9,6 +9,7 @@ import { deleteWithUndo } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
 import { KindIcon, VehicleArt } from './VehicleArt'
 import { Button, DateInput, ErrorText, Field, FormScreen, Input, Segmented, Select, TextArea, Toggle } from '@/ui'
+import { refresh } from '@/lib/queries'
 
 export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose: () => void; vehicle?: Vehicle }) {
   const nav = useNavigate()
@@ -34,8 +35,7 @@ export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose
   const fileRef = useRef<HTMLInputElement>(null)
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((o) => ({ ...o, [k]: v }))
 
-  const save = useSave(
-    async () => {
+  const save = useSave(async () => {
       const body = {
         ...f,
         year: num(f.year),
@@ -51,14 +51,11 @@ export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose
         await api(`/vehicles/${saved.id}/image`, { method: 'PUT', form })
       }
       return saved
-    },
-    (saved) => {
+    }, { refresh: refresh.vehicles, onDone: (saved) => {
       onClose()
       if (!vehicle) nav(`/vehicles/${saved.id}`)
-    },
-    vehicle ? 'Saved' : (v) => `${v.name} added`,
-  )
-  const removePhoto = useSave(() => api(`/vehicles/${vehicle!.id}/image`, { method: 'DELETE' }), undefined, 'Photo removed')
+    }, done: vehicle ? 'Saved' : (v) => `${v.name} added` })
+  const removePhoto = useSave(() => api(`/vehicles/${vehicle!.id}/image`, { method: 'DELETE' }), { refresh: refresh.vehicles, done: 'Photo removed' })
 
   const pick = async (file?: File) => {
     if (!file) return
@@ -77,7 +74,7 @@ export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose
       saveLabel={vehicle ? 'Save' : 'Add'}
       onDelete={vehicle ? () => {
         // everything about it goes too, so the Undo is the safety net
-        deleteWithUndo({ text: `${vehicle.name} deleted with all its records`, what: vehicle.name, hide: `vehicle:${vehicle.id}`, run: () => api(`/vehicles/${vehicle.id}`, { method: 'DELETE' }) })
+        deleteWithUndo({ refresh: refresh.vehicles, text: `${vehicle.name} deleted with all its records`, what: vehicle.name, hide: `vehicle:${vehicle.id}`, run: () => api(`/vehicles/${vehicle.id}`, { method: 'DELETE' }) })
         onClose()
         nav('/')
       } : undefined}

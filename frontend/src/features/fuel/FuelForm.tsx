@@ -9,6 +9,7 @@ import { type FuelEntry, type Quote, type Suggestion, type Vehicle } from '@/lib
 import { deleteWithUndo } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
 import { Badge, Button, DateTimeInput, ErrorText, Field, FormScreen, Input, Select, TextArea, Toggle } from '@/ui'
+import { refresh } from '@/lib/queries'
 
 type Key = 'volume' | 'price' | 'total'
 
@@ -181,7 +182,7 @@ export function FuelForm({
       queueFill(vid, vehicle?.name ?? 'vehicle', b)
       return { queued: true }
     }
-  }, onClose, (r) => (r?.queued ? "Saved on this phone. It'll be sent when you're back online." : suggestion ? 'Fill-up added' : entry ? 'Fill-up updated' : 'Fill-up saved'))
+  }, { refresh: refresh.vehicleRecords, onDone: onClose, done: (r) => (r?.queued ? "Saved on this phone. It'll be sent when you're back online." : suggestion ? 'Fill-up added' : entry ? 'Fill-up updated' : 'Fill-up saved') })
 
   const odo = num(odometer)
   const below = odo != null && lastOdometer != null && !entry && odo < lastOdometer
@@ -194,7 +195,7 @@ export function FuelForm({
       onSave={() => save.mutate(undefined)}
       saving={save.isPending}
       onDelete={entry ? () => {
-        deleteWithUndo({ text: 'Fill-up deleted', what: 'the fill-up', hide: `fuel:${entry.id}`, run: () => api(`/fuel/${entry.id}`, { method: 'DELETE' }) })
+        deleteWithUndo({ refresh: refresh.vehicleRecords, text: 'Fill-up deleted', what: 'the fill-up', hide: `fuel:${entry.id}`, run: () => api(`/fuel/${entry.id}`, { method: 'DELETE' }) })
         onClose()
       } : undefined}
       deleteLabel="Delete fill-up"

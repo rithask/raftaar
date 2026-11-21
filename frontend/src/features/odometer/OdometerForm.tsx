@@ -1,5 +1,4 @@
 import { Trash } from '@phosphor-icons/react'
-import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '@/lib/api'
@@ -8,13 +7,14 @@ import { type Odometer, type OdometerReading } from '@/lib/types'
 import { useSave } from '@/lib/useSave'
 import { axis, ChartCard, evenTicks, grid, margin, short, tooltipStyle } from '@/ui/charts'
 import { DateTimeInput, ErrorText, Field, FormScreen, Input, List, Section } from '@/ui'
+import { refresh, useOdometerHistory } from '@/lib/queries'
 
 export function OdometerForm({ open, onClose, vehicleId, current, odometer }: {
   open: boolean; onClose: () => void; vehicleId: number; current?: number | null; odometer?: Odometer
 }) {
   const [when, setWhen] = useState(toLocalInput())
   const [value, setValue] = useState('')
-  const save = useSave(() => api(`/vehicles/${vehicleId}/odometer`, { body: { readAt: fromLocalInput(when), odometer: num(value) } }), onClose, 'Reading saved')
+  const save = useSave(() => api(`/vehicles/${vehicleId}/odometer`, { body: { readAt: fromLocalInput(when), odometer: num(value) } }), { refresh: refresh.vehicleRecords, onDone: onClose, done: 'Reading saved' })
   return (
     <FormScreen open={open} onClose={onClose} title="Odometer reading" onSave={() => save.mutate(undefined)} saving={save.isPending}>
       <div className="space-y-4">
@@ -41,8 +41,8 @@ export const readAt = (r: OdometerReading) => (r.source === 'FUEL' || r.source =
  * Only the ones entered here can be removed; the rest belong to their fill-up, service or expense.
  */
 export function OdometerHistory({ vehicleId, odometer }: { vehicleId: number; odometer?: Odometer }) {
-  const rows = useQuery({ queryKey: ['odometer', vehicleId], queryFn: () => api<OdometerReading[]>(`/vehicles/${vehicleId}/odometer`) })
-  const remove = useSave((id: number) => api(`/odometer/${id}`, { method: 'DELETE' }), undefined, 'Reading removed')
+  const rows = useOdometerHistory(vehicleId)
+  const remove = useSave((id: number) => api(`/odometer/${id}`, { method: 'DELETE' }), { refresh: refresh.vehicleRecords, done: 'Reading removed' })
   const list = rows.data ?? []
   if (!list.length) return null
   const chart = [...list].reverse().map((r) => ({ t: new Date(r.at).getTime(), km: r.odometer }))

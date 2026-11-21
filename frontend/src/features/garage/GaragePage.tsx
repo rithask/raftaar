@@ -1,20 +1,20 @@
 import { Bell, CaretRight, GasPump, Gauge, Plus, Scroll, Tray, Warning } from '@phosphor-icons/react'
-import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '@/lib/api'
 import { date, economyUnit, km, money, n1 } from '@/lib/format'
-import { type Garage, type GarageCard, type Vehicle } from '@/lib/types'
+import { type GarageCard, type Vehicle } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
 import { FuelForm } from '@/features/fuel/FuelForm'
 import { KindIcon, VehicleArt } from '@/features/vehicle/VehicleArt'
 import { VehicleForm } from '@/features/vehicle/VehicleForm'
 import { imageUrl } from '@/features/vehicle/photo'
 import { Badge, Button, Card, cx, EmptyState, ErrorText, IconBadge, listItem, listParent, Loading, PageHeader, Section, softSpring, surface } from '@/ui'
+import { useGarage } from '@/lib/queries'
+import { VehicleLink } from '@/features/vehicle/VehicleLink'
 
 export function GaragePage() {
-  const garage = useQuery({ queryKey: ['garage'], queryFn: () => api<Garage>('/garage') })
+  const garage = useGarage()
   const [adding, setAdding] = useState(false)
   const [fuelFor, setFuelFor] = useState<GarageCard | null>(null)
   const hidden = useHidden()
@@ -67,11 +67,11 @@ export function GaragePage() {
         <Section title="Sold or retired">
           <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
             {retired.map((c) => (
-              <Link key={c.vehicle.id} to={`/vehicles/${c.vehicle.id}`} className={cx('flex items-center gap-3 rounded-2xl p-3 opacity-70 transition duration-100 active:scale-[0.99] active:opacity-100', surface)}>
+              <VehicleLink key={c.vehicle.id} vehicleId={c.vehicle.id} className={cx('flex items-center gap-3 rounded-2xl p-3 opacity-70 transition duration-100 active:scale-[0.99] active:opacity-100', surface)}>
                 <VehicleArt vehicle={c.vehicle} className="size-12 rounded-xl" iconSize={22} small />
                 <span className="font-medium">{c.vehicle.name}</span>
                 <span className="num ml-auto text-sm text-stone-500">{km(c.odometer.known)}</span>
-              </Link>
+              </VehicleLink>
             ))}
           </div>
         </Section>
@@ -95,7 +95,7 @@ function VehicleCard({ card, onFuel }: { card: GarageCard; onFuel: () => void })
   const overdue = card.attention.some((r) => r.status.state === 'OVERDUE') || card.papers.some((d) => d.state === 'EXPIRED')
   return (
     <Card raised className="group relative overflow-hidden rounded-3xl transition-shadow hover:shadow-md">
-      <Link to={`/vehicles/${v.id}`} className="block transition duration-100 active:opacity-80">
+      <VehicleLink vehicleId={v.id} className="block transition duration-100 active:opacity-80">
         {imageUrl(v) ? (
         <div className="relative">
           <VehicleArt vehicle={v} className="aspect-[16/10] w-full transition duration-300 group-hover:scale-[1.02]" iconSize={72} />
@@ -151,7 +151,7 @@ function VehicleCard({ card, onFuel }: { card: GarageCard; onFuel: () => void })
             </div>
           ))}
         </div>
-      </Link>
+      </VehicleLink>
       <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-4">
         <span className="truncate text-xs text-stone-500">{card.lastFill ? `Last filled ${date(card.lastFill.filledAt, false)}` : 'No fill-ups yet'}</span>
         <Button variant="primary" className="!py-2" onClick={onFuel}><GasPump size={16} /> Fuel</Button>

@@ -5,6 +5,7 @@ import { type Expense, type ExpenseCategory, type Suggestion, type Vehicle } fro
 import { deleteWithUndo } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
 import { DateInput, ErrorText, Field, FormScreen, Input, Select, TextArea } from '@/ui'
+import { refresh } from '@/lib/queries'
 
 export function ExpenseForm({ open, onClose, vehicles, vehicleId, expense, suggestion }: {
   open: boolean; onClose: () => void; vehicles: Vehicle[]; vehicleId?: number; expense?: Expense; suggestion?: Suggestion
@@ -25,10 +26,10 @@ export function ExpenseForm({ open, onClose, vehicles, vehicleId, expense, sugge
     if (suggestion) return api(`/suggestions/${suggestion.id}/expense`, { body: body() })
     if (expense) return api(`/expenses/${expense.id}`, { method: 'PUT', body: body() })
     return api(`/vehicles/${f.vehicleId}/expenses`, { body: body() })
-  }, onClose, 'Expense saved')
+  }, { refresh: refresh.vehicleRecords, onDone: onClose, done: 'Expense saved' })
 
   return (
-    <FormScreen open={open} onClose={onClose} title={suggestion ? 'Add as expense' : expense ? 'Edit expense' : 'Add expense'} onSave={() => save.mutate(undefined)} saving={save.isPending} onDelete={expense ? () => { deleteWithUndo({ text: 'Expense deleted', what: 'the expense', hide: `expense:${expense.id}`, run: () => api(`/expenses/${expense.id}`, { method: 'DELETE' }) }); onClose() } : undefined}>
+    <FormScreen open={open} onClose={onClose} title={suggestion ? 'Add as expense' : expense ? 'Edit expense' : 'Add expense'} onSave={() => save.mutate(undefined)} saving={save.isPending} onDelete={expense ? () => { deleteWithUndo({ refresh: refresh.vehicleRecords, text: 'Expense deleted', what: 'the expense', hide: `expense:${expense.id}`, run: () => api(`/expenses/${expense.id}`, { method: 'DELETE' }) }); onClose() } : undefined}>
       <div className="space-y-4">
         {(suggestion || vehicles.length > 1) && !expense && (
           <Field label="Vehicle">

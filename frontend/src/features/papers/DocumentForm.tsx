@@ -6,6 +6,7 @@ import { type Doc, type DocType, type Vehicle } from '@/lib/types'
 import { deleteWithUndo } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
 import { Button, DateInput, ErrorText, Field, FormScreen, Input, plusMonths, Select, TextArea } from '@/ui'
+import { refresh } from '@/lib/queries'
 
 /**
  * The next term of a paper: it starts the day after the old one ends (or today, if that's already past) and runs as
@@ -50,14 +51,14 @@ export function DocumentForm({ open, onClose, vehicles, vehicleId, doc, renewing
       form.append('file', file)
       await api(`/documents/${saved.id}/file`, { method: 'PUT', form })
     }
-  }, onClose, renewing ? 'Renewed. Reminders start over for the new date.' : 'Saved')
+  }, { refresh: refresh.papers, onDone: onClose, done: renewing ? 'Renewed. Reminders start over for the new date.' : 'Saved' })
   const renew = () => setF((o) => ({ ...o, ...nextTerm(o.issuedOn || null, o.expiresOn || null) }))
   const from = f.issuedOn || undefined
 
   return (
     <FormScreen open={open} onClose={onClose} title={renewing && doc ? `Renew ${doc.title}` : doc ? doc.title : 'Add a paper'} onSave={() => save.mutate(undefined)} saving={save.isPending}
       saveLabel={renewing ? 'Save renewal' : 'Save'}
-      onDelete={doc && !renewing ? () => { deleteWithUndo({ text: 'Paper deleted', what: 'the paper', hide: `doc:${doc.id}`, run: () => api(`/documents/${doc.id}`, { method: 'DELETE' }) }); onClose() } : undefined}>
+      onDelete={doc && !renewing ? () => { deleteWithUndo({ refresh: refresh.papers, text: 'Paper deleted', what: 'the paper', hide: `doc:${doc.id}`, run: () => api(`/documents/${doc.id}`, { method: 'DELETE' }) }); onClose() } : undefined}>
       <div className="space-y-4">
         {renewing && (
           <p className="rounded-xl bg-accent-soft px-3 py-2.5 text-sm text-stone-700 dark:text-stone-200">

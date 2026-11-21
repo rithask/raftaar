@@ -1,5 +1,4 @@
 import { Bell, Check, Wrench } from '@phosphor-icons/react'
-import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
 import { api } from '@/lib/api'
@@ -7,7 +6,8 @@ import { date, km, money, today } from '@/lib/format'
 import { type ReminderView, type ServiceRow } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
-import { AddLink, Badge, Button, cx, EmptyState, ErrorText, IconBadge, List, listItem, ListRow, Loading, RowMeta, rowPress, Section, softSpring } from '@/ui'
+import { AddLink, Badge, Button, cx, EmptyState, ErrorText, IconBadge, List, listItem, ListRow, RowMeta, rowPress, Section, softSpring } from '@/ui'
+import { refresh } from '@/lib/queries'
 
 /** When a reminder is due, compactly: km left on top, days below (whichever exist), coloured by urgency. */
 export function DueSoonest({ status: st }: { status: ReminderView['status'] }) {
@@ -24,20 +24,21 @@ export function DueSoonest({ status: st }: { status: ReminderView['status'] }) {
   )
 }
 
-export function RemindersSection({ id, odometer, onOpen, onAdd }: { id: number; odometer: number | null; onOpen: (r: ReminderView) => void; onAdd: () => void }) {
-  const rows = useQuery({ queryKey: ['reminders', id], queryFn: () => api<ReminderView[]>(`/vehicles/${id}/reminders`) })
+export function RemindersSection({ vehicleId, reminders, odometer, onOpen, onAdd }: {
+  vehicleId: number; reminders: ReminderView[]; odometer: number | null; onOpen: (r: ReminderView) => void; onAdd: () => void
+}) {
   const [asking, setAsking] = useState<number | null>(null)
   const hidden = useHidden()
   const atKm = odometer != null ? Math.round(odometer) : null
   // Done: logs the service today (at the current odometer) and restarts this reminder from there.
-  const done = useSave((r: ReminderView) => api(`/vehicles/${id}/services`, {
+  const done = useSave((r: ReminderView) => api(`/vehicles/${vehicleId}/services`, {
     body: { servicedOn: today(), odometer: atKm, title: r.reminder.title, cost: 0, completes: [r.reminder.id] },
-  }), () => setAsking(null), 'Done. Add the cost or workshop in Service history if you like.')
-  const list = (rows.data ?? []).filter((r) => !hidden(`reminder:${r.reminder.id}`))
+  }), { refresh: refresh.vehicleRecords, onDone: () => setAsking(null), done: 'Done. Add the cost or workshop in Service history if you like.' })
+  const list = reminders.filter((r) => !hidden(`reminder:${r.reminder.id}`))
   const due = (r: ReminderView) => r.reminder.active && (r.status.state === 'OVERDUE' || r.status.state === 'DUE_SOON')
   return (
     <Section title="Reminders" action={<AddLink label="Add" onClick={onAdd} />}>
-      {rows.isLoading ? <Loading /> : !list.length ? (
+      {!list.length ? (
         <EmptyState icon={<Bell size={36} />} title="No reminders">Oil changes, chain lube, services: by km, by date, or both.</EmptyState>
       ) : (
         <List>
@@ -86,14 +87,13 @@ export function RemindersSection({ id, odometer, onOpen, onAdd }: { id: number; 
   )
 }
 
-export function ServicesSection({ id, onOpen, onAdd }: { id: number; onOpen: (r: ServiceRow) => void; onAdd: () => void }) {
-  const rows = useQuery({ queryKey: ['services', id], queryFn: () => api<ServiceRow[]>(`/vehicles/${id}/services`) })
+export function ServicesSection({ services, onOpen, onAdd }: { services: ServiceRow[]; onOpen: (r: ServiceRow) => void; onAdd: () => void }) {
   const hidden = useHidden()
-  const list = (rows.data ?? []).filter((r) => !hidden(`service:${r.record.id}`))
+  const list = services.filter((r) => !hidden(`service:${r.record.id}`))
   return (
     <Section title="Service history" meta={list.length ? `${list.length} · ${money(list.reduce((t, r) => t + r.record.cost, 0))}` : undefined}
       action={<AddLink label="Log service" onClick={onAdd} />}>
-      {rows.isLoading ? <Loading /> : !list.length ? (
+      {!list.length ? (
         <EmptyState icon={<Wrench size={36} />} title="No services yet">Logging a service also resets the reminders it covers.</EmptyState>
       ) : (
         <List>

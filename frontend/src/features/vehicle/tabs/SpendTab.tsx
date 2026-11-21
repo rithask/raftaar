@@ -1,17 +1,14 @@
 import { Receipt } from '@phosphor-icons/react'
-import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { Bar, BarChart, Tooltip, XAxis, YAxis } from 'recharts'
-import { api } from '@/lib/api'
 import { date, expenseLabel, money, money2 } from '@/lib/format'
 import { type Expense, type Summary } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
 import { axis, ChartCard, grid, margin, monthLabel, short, tooltipStyle } from '@/ui/charts'
-import { AddLink, Card, cx, EmptyState, IconBadge, List, ListRow, Loading, RowMeta, Section, softSpring } from '@/ui'
+import { AddLink, Card, cx, EmptyState, IconBadge, List, ListRow, RowMeta, Section, softSpring } from '@/ui'
 
 /** Where the money went, then the expenses list. */
-export function SpendTab({ id, summary, onOpen, onAdd }: { id: number; summary: Summary; onOpen: (e: Expense) => void; onAdd: () => void }) {
-  const rows = useQuery({ queryKey: ['expenses', id], queryFn: () => api<Expense[]>(`/vehicles/${id}/expenses`) })
+export function SpendTab({ summary, expenses, onOpen, onAdd }: { summary: Summary; expenses: Expense[]; onOpen: (e: Expense) => void; onAdd: () => void }) {
   const c = summary.costs
   const parts = [
     { label: 'Fuel', value: c.fuel, color: 'bg-accent' },
@@ -19,7 +16,7 @@ export function SpendTab({ id, summary, onOpen, onAdd }: { id: number; summary: 
     { label: 'Other', value: c.expenses, color: 'bg-violet-500' },
   ]
   const hidden = useHidden()
-  const list = (rows.data ?? []).filter((e) => !hidden(`expense:${e.id}`))
+  const list = expenses.filter((e) => !hidden(`expense:${e.id}`))
   const months = summary.monthly.some((m) => m.fuel + m.service + m.other > 0) ? summary.monthly : []
   const monthAvg = months.reduce((t, m) => t + m.fuel + m.service + m.other, 0) / Math.max(1, months.length)
   return (
@@ -62,7 +59,7 @@ export function SpendTab({ id, summary, onOpen, onAdd }: { id: number; summary: 
         </Section>
       )}
       <Section title="Expenses" meta={list.length ? `${list.length} · ${money(c.expenses)}` : undefined} action={<AddLink label="Add" onClick={onAdd} />}>
-        {rows.isLoading ? <Loading /> : !list.length ? (
+        {!list.length ? (
           <EmptyState icon={<Receipt size={36} />} title="No expenses">Upgrades, accessories, riding gear, tolls and parking.</EmptyState>
         ) : (
           <List>

@@ -1,16 +1,17 @@
 import { CaretDoubleLeft, Garage, Gear, Scroll, SignOut, Tray } from '@phosphor-icons/react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation, useOutlet } from 'react-router-dom'
 import { signOut } from '@/features/auth/session'
 import { KindIcon } from '@/features/vehicle/VehicleArt'
 import { imageUrl } from '@/features/vehicle/photo'
-import { api } from '@/lib/api'
 import { type Garage as GarageData } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
 import { OutboxBar } from './OutboxBar'
 import { cx, ErrorBoundary, exitFast, Logo, pageSpring, slideSpring, spring } from '@/ui'
+import { keys, useGarage } from '@/lib/queries'
+import { VehicleLink } from '@/features/vehicle/VehicleLink'
 
 const tabs = [
   { to: '/', label: 'Garage', Icon: Garage, end: true },
@@ -22,7 +23,7 @@ const tabs = [
 const depth = (path: string) => (path.startsWith('/vehicles/') ? 1 : 0)
 
 export function Layout() {
-  const garage = useQuery({ queryKey: ['garage'], queryFn: () => api<GarageData>('/garage') })
+  const garage = useGarage()
   const waiting = (garage.data?.tripsToSort ?? 0) + (garage.data?.toConfirm ?? 0)
   const location = useLocation()
   const outlet = useOutlet()
@@ -120,7 +121,7 @@ function Sidebar({ garage, waiting, collapsed, onToggle }: { garage?: GarageData
   const vehicles = (garage?.vehicles ?? []).filter((c) => !c.vehicle.archived && !hidden(`vehicle:${c.vehicle.id}`))
   const leave = async () => {
     await signOut()
-    qc.setQueryData(['me'], { username: null })
+    qc.setQueryData(keys.me, { username: null })
   }
   // "wide" styles only apply on large screens, and only when not collapsed
   const wide = (cls: string) => (collapsed ? '' : cls)
@@ -174,7 +175,7 @@ function Sidebar({ garage, waiting, collapsed, onToggle }: { garage?: GarageData
               const warn = c.attention.length + c.papers.length > 0
               const dot = warn && <span className={cx('relative size-2 shrink-0 rounded-full', bad ? 'bg-red-500' : 'bg-amber-500')} aria-label="needs attention" />
               return (
-                <Link key={v.id} to={`/vehicles/${v.id}`} title={v.name} aria-current={on ? 'page' : undefined}
+                <VehicleLink key={v.id} vehicleId={v.id} title={v.name} aria-current={on ? 'page' : undefined}
                   className={cx('relative flex h-10 items-center rounded-xl text-sm transition-colors active:scale-[0.97]', collapsed ? 'justify-center' : 'gap-2 px-2',
                     on ? chosen : 'font-medium text-stone-600 hover:bg-stone-900/[0.04] hover:text-stone-900 dark:text-stone-300 dark:hover:bg-white/5 dark:hover:text-stone-100')}>
                   {on && <Highlight />}
@@ -188,7 +189,7 @@ function Sidebar({ garage, waiting, collapsed, onToggle }: { garage?: GarageData
                   </span>
                   {!collapsed && <span className="relative min-w-0 flex-1 truncate">{v.name}</span>}
                   {!collapsed && dot}
-                </Link>
+                </VehicleLink>
               )
             })}
           </div>

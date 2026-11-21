@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import { type AuthOptions } from '@/lib/types'
 import { clearSignedOut, markSignedOut, wasSignedOut } from './session'
 import { Button, ErrorText, Field, Input, Logo, spring } from '@/ui'
+import { keys } from '@/lib/queries'
 
 type Me = { username: string }
 
@@ -35,7 +36,7 @@ export function Login() {
   const signedIn = (me: Me) => {
     clearSignedOut()
     window.history.replaceState(null, '', '/')
-    qc.setQueryData(['me'], me)
+    qc.setQueryData(keys.me, me)
     qc.invalidateQueries()
   }
   const startOidc = () => {

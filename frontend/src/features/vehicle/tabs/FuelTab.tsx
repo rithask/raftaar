@@ -1,5 +1,4 @@
 import { CloudArrowUp, GasPump, Warning } from '@phosphor-icons/react'
-import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { Line, LineChart, ReferenceArea, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '@/lib/api'
@@ -9,16 +8,15 @@ import { type FuelRow, type Summary } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
 import { axis, ChartCard, grid, margin, Swatch, tooltipStyle, usualRange } from '@/ui/charts'
-import { Badge, Button, EmptyState, IconBadge, List, listItem, ListRow, Loading, RowMeta, Section } from '@/ui'
+import { Badge, Button, EmptyState, IconBadge, List, listItem, ListRow, RowMeta, Section } from '@/ui'
+import { refresh } from '@/lib/queries'
 
 export const SOURCE = { MANUAL: '', HISAAB: 'Hisaab', GEOPULSE: 'GeoPulse', HISAAB_GEOPULSE: 'Hisaab + GeoPulse' } as const
-export function FuelTab({ id, summary, onOpen }: { id: number; summary: Summary; onOpen: (r: FuelRow) => void }) {
-  const rows = useQuery({ queryKey: ['fuel', id], queryFn: () => api<FuelRow[]>(`/vehicles/${id}/fuel`) })
-  const resolve = useSave((fid: number) => api(`/fuel/${fid}/resolve`, { method: 'POST' }), undefined, 'Marked as checked')
-  const waiting = useOutbox().filter((w) => w.vehicleId === id)
+export function FuelTab({ vehicleId, summary, fills, onOpen }: { vehicleId: number; summary: Summary; fills: FuelRow[]; onOpen: (r: FuelRow) => void }) {
+  const resolve = useSave((fid: number) => api(`/fuel/${fid}/resolve`, { method: 'POST' }), { refresh: refresh.vehicleRecords, done: 'Marked as checked' })
+  const waiting = useOutbox().filter((w) => w.vehicleId === vehicleId)
   const hidden = useHidden()
-  if (rows.isLoading && !waiting.length) return <Loading />
-  const list = (rows.data ?? []).filter((r) => !hidden(`fuel:${r.entry.id}`))
+  const list = fills.filter((r) => !hidden(`fuel:${r.entry.id}`))
   if (!list.length && !waiting.length) return <EmptyState icon={<GasPump size={40} />} title="No fill-ups yet">Add each fill-up with the odometer reading. Mileage shows after two full tanks.</EmptyState>
   const byId = new Map(list.map((r) => [r.entry.id, r.entry]))
   const chart = summary.economyHistory.map((st) => ({ when: date(byId.get(st.endId)?.filledAt, false), kmpl: st.kmPerUnit }))
