@@ -274,8 +274,7 @@ function BottomBar({ waiting }: { waiting: number }) {
                       exit={{ width: 0, opacity: 0 }}
                       transition={spring}
                     >
-                      {/* the space before the label is inside it, so it shrinks away with the label: a gap on the row
-                          would stay until the label is gone, then the icon would jump to the centre */}
+                      {/* the space is inside the label so it shrinks with it; a gap on the row made the icon jump at the end */}
                       <span className="block pl-2">{label}</span>
                     </motion.span>
                   )}

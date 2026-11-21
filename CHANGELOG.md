@@ -5,6 +5,11 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+### Fixed
+
+- Bottom bar on phones: the icon of the section you leave no longer jumps sideways once the slide has finished.
+- Vehicle page tabs: a tab's label and its dot no longer shift slightly when the tab is chosen or left.
+
 ## [0.7.0] - 2026-11-22
 
 ### Added
