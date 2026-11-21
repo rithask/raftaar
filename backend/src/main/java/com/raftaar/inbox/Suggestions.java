@@ -88,8 +88,8 @@ public class Suggestions {
     }
 
     /** A vehicle named in a Hisaab transaction's tags or notes, e.g. tag "duke" or note "Fuel for KA01AB1234". */
-    Optional<Long> vehicleNamedIn(HisaabClient.Txn t) {
-        String text = (String.join(" ", t.tags() == null ? List.of() : t.tags()) + " " + Objects.toString(t.notes(), "")).toLowerCase(Locale.ROOT);
+    Optional<Long> vehicleNamedIn(HisaabClient.Txn payment) {
+        String text = (String.join(" ", payment.tags() == null ? List.of() : payment.tags()) + " " + Objects.toString(payment.notes(), "")).toLowerCase(Locale.ROOT);
         if (text.isBlank()) return Optional.empty();
         String squashed = text.replace(" ", "");
         return vehicles.findByArchivedFalse().stream()
@@ -106,23 +106,23 @@ public class Suggestions {
         var pump = places.nearestStation(lat, lon, 80);
         if (pump.isEmpty()) return Optional.empty();
         var nearby = repo.findByKindAndOccurredAtBetween(Suggestion.Kind.FUEL, at.minus(MATCH_WINDOW), at.plus(MATCH_WINDOW));
-        if (nearby.stream().anyMatch(s -> s.stopAt != null)) return Optional.empty(); // already seen this stop
+        if (nearby.stream().anyMatch(suggestion -> suggestion.stopAt != null)) return Optional.empty(); // already seen this stop
         if (alreadyLogged(at)) return Optional.empty();
-        Suggestion s = nearby.stream().filter(x -> x.status == Suggestion.Status.PENDING && x.hisaabTxnId != null && x.latitude == null)
-                .min(Comparator.comparingLong(x -> Math.abs(Duration.between(x.occurredAt, at).toSeconds())))
+        Suggestion suggestion = nearby.stream().filter(candidate -> candidate.status == Suggestion.Status.PENDING && candidate.hisaabTxnId != null && candidate.latitude == null)
+                .min(Comparator.comparingLong(candidate -> Math.abs(Duration.between(candidate.occurredAt, at).toSeconds())))
                 .orElseGet(() -> {
-                    Suggestion n = new Suggestion();
-                    n.kind = Suggestion.Kind.FUEL;
-                    n.occurredAt = at;
-                    return n;
+                    Suggestion created = new Suggestion();
+                    created.kind = Suggestion.Kind.FUEL;
+                    created.occurredAt = at;
+                    return created;
                 });
-        s.stopAt = at;
-        s.stopSeconds = (int) seconds;
-        setPlace(s, lat, lon, pump.get().station());
-        if (s.suggestedVehicleId == null) s.suggestedVehicleId = vehicleAt(at).orElse(null);
-        s.note = s.hisaabTxnId != null ? "Paid in Hisaab and stopped at this pump" : "Stopped at this pump for " + Math.max(1, seconds / 60) + " min";
-        price(s);
-        Suggestion saved = save(s);
+        suggestion.stopAt = at;
+        suggestion.stopSeconds = (int) seconds;
+        setPlace(suggestion, lat, lon, pump.get().station());
+        if (suggestion.suggestedVehicleId == null) suggestion.suggestedVehicleId = vehicleAt(at).orElse(null);
+        suggestion.note = suggestion.hisaabTxnId != null ? "Paid in Hisaab and stopped at this pump" : "Stopped at this pump for " + Math.max(1, seconds / 60) + " min";
+        price(suggestion);
+        Suggestion saved = save(suggestion);
         log.debug("Fuel stop at {} ({} min): suggestion {}{}", saved.stationName, Math.max(1, seconds / 60), saved.id,
                 saved.hisaabTxnId != null ? ", matched to a Hisaab payment" : "");
         return Optional.of(saved);
@@ -139,171 +139,171 @@ public class Suggestions {
 
     /** A fuel payment in Hisaab, new or changed. */
     @Transactional
-    public Outcome fromHisaabFuel(HisaabClient.Txn t) {
-        Instant at = t.occurredAt().toInstant();
-        BigDecimal amount = t.amount().value();
+    public Outcome fromHisaabFuel(HisaabClient.Txn payment) {
+        Instant at = payment.occurredAt().toInstant();
+        BigDecimal amount = payment.amount().value();
         // Already confirmed: only tell you when Hisaab's figure no longer matches.
-        var entry = fuel.findByHisaabTxnId(t.id());
+        var entry = fuel.findByHisaabTxnId(payment.id());
         if (entry.isPresent()) {
-            FuelEntry e = entry.get();
-            if (e.totalCost.compareTo(amount) != 0) {
-                e.sourceIssue = "Hisaab now says ₹" + amount.toPlainString() + " for this payment";
-                fuel.save(e);
+            FuelEntry fill = entry.get();
+            if (fill.totalCost.compareTo(amount) != 0) {
+                fill.sourceIssue = "Hisaab now says ₹" + amount.toPlainString() + " for this payment";
+                fuel.save(fill);
                 return Outcome.FLAGGED;
             }
-            if (e.sourceIssue != null && e.sourceIssue.startsWith("Hisaab")) {
-                e.sourceIssue = null;
-                fuel.save(e);
+            if (fill.sourceIssue != null && fill.sourceIssue.startsWith("Hisaab")) {
+                fill.sourceIssue = null;
+                fuel.save(fill);
             }
             return Outcome.UNCHANGED;
         }
-        var existing = repo.findByHisaabTxnId(t.id());
+        var existing = repo.findByHisaabTxnId(payment.id());
         if (existing.isPresent()) {
-            Suggestion s = existing.get();
-            if (s.status != Suggestion.Status.PENDING) return Outcome.UNCHANGED;
-            fillFromTxn(s, t);
-            price(s);
-            save(s);
+            Suggestion suggestion = existing.get();
+            if (suggestion.status != Suggestion.Status.PENDING) return Outcome.UNCHANGED;
+            fillFromTxn(suggestion, payment);
+            price(suggestion);
+            save(suggestion);
             return Outcome.UPDATED;
         }
         // Logged by hand already? Same amount, around the same time: link it instead of suggesting it again.
-        for (Vehicle v : vehicles.findAll()) {
-            for (FuelEntry f : fuel.findByVehicleIdOrderByFilledAtAscIdAsc(v.id)) {
-                if (f.hisaabTxnId == null && f.totalCost.compareTo(amount) == 0 && Math.abs(Duration.between(f.filledAt, at).toHours()) <= 3) {
-                    f.hisaabTxnId = t.id();
-                    f.source = f.source == FuelEntry.Source.GEOPULSE ? FuelEntry.Source.HISAAB_GEOPULSE : f.source;
-                    fuel.save(f);
+        for (Vehicle vehicle : vehicles.findAll()) {
+            for (FuelEntry fill : fuel.findByVehicleIdOrderByFilledAtAscIdAsc(vehicle.id)) {
+                if (fill.hisaabTxnId == null && fill.totalCost.compareTo(amount) == 0 && Math.abs(Duration.between(fill.filledAt, at).toHours()) <= 3) {
+                    fill.hisaabTxnId = payment.id();
+                    fill.source = fill.source == FuelEntry.Source.GEOPULSE ? FuelEntry.Source.HISAAB_GEOPULSE : fill.source;
+                    fuel.save(fill);
                     return Outcome.LINKED;
                 }
             }
         }
         // A GeoPulse pump stop waiting for its payment?
-        Suggestion s = repo.findByKindAndOccurredAtBetween(Suggestion.Kind.FUEL, at.minus(MATCH_WINDOW), at.plus(MATCH_WINDOW)).stream()
-                .filter(x -> x.status == Suggestion.Status.PENDING && x.hisaabTxnId == null)
-                .min(Comparator.comparingLong(x -> Math.abs(Duration.between(x.occurredAt, at).toSeconds())))
+        Suggestion suggestion = repo.findByKindAndOccurredAtBetween(Suggestion.Kind.FUEL, at.minus(MATCH_WINDOW), at.plus(MATCH_WINDOW)).stream()
+                .filter(candidate -> candidate.status == Suggestion.Status.PENDING && candidate.hisaabTxnId == null)
+                .min(Comparator.comparingLong(candidate -> Math.abs(Duration.between(candidate.occurredAt, at).toSeconds())))
                 .orElseGet(() -> {
-                    Suggestion n = new Suggestion();
-                    n.kind = Suggestion.Kind.FUEL;
-                    return n;
+                    Suggestion created = new Suggestion();
+                    created.kind = Suggestion.Kind.FUEL;
+                    return created;
                 });
-        boolean merged = s.id != null;
-        fillFromTxn(s, t);
-        s.note = merged ? "Paid in Hisaab and stopped at this pump" : "Fuel payment in Hisaab";
-        price(s);
-        save(s);
+        boolean merged = suggestion.id != null;
+        fillFromTxn(suggestion, payment);
+        suggestion.note = merged ? "Paid in Hisaab and stopped at this pump" : "Fuel payment in Hisaab";
+        price(suggestion);
+        save(suggestion);
         return Outcome.NEW;
     }
 
-    private void fillFromTxn(Suggestion s, HisaabClient.Txn t) {
-        s.occurredAt = t.occurredAt().toInstant();
-        s.amount = t.amount().value();
-        s.payee = t.payee();
-        s.hisaabTxnId = t.id();
-        s.hisaabCategory = t.category() == null ? null : t.category().name();
-        s.hisaabAccount = t.account() == null ? null : t.account().name();
-        var named = vehicleNamedIn(t);
-        if (named.isPresent()) s.suggestedVehicleId = named.get();
-        else if (s.suggestedVehicleId == null) s.suggestedVehicleId = vehicleAt(s.occurredAt).orElse(null);
-        if (s.stationName == null && t.payee() != null) s.stationName = t.payee();
+    private void fillFromTxn(Suggestion suggestion, HisaabClient.Txn payment) {
+        suggestion.occurredAt = payment.occurredAt().toInstant();
+        suggestion.amount = payment.amount().value();
+        suggestion.payee = payment.payee();
+        suggestion.hisaabTxnId = payment.id();
+        suggestion.hisaabCategory = payment.category() == null ? null : payment.category().name();
+        suggestion.hisaabAccount = payment.account() == null ? null : payment.account().name();
+        var named = vehicleNamedIn(payment);
+        if (named.isPresent()) suggestion.suggestedVehicleId = named.get();
+        else if (suggestion.suggestedVehicleId == null) suggestion.suggestedVehicleId = vehicleAt(suggestion.occurredAt).orElse(null);
+        if (suggestion.stationName == null && payment.payee() != null) suggestion.stationName = payment.payee();
     }
 
     @Transactional
-    public Outcome fromHisaabExpense(HisaabClient.Txn t) {
-        if (expenses.findByHisaabTxnId(t.id()).isPresent()) return Outcome.UNCHANGED;
-        Suggestion s = repo.findByHisaabTxnId(t.id()).orElseGet(() -> {
-            Suggestion n = new Suggestion();
-            n.kind = Suggestion.Kind.EXPENSE;
-            return n;
+    public Outcome fromHisaabExpense(HisaabClient.Txn payment) {
+        if (expenses.findByHisaabTxnId(payment.id()).isPresent()) return Outcome.UNCHANGED;
+        Suggestion suggestion = repo.findByHisaabTxnId(payment.id()).orElseGet(() -> {
+            Suggestion created = new Suggestion();
+            created.kind = Suggestion.Kind.EXPENSE;
+            return created;
         });
-        if (s.status != Suggestion.Status.PENDING) return Outcome.UNCHANGED;
-        boolean isNew = s.id == null;
-        fillFromTxn(s, t);
-        s.stationName = null;
-        s.note = "Payment in Hisaab (" + s.hisaabCategory + ")";
-        save(s);
+        if (suggestion.status != Suggestion.Status.PENDING) return Outcome.UNCHANGED;
+        boolean isNew = suggestion.id == null;
+        fillFromTxn(suggestion, payment);
+        suggestion.stationName = null;
+        suggestion.note = "Payment in Hisaab (" + suggestion.hisaabCategory + ")";
+        save(suggestion);
         return isNew ? Outcome.NEW : Outcome.UPDATED;
     }
 
     /** The Hisaab payment behind a pending suggestion is gone (deleted, or moved out of the categories). */
     @Transactional
-    public void hisaabGone(Suggestion s, String why) {
-        if (s.status != Suggestion.Status.PENDING) return;
-        if (s.stopAt != null && s.kind == Suggestion.Kind.FUEL) {
+    public void hisaabGone(Suggestion suggestion, String why) {
+        if (suggestion.status != Suggestion.Status.PENDING) return;
+        if (suggestion.stopAt != null && suggestion.kind == Suggestion.Kind.FUEL) {
             // The pump stop is still real; only the payment went away.
-            s.hisaabTxnId = null;
-            s.amount = null;
-            s.payee = null;
-            s.hisaabCategory = null;
-            s.hisaabAccount = null;
-            s.note = "Stopped at this pump (" + why + ")";
+            suggestion.hisaabTxnId = null;
+            suggestion.amount = null;
+            suggestion.payee = null;
+            suggestion.hisaabCategory = null;
+            suggestion.hisaabAccount = null;
+            suggestion.note = "Stopped at this pump (" + why + ")";
         } else {
-            s.status = Suggestion.Status.DISMISSED;
-            s.dismissReason = why;
+            suggestion.status = Suggestion.Status.DISMISSED;
+            suggestion.dismissReason = why;
         }
-        save(s);
-        log.debug("Suggestion {}: {}", s.id, why);
+        save(suggestion);
+        log.debug("Suggestion {}: {}", suggestion.id, why);
     }
 
     // ---- shared -----------------------------------------------------------------------------------------------
 
-    private void setPlace(Suggestion s, double lat, double lon, FuelStation st) {
-        s.latitude = lat;
-        s.longitude = lon;
-        if (st != null) {
-            s.stationName = st.name != null ? st.name : s.stationName;
-            s.stationBrand = st.brand;
-            s.latitude = st.latitude;
-            s.longitude = st.longitude;
+    private void setPlace(Suggestion suggestion, double lat, double lon, FuelStation station) {
+        suggestion.latitude = lat;
+        suggestion.longitude = lon;
+        if (station != null) {
+            suggestion.stationName = station.name != null ? station.name : suggestion.stationName;
+            suggestion.stationBrand = station.brand;
+            suggestion.latitude = station.latitude;
+            suggestion.longitude = station.longitude;
         }
-        places.region(s.latitude, s.longitude).ifPresent(r -> {
-            s.region = r.state();
-            s.district = r.district();
+        places.region(suggestion.latitude, suggestion.longitude).ifPresent(region -> {
+            suggestion.region = region.state();
+            suggestion.district = region.district();
         });
     }
 
     /** Fills in GPS stop details for a Hisaab payment, when GeoPulse has points around its time. */
     @Transactional
-    public void attachStop(Long suggestionId, Dwells.Dwell d, FuelStation st) {
-        repo.findById(suggestionId).ifPresent(s -> {
-            if (s.stopAt != null) return;
-            s.stopAt = d.middle();
-            s.stopSeconds = (int) d.seconds();
-            setPlace(s, d.lat(), d.lon(), st);
-            s.note = "Paid in Hisaab and stopped at this pump";
-            price(s);
-            save(s);
+    public void attachStop(Long suggestionId, Dwells.Dwell dwell, FuelStation station) {
+        repo.findById(suggestionId).ifPresent(suggestion -> {
+            if (suggestion.stopAt != null) return;
+            suggestion.stopAt = dwell.middle();
+            suggestion.stopSeconds = (int) dwell.seconds();
+            setPlace(suggestion, dwell.lat(), dwell.lon(), station);
+            suggestion.note = "Paid in Hisaab and stopped at this pump";
+            price(suggestion);
+            save(suggestion);
         });
     }
 
-    private void price(Suggestion s) {
-        if (s.kind != Suggestion.Kind.FUEL) return;
-        FuelType type = s.suggestedVehicleId == null ? FuelType.PETROL
-                : vehicles.findById(s.suggestedVehicleId).map(v -> v.fuelType).orElse(FuelType.PETROL);
-        prices.current(s.region, s.district, type, s.suggestedVehicleId).ifPresent(q -> s.suggestedPrice = q.price());
+    private void price(Suggestion suggestion) {
+        if (suggestion.kind != Suggestion.Kind.FUEL) return;
+        FuelType type = suggestion.suggestedVehicleId == null ? FuelType.PETROL
+                : vehicles.findById(suggestion.suggestedVehicleId).map(v -> v.fuelType).orElse(FuelType.PETROL);
+        prices.current(suggestion.region, suggestion.district, type, suggestion.suggestedVehicleId).ifPresent(quote -> suggestion.suggestedPrice = quote.price());
     }
 
-    private Suggestion save(Suggestion s) {
-        s.updatedAt = Instant.now();
-        return repo.save(s);
+    private Suggestion save(Suggestion suggestion) {
+        suggestion.updatedAt = Instant.now();
+        return repo.save(suggestion);
     }
 
     // ---- your answers -----------------------------------------------------------------------------------------
 
     @Transactional
-    public FuelEntry acceptFuel(Long id, FuelEntries.Input in) {
-        Suggestion s = pending(id, Suggestion.Kind.FUEL);
-        FuelEntry e = new FuelEntry();
-        e.hisaabTxnId = s.hisaabTxnId;
-        e.source = s.hisaabTxnId != null && s.stopAt != null ? FuelEntry.Source.HISAAB_GEOPULSE
-                : s.hisaabTxnId != null ? FuelEntry.Source.HISAAB : FuelEntry.Source.GEOPULSE;
-        FuelEntries.Input withPlace = new FuelEntries.Input(in.vehicleId(), in.filledAt() != null ? in.filledAt() : s.occurredAt,
-                in.odometer(), in.volume(), in.pricePerUnit(), in.totalCost(), in.fullTank(), in.missedPrevious(),
-                in.stationName() != null ? in.stationName() : s.stationName, in.stationBrand() != null ? in.stationBrand() : s.stationBrand,
-                in.latitude() != null ? in.latitude() : s.latitude, in.longitude() != null ? in.longitude() : s.longitude,
-                in.region() != null ? in.region() : s.region, in.district() != null ? in.district() : s.district, in.notes());
-        FuelEntry saved = fuelEntries.save(e, withPlace);
-        s.status = Suggestion.Status.ACCEPTED;
-        save(s);
+    public FuelEntry acceptFuel(Long id, FuelEntries.Input input) {
+        Suggestion suggestion = pending(id, Suggestion.Kind.FUEL);
+        FuelEntry fill = new FuelEntry();
+        fill.hisaabTxnId = suggestion.hisaabTxnId;
+        fill.source = suggestion.hisaabTxnId != null && suggestion.stopAt != null ? FuelEntry.Source.HISAAB_GEOPULSE
+                : suggestion.hisaabTxnId != null ? FuelEntry.Source.HISAAB : FuelEntry.Source.GEOPULSE;
+        FuelEntries.Input withPlace = new FuelEntries.Input(input.vehicleId(), input.filledAt() != null ? input.filledAt() : suggestion.occurredAt,
+                input.odometer(), input.volume(), input.pricePerUnit(), input.totalCost(), input.fullTank(), input.missedPrevious(),
+                input.stationName() != null ? input.stationName() : suggestion.stationName, input.stationBrand() != null ? input.stationBrand() : suggestion.stationBrand,
+                input.latitude() != null ? input.latitude() : suggestion.latitude, input.longitude() != null ? input.longitude() : suggestion.longitude,
+                input.region() != null ? input.region() : suggestion.region, input.district() != null ? input.district() : suggestion.district, input.notes());
+        FuelEntry saved = fuelEntries.save(fill, withPlace);
+        suggestion.status = Suggestion.Status.ACCEPTED;
+        save(suggestion);
         log.debug("Suggestion {} confirmed as fill-up {} on vehicle {}", id, saved.id, saved.vehicleId);
         return saved;
     }
@@ -312,39 +312,39 @@ public class Suggestions {
                                BigDecimal amount, BigDecimal odometer, String vendor, String notes) {}
 
     @Transactional
-    public Expense acceptExpense(Long id, ExpenseInput in) {
-        Suggestion s = pending(id, Suggestion.Kind.EXPENSE);
-        if (in.vehicleId() == null || vehicles.findById(in.vehicleId()).isEmpty()) throw new IllegalArgumentException("Pick a vehicle");
-        Expense e = new Expense();
-        e.vehicleId = in.vehicleId();
-        e.spentOn = in.spentOn() != null ? in.spentOn() : s.occurredAt.atZone(ZoneId.systemDefault()).toLocalDate();
-        e.category = in.category() != null ? in.category() : Expense.Category.OTHER;
-        e.title = in.title() != null && !in.title().isBlank() ? in.title().trim() : Objects.toString(s.payee, "Expense");
-        e.amount = in.amount() != null ? in.amount() : s.amount;
-        e.odometer = in.odometer();
-        e.vendor = in.vendor() != null ? in.vendor() : s.payee;
-        e.notes = in.notes();
-        e.hisaabTxnId = s.hisaabTxnId;
-        Expense saved = expenses.save(e);
-        s.status = Suggestion.Status.ACCEPTED;
-        save(s);
+    public Expense acceptExpense(Long id, ExpenseInput input) {
+        Suggestion suggestion = pending(id, Suggestion.Kind.EXPENSE);
+        if (input.vehicleId() == null || vehicles.findById(input.vehicleId()).isEmpty()) throw new IllegalArgumentException("Pick a vehicle");
+        Expense expense = new Expense();
+        expense.vehicleId = input.vehicleId();
+        expense.spentOn = input.spentOn() != null ? input.spentOn() : suggestion.occurredAt.atZone(ZoneId.systemDefault()).toLocalDate();
+        expense.category = input.category() != null ? input.category() : Expense.Category.OTHER;
+        expense.title = input.title() != null && !input.title().isBlank() ? input.title().trim() : Objects.toString(suggestion.payee, "Expense");
+        expense.amount = input.amount() != null ? input.amount() : suggestion.amount;
+        expense.odometer = input.odometer();
+        expense.vendor = input.vendor() != null ? input.vendor() : suggestion.payee;
+        expense.notes = input.notes();
+        expense.hisaabTxnId = suggestion.hisaabTxnId;
+        Expense saved = expenses.save(expense);
+        suggestion.status = Suggestion.Status.ACCEPTED;
+        save(suggestion);
         log.debug("Suggestion {} confirmed as expense {} on vehicle {}", id, saved.id, saved.vehicleId);
         return saved;
     }
 
     @Transactional
     public void dismiss(Long id, String reason) {
-        Suggestion s = repo.require(id, "Suggestion");
-        s.status = Suggestion.Status.DISMISSED;
-        s.dismissReason = reason == null || reason.isBlank() ? "Dismissed" : reason;
-        save(s);
+        Suggestion suggestion = repo.require(id, "Suggestion");
+        suggestion.status = Suggestion.Status.DISMISSED;
+        suggestion.dismissReason = reason == null || reason.isBlank() ? "Dismissed" : reason;
+        save(suggestion);
         log.debug("Suggestion {} dismissed", id);
     }
 
     private Suggestion pending(Long id, Suggestion.Kind kind) {
-        Suggestion s = repo.require(id, "Suggestion");
-        if (s.kind != kind) throw new IllegalArgumentException("That isn't a " + kind.name().toLowerCase() + " suggestion");
-        if (s.status != Suggestion.Status.PENDING) throw new IllegalStateException("Already " + s.status.name().toLowerCase());
-        return s;
+        Suggestion suggestion = repo.require(id, "Suggestion");
+        if (suggestion.kind != kind) throw new IllegalArgumentException("That isn't a " + kind.name().toLowerCase() + " suggestion");
+        if (suggestion.status != Suggestion.Status.PENDING) throw new IllegalStateException("Already " + suggestion.status.name().toLowerCase());
+        return suggestion;
     }
 }

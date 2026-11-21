@@ -33,11 +33,11 @@ public class FuelPriceSourceClient {
         if (!configured() || state == null) return Optional.empty();
         String url = cfg.url().replace("{state}", enc(state)).replace("{district}", enc(district == null ? "" : district))
                 .replace("{fuel}", fuel.name().toLowerCase());
-        Answer a = http.get().uri(java.net.URI.create(url)).retrieve().body(Answer.class);
-        return Optional.ofNullable(a).map(Answer::price).filter(p -> p.signum() > 0);
+        Answer answer = http.get().uri(java.net.URI.create(url)).retrieve().body(Answer.class);
+        return Optional.ofNullable(answer).map(Answer::price).filter(p -> p.signum() > 0);
     }
 
-    private static String enc(String s) {
-        return URLEncoder.encode(s, StandardCharsets.UTF_8);
+    private static String enc(String text) {
+        return URLEncoder.encode(text, StandardCharsets.UTF_8);
     }
 }

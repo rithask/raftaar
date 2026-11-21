@@ -76,9 +76,9 @@ public class Account implements org.springframework.beans.factory.SmartInitializ
     }
 
     /** Creates the account from a first sign-in with the provider and links that provider account to it. */
-    public synchronized boolean createFromProvider(Pending p, String username) {
+    public synchronized boolean createFromProvider(Pending provider, String username) {
         if (!create(username, null)) return false;
-        link(p);
+        link(provider);
         return true;
     }
 
@@ -102,11 +102,11 @@ public class Account implements org.springframework.beans.factory.SmartInitializ
                 id == null ? null : settings.instant(LINK_AT).orElse(null));
     }
 
-    public void link(Pending p) {
-        settings.set(LINK_ID, p.id());
-        settings.set(LINK_EMAIL, p.email() == null ? "" : p.email());
+    public void link(Pending provider) {
+        settings.set(LINK_ID, provider.id());
+        settings.set(LINK_EMAIL, provider.email() == null ? "" : provider.email());
         settings.set(LINK_AT, Instant.now().toString());
-        log.info("{} account {} linked", props.oidc().name(), p.email() == null ? p.id() : p.email());
+        log.info("{} account {} linked", props.oidc().name(), provider.email() == null ? provider.id() : provider.email());
     }
 
     public void unlink() {
@@ -147,7 +147,7 @@ public class Account implements org.springframework.beans.factory.SmartInitializ
         return raw.startsWith("{") ? raw : encoder.encode(raw);
     }
 
-    private static boolean notBlank(String s) {
-        return s != null && !s.isBlank();
+    private static boolean notBlank(String text) {
+        return text != null && !text.isBlank();
     }
 }

@@ -39,24 +39,24 @@ public final class Economy {
         Fill anchor = null;
         BigDecimal volume = BigDecimal.ZERO, cost = BigDecimal.ZERO;
         BigDecimal totalDistance = BigDecimal.ZERO, totalVolume = BigDecimal.ZERO, totalCost = BigDecimal.ZERO;
-        for (Fill f : fills) {
-            if (anchor == null || f.missedPrevious()) {
-                anchor = f.fullTank() ? f : null;
+        for (Fill fill : fills) {
+            if (anchor == null || fill.missedPrevious()) {
+                anchor = fill.fullTank() ? fill : null;
                 volume = BigDecimal.ZERO;
                 cost = BigDecimal.ZERO;
                 continue;
             }
-            volume = volume.add(f.volume());
-            cost = cost.add(f.cost());
-            if (!f.fullTank()) continue;
-            BigDecimal distance = f.odometer().subtract(anchor.odometer());
+            volume = volume.add(fill.volume());
+            cost = cost.add(fill.cost());
+            if (!fill.fullTank()) continue;
+            BigDecimal distance = fill.odometer().subtract(anchor.odometer());
             if (distance.signum() > 0 && volume.signum() > 0) {
-                out.put(f.id(), new Stretch(f.id(), distance, volume, cost, distance.divide(volume, 2, RoundingMode.HALF_UP)));
+                out.put(fill.id(), new Stretch(fill.id(), distance, volume, cost, distance.divide(volume, 2, RoundingMode.HALF_UP)));
                 totalDistance = totalDistance.add(distance);
                 totalVolume = totalVolume.add(volume);
                 totalCost = totalCost.add(cost);
             }
-            anchor = f;
+            anchor = fill;
             volume = BigDecimal.ZERO;
             cost = BigDecimal.ZERO;
         }

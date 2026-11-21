@@ -46,10 +46,10 @@ public class GeoPulseClient {
     record PointPage(List<Point> items, int page, int totalPages) {}
 
     public Timeline timeline(Instant from, Instant to) {
-        Timeline t = http.get().uri(u -> u.path("/api/v1/timeline").queryParam("from", from.toString()).queryParam("to", to.toString()).build())
+        Timeline timeline = http.get().uri(uri -> uri.path("/api/v1/timeline").queryParam("from", from.toString()).queryParam("to", to.toString()).build())
                 .retrieve().body(Timeline.class);
-        if (t == null) return new Timeline(List.of(), List.of());
-        return new Timeline(t.stays() == null ? List.of() : t.stays(), t.trips() == null ? List.of() : t.trips());
+        if (timeline == null) return new Timeline(List.of(), List.of());
+        return new Timeline(timeline.stays() == null ? List.of() : timeline.stays(), timeline.trips() == null ? List.of() : timeline.trips());
     }
 
     /** Raw GPS points, oldest first, at most {@code maxPoints}. */

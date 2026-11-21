@@ -47,12 +47,12 @@ public class HisaabClient {
     /** Transactions created or changed at or after {@code updatedSince}; or, the first time, everything since a day. */
     public Page changes(java.time.Instant updatedSince, LocalDate since, String cursor) {
         // An Instant prints with Z, never +05:30: a bare + in a query string would be read as a space.
-        return http.get().uri(u -> {
-            var b = u.path("/api/v1/transactions").queryParam("limit", 200);
-            if (updatedSince != null) b.queryParam("updated_since", updatedSince.toString());
-            if (since != null) b.queryParam("since", since.toString());
-            if (cursor != null) b.queryParam("cursor", cursor);
-            return b.build();
+        return http.get().uri(uri -> {
+            var builder = uri.path("/api/v1/transactions").queryParam("limit", 200);
+            if (updatedSince != null) builder.queryParam("updated_since", updatedSince.toString());
+            if (since != null) builder.queryParam("since", since.toString());
+            if (cursor != null) builder.queryParam("cursor", cursor);
+            return builder.build();
         }).retrieve().body(Page.class);
     }
 

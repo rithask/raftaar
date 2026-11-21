@@ -84,22 +84,22 @@ public class GeoPulseSync extends SyncJob {
 
     private String sync() {
         Instant to = Instant.now();
-        Instant from = settings.instant("geopulse.syncedTo").map(t -> t.minus(OVERLAP))
+        Instant from = settings.instant("geopulse.syncedTo").map(syncedTo -> syncedTo.minus(OVERLAP))
                 .orElse(to.minus(Duration.ofDays(cfg.importDays())));
         var timeline = client.timeline(from, to);
         log.debug("GeoPulse timeline from {}: {} trips, {} stays", from, timeline.trips().size(), timeline.stays().size());
         List<String> types = cfg.movementTypeList();
 
         int added = 0, stops = 0;
-        for (var t : timeline.trips()) {
-            if (t.id() == null || t.timestamp() == null) continue;
-            String type = t.movementType() == null ? "UNKNOWN" : t.movementType().toUpperCase();
+        for (var trip : timeline.trips()) {
+            if (trip.id() == null || trip.timestamp() == null) continue;
+            String type = trip.movementType() == null ? "UNKNOWN" : trip.movementType().toUpperCase();
             if (!types.contains(type)) continue;
-            if (upsertTrip(t, type)) added++;
+            if (upsertTrip(trip, type)) added++;
         }
-        for (var s : timeline.stays()) {
-            if (s.timestamp() == null || s.latitude() == null || s.stayDuration() == null || s.stayDuration() > MAX_STAY_SECONDS) continue;
-            if (suggestions.fromStop(s.timestamp(), s.stayDuration(), s.latitude(), s.longitude()).isPresent()) stops++;
+        for (var stay : timeline.stays()) {
+            if (stay.timestamp() == null || stay.latitude() == null || stay.stayDuration() == null || stay.stayDuration() > MAX_STAY_SECONDS) continue;
+            if (suggestions.fromStop(stay.timestamp(), stay.stayDuration(), stay.latitude(), stay.longitude()).isPresent()) stops++;
         }
         for (Trip trip : trips.findByStopsCheckedFalseAndStatusNot(Trip.Status.IGNORED)) {
             stops += stopsInTrip(trip);
@@ -111,30 +111,30 @@ public class GeoPulseSync extends SyncJob {
     }
 
     /** True when the trip is new. */
-    private boolean upsertTrip(GeoPulseClient.Trip t, String type) {
-        Trip trip = trips.findByGeopulseId(t.id()).orElse(null);
+    private boolean upsertTrip(GeoPulseClient.Trip found, String type) {
+        Trip trip = trips.findByGeopulseId(found.id()).orElse(null);
         if (trip == null) {
             // A rebuilt timeline gives trips new ids: the same start time is the same trip.
-            trip = trips.findByStartedAtBetween(t.timestamp().minusSeconds(90), t.timestamp().plusSeconds(90)).stream().findFirst().orElse(null);
+            trip = trips.findByStartedAtBetween(found.timestamp().minusSeconds(90), found.timestamp().plusSeconds(90)).stream().findFirst().orElse(null);
         }
         boolean isNew = trip == null;
         if (isNew) trip = new Trip();
-        trip.geopulseId = t.id();
-        trip.startedAt = t.timestamp();
-        trip.endedAt = t.timestamp().plusSeconds(t.tripDuration() == null ? 0 : t.tripDuration());
-        trip.distanceM = BigDecimal.valueOf(t.distanceMeters() == null ? 0 : t.distanceMeters());
+        trip.geopulseId = found.id();
+        trip.startedAt = found.timestamp();
+        trip.endedAt = found.timestamp().plusSeconds(found.tripDuration() == null ? 0 : found.tripDuration());
+        trip.distanceM = BigDecimal.valueOf(found.distanceMeters() == null ? 0 : found.distanceMeters());
         trip.movementType = type;
-        trip.startLat = t.latitude();
-        trip.startLon = t.longitude();
-        trip.endLat = t.endLatitude();
-        trip.endLon = t.endLongitude();
+        trip.startLat = found.latitude();
+        trip.startLon = found.longitude();
+        trip.endLat = found.endLatitude();
+        trip.endLon = found.endLongitude();
         if (isNew) {
-            Trip tr = trip;
-            suggestions.vehicleForMovement(type).ifPresent(v -> tr.suggestedVehicleId = v.id);
+            Trip created = trip;
+            suggestions.vehicleForMovement(type).ifPresent(v -> created.suggestedVehicleId = v.id);
             if (cfg.autoAssign()) {
                 suggestions.onlyVehicleFor(type).ifPresent(v -> {
-                    tr.vehicleId = v.id;
-                    tr.status = Trip.Status.ASSIGNED;
+                    created.vehicleId = v.id;
+                    created.status = Trip.Status.ASSIGNED;
                 });
             }
         }
@@ -146,11 +146,11 @@ public class GeoPulseSync extends SyncJob {
     private int stopsInTrip(Trip trip) {
         try {
             var points = client.points(trip.startedAt, trip.endedAt, 5000).stream()
-                    .filter(p -> p.coordinates() != null && (p.accuracy() == null || p.accuracy() <= 50))
-                    .map(p -> new Dwells.Point(p.timestamp(), p.coordinates().lat(), p.coordinates().lng())).toList();
+                    .filter(point -> point.coordinates() != null && (point.accuracy() == null || point.accuracy() <= 50))
+                    .map(point -> new Dwells.Point(point.timestamp(), point.coordinates().lat(), point.coordinates().lng())).toList();
             int found = 0;
-            for (var d : Dwells.find(points, 40, 60, MAX_STAY_SECONDS)) {
-                if (suggestions.fromStop(d.middle(), d.seconds(), d.lat(), d.lon()).isPresent()) found++;
+            for (var dwell : Dwells.find(points, 40, 60, MAX_STAY_SECONDS)) {
+                if (suggestions.fromStop(dwell.middle(), dwell.seconds(), dwell.lat(), dwell.lon()).isPresent()) found++;
             }
             return found;
         } catch (Exception e) {
@@ -164,13 +164,13 @@ public class GeoPulseSync extends SyncJob {
         if (!client.configured()) return;
         try {
             var points = client.points(paidAt.minus(Duration.ofMinutes(45)), paidAt.plus(Duration.ofMinutes(15)), 3000).stream()
-                    .filter(p -> p.coordinates() != null && (p.accuracy() == null || p.accuracy() <= 50))
-                    .map(p -> new Dwells.Point(p.timestamp(), p.coordinates().lat(), p.coordinates().lng())).toList();
-            for (var d : Dwells.find(points, 40, 30, MAX_STAY_SECONDS).reversed()) {
-                var pump = places.nearestStation(d.lat(), d.lon(), 80);
+                    .filter(point -> point.coordinates() != null && (point.accuracy() == null || point.accuracy() <= 50))
+                    .map(point -> new Dwells.Point(point.timestamp(), point.coordinates().lat(), point.coordinates().lng())).toList();
+            for (var dwell : Dwells.find(points, 40, 30, MAX_STAY_SECONDS).reversed()) {
+                var pump = places.nearestStation(dwell.lat(), dwell.lon(), 80);
                 if (pump.isPresent()) {
                     log.debug("Suggestion {}: found the stop at {} for the payment", suggestionId, pump.get().station().name);
-                    suggestions.attachStop(suggestionId, d, pump.get().station());
+                    suggestions.attachStop(suggestionId, dwell, pump.get().station());
                     return;
                 }
             }

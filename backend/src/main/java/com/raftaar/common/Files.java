@@ -23,16 +23,16 @@ public class Files {
         java.nio.file.Files.createDirectories(root.resolve("documents"));
     }
 
-    public String saveImage(MultipartFile f) throws IOException {
-        return save("vehicles", f, IMAGE);
+    public String saveImage(MultipartFile file) throws IOException {
+        return save("vehicles", file, IMAGE);
     }
 
-    public String saveDocument(MultipartFile f) throws IOException {
-        return save("documents", f, DOC);
+    public String saveDocument(MultipartFile file) throws IOException {
+        return save("documents", file, DOC);
     }
 
-    private String save(String folder, MultipartFile f, Set<String> allowed) throws IOException {
-        String type = f.getContentType();
+    private String save(String folder, MultipartFile file, Set<String> allowed) throws IOException {
+        String type = file.getContentType();
         if (type == null || !allowed.contains(type)) throw new IllegalArgumentException("That kind of file isn't supported (" + type + ")");
         String ext = switch (type) {
             case "image/jpeg" -> ".jpg";
@@ -43,16 +43,16 @@ public class Files {
             default -> ".pdf";
         };
         String name = folder + "/" + UUID.randomUUID() + ext;
-        try (var in = f.getInputStream()) {
+        try (var in = file.getInputStream()) {
             java.nio.file.Files.copy(in, resolve(name), StandardCopyOption.REPLACE_EXISTING);
         }
         return name;
     }
 
     public Path resolve(String name) {
-        Path p = root.resolve(name).normalize();
-        if (!p.startsWith(root)) throw new IllegalArgumentException("Bad file name");
-        return p;
+        Path path = root.resolve(name).normalize();
+        if (!path.startsWith(root)) throw new IllegalArgumentException("Bad file name");
+        return path;
     }
 
     public void delete(String name) {

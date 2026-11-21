@@ -33,8 +33,8 @@ public final class OidcSupport {
         @Override
         public ClientRegistration findByRegistrationId(String id) {
             if (!REGISTRATION_ID.equals(id)) return null;
-            ClientRegistration r = registration;
-            if (r != null) return r;
+            ClientRegistration current = registration;
+            if (current != null) return current;
             synchronized (this) {
                 if (registration == null) {
                     registration = ClientRegistrations.fromIssuerLocation(cfg.issuerUri().trim())

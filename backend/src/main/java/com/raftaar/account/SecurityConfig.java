@@ -112,8 +112,8 @@ public class SecurityConfig {
 
     /** The username for an account set up by signing in with the provider. */
     private static String usernameFor(OidcUser user) {
-        for (String s : new String[]{user.getPreferredUsername(), user.getEmail(), user.getGivenName()}) {
-            if (s != null && !s.isBlank()) return s.trim();
+        for (String candidate : new String[]{user.getPreferredUsername(), user.getEmail(), user.getGivenName()}) {
+            if (candidate != null && !candidate.isBlank()) return candidate.trim();
         }
         return "owner";
     }

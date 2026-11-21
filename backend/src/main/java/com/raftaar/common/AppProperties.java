@@ -81,10 +81,10 @@ public record AppProperties(Auth auth, Oidc oidc, Storage storage, GeoPulse geop
 
     public record Alerts(String cron) {}
 
-    static boolean notBlank(String s) { return s != null && !s.isBlank(); }
+    static boolean notBlank(String text) { return text != null && !text.isBlank(); }
 
-    static List<String> list(String s) {
-        if (s == null || s.isBlank()) return List.of();
-        return Arrays.stream(s.split(",")).map(String::trim).filter(x -> !x.isEmpty()).toList();
+    static List<String> list(String text) {
+        if (text == null || text.isBlank()) return List.of();
+        return Arrays.stream(text.split(",")).map(String::trim).filter(x -> !x.isEmpty()).toList();
     }
 }

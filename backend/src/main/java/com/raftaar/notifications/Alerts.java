@@ -93,7 +93,7 @@ public class Alerts extends SyncJob {
     }
 
     private String check() {
-        Map<Long, Vehicle> byId = vehicles.findAll().stream().collect(Collectors.toMap(v -> v.id, Function.identity()));
+        Map<Long, Vehicle> byId = vehicles.findAll().stream().collect(Collectors.toMap(vehicle -> vehicle.id, Function.identity()));
         LocalDate today = LocalDate.now();
         List<String> lines = new ArrayList<>();
         List<Runnable> afterSend = new ArrayList<>();
@@ -103,45 +103,45 @@ public class Alerts extends SyncJob {
         var odometers = new java.util.HashMap<Long, VehicleStats.Odometer>();
         stats.odometerHistories(byId.values().stream().filter(vehicle -> !vehicle.archived).toList())
                 .forEach((vehicleId, history) -> odometers.put(vehicleId, stats.odometer(history)));
-        for (Reminder r : reminders.findByActiveTrue()) {
-            Vehicle v = byId.get(r.vehicleId);
-            if (v == null || v.archived) continue;
-            var odo = odometers.get(v.id);
-            var current = odo.estimated() != null ? odo.estimated() : odo.known();
-            var status = ReminderState.of(r, current, odo.kmPerDay(), today);
+        for (Reminder reminder : reminders.findByActiveTrue()) {
+            Vehicle vehicle = byId.get(reminder.vehicleId);
+            if (vehicle == null || vehicle.archived) continue;
+            var odometer = odometers.get(vehicle.id);
+            var current = odometer.estimated() != null ? odometer.estimated() : odometer.known();
+            var status = ReminderState.of(reminder, current, odometer.kmPerDay(), today);
             var state = status.state();
             if (state != ReminderState.State.DUE_SOON && state != ReminderState.State.OVERDUE) continue;
-            boolean changed = !state.name().equals(r.lastNotifiedState);
-            boolean weeklyAgain = state == ReminderState.State.OVERDUE && r.lastNotifiedAt != null
-                    && r.lastNotifiedAt.isBefore(Instant.now().minus(Duration.ofDays(7)));
+            boolean changed = !state.name().equals(reminder.lastNotifiedState);
+            boolean weeklyAgain = state == ReminderState.State.OVERDUE && reminder.lastNotifiedAt != null
+                    && reminder.lastNotifiedAt.isBefore(Instant.now().minus(Duration.ofDays(7)));
             if (!changed && !weeklyAgain) continue;
             anyOverdue |= state == ReminderState.State.OVERDUE;
-            lines.add("• " + v.name + ": " + r.title + " — " + status.summary());
-            log.debug("Reminder {} on vehicle {} is {}{}", r.id, v.id, state, changed ? "" : " (weekly repeat)");
+            lines.add("• " + vehicle.name + ": " + reminder.title + " — " + status.summary());
+            log.debug("Reminder {} on vehicle {} is {}{}", reminder.id, vehicle.id, state, changed ? "" : " (weekly repeat)");
             afterSend.add(() -> {
-                r.lastNotifiedState = state.name();
-                r.lastNotifiedAt = Instant.now();
-                reminders.save(r);
+                reminder.lastNotifiedState = state.name();
+                reminder.lastNotifiedAt = Instant.now();
+                reminders.save(reminder);
             });
         }
 
-        for (Document d : documents.findByExpiresOnNotNull()) {
-            Vehicle v = d.vehicleId == null ? null : byId.get(d.vehicleId);
-            if (v != null && v.archived) continue;
-            long days = ChronoUnit.DAYS.between(today, d.expiresOn);
-            Integer step = step(d, days);
+        for (Document paper : documents.findByExpiresOnNotNull()) {
+            Vehicle vehicle = paper.vehicleId == null ? null : byId.get(paper.vehicleId);
+            if (vehicle != null && vehicle.archived) continue;
+            long days = ChronoUnit.DAYS.between(today, paper.expiresOn);
+            Integer step = step(paper, days);
             if (step == null) continue;
-            if (d.expiresOn.equals(d.lastNotifiedExpiry) && d.lastNotifiedDays != null && d.lastNotifiedDays <= step) continue;
+            if (paper.expiresOn.equals(paper.lastNotifiedExpiry) && paper.lastNotifiedDays != null && paper.lastNotifiedDays <= step) continue;
             anyOverdue |= days < 0;
-            String who = v == null ? "Your" : v.name + ":";
-            String when = days < 0 ? "expired on " + DAY.format(d.expiresOn) : days == 0 ? "expires today" : days == 1 ? "expires tomorrow"
-                    : "expires in " + days + " days (" + DAY.format(d.expiresOn) + ")";
-            lines.add("• " + who + " " + d.title + " " + when);
-            log.debug("Paper {} {} (warning step {})", d.id, when, step);
+            String who = vehicle == null ? "Your" : vehicle.name + ":";
+            String when = days < 0 ? "expired on " + DAY.format(paper.expiresOn) : days == 0 ? "expires today" : days == 1 ? "expires tomorrow"
+                    : "expires in " + days + " days (" + DAY.format(paper.expiresOn) + ")";
+            lines.add("• " + who + " " + paper.title + " " + when);
+            log.debug("Paper {} {} (warning step {})", paper.id, when, step);
             afterSend.add(() -> {
-                d.lastNotifiedExpiry = d.expiresOn;
-                d.lastNotifiedDays = step;
-                documents.save(d);
+                paper.lastNotifiedExpiry = paper.expiresOn;
+                paper.lastNotifiedDays = step;
+                documents.save(paper);
             });
         }
 
@@ -159,11 +159,11 @@ public class Alerts extends SyncJob {
     }
 
     /** Which warning step a document is at today, or null if none yet. */
-    static Integer step(Document d, long days) {
+    static Integer step(Document paper, long days) {
         if (days < DOC_STEPS[DOC_STEPS.length - 1]) return days >= -7 ? -1 : null; // still warn once if it expired in the last week (e.g. the app was down)
         Integer step = null;
-        if (days <= d.remindDaysBefore) step = d.remindDaysBefore;
-        for (int s : DOC_STEPS) if (days <= s) step = s;
+        if (days <= paper.remindDaysBefore) step = paper.remindDaysBefore;
+        for (int warningStep : DOC_STEPS) if (days <= warningStep) step = warningStep;
         return step;
     }
 }

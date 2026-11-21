@@ -33,10 +33,10 @@ public class AccountController {
     public record UsernameIn(String username) {}
 
     @PutMapping("/username")
-    public ResponseEntity<?> rename(@RequestBody UsernameIn in) {
-        String problem = Validation.username(in.username());
+    public ResponseEntity<?> rename(@RequestBody UsernameIn input) {
+        String problem = Validation.username(input.username());
         if (problem != null) return AuthController.error(400, problem);
-        account.rename(in.username());
+        account.rename(input.username());
         return ResponseEntity.ok(view());
     }
 
@@ -44,11 +44,11 @@ public class AccountController {
     public record PasswordIn(String current, String password) {}
 
     @PutMapping("/password")
-    public ResponseEntity<?> password(@RequestBody PasswordIn in) {
-        if (account.hasPassword() && !account.passwordMatches(in.current())) return AuthController.error(400, "Your current password isn't right");
-        String problem = Validation.password(in.password());
+    public ResponseEntity<?> password(@RequestBody PasswordIn input) {
+        if (account.hasPassword() && !account.passwordMatches(input.current())) return AuthController.error(400, "Your current password isn't right");
+        String problem = Validation.password(input.password());
         if (problem != null) return AuthController.error(400, problem);
-        account.setPassword(in.password());
+        account.setPassword(input.password());
         LoggerFactory.getLogger("com.raftaar.security").info("Password changed");
         return ResponseEntity.ok(view());
     }

@@ -40,13 +40,13 @@ public class AppriseClient {
     /** Is the CLI there at all? Returns its version line, or null. */
     public String version() {
         try {
-            Process p = new ProcessBuilder(binary, "--version").redirectErrorStream(true).start();
-            if (!p.waitFor(20, TimeUnit.SECONDS)) {
-                p.destroyForcibly();
+            Process process = new ProcessBuilder(binary, "--version").redirectErrorStream(true).start();
+            if (!process.waitFor(20, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
                 return null;
             }
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
-            return p.exitValue() == 0 && !out.isEmpty() ? out.lines().findFirst().orElse(null) : null;
+            String out = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+            return process.exitValue() == 0 && !out.isEmpty() ? out.lines().findFirst().orElse(null) : null;
         } catch (IOException e) {
             return null;
         } catch (InterruptedException e) {
@@ -59,19 +59,19 @@ public class AppriseClient {
         List<String> cmd = new ArrayList<>();
         cmd.add(binary);
         cmd.addAll(List.of(args));
-        ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true);
-        pb.environment().put("APPRISE_URLS", url);
+        ProcessBuilder builder = new ProcessBuilder(cmd).redirectErrorStream(true);
+        builder.environment().put("APPRISE_URLS", url);
         try {
-            Process p = pb.start();
-            try (var in = p.getOutputStream()) {
+            Process process = builder.start();
+            try (var in = process.getOutputStream()) {
                 in.write(stdin.getBytes(StandardCharsets.UTF_8));
             }
-            if (!p.waitFor(60, TimeUnit.SECONDS)) {
-                p.destroyForcibly();
+            if (!process.waitFor(60, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
                 return new Result(false, "Apprise took longer than a minute");
             }
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
-            return new Result(p.exitValue() == 0, clean(out, p.exitValue()));
+            String out = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+            return new Result(process.exitValue() == 0, clean(out, process.exitValue()));
         } catch (IOException e) {
             return new Result(false, "Can't run Apprise (" + binary + "): " + e.getMessage());
         } catch (InterruptedException e) {

@@ -16,21 +16,21 @@ import java.util.List;
 public final class Sessions {
     private Sessions() {}
 
-    public static void signIn(HttpServletRequest req, HttpServletResponse res, SecurityContextRepository contexts, String username) {
-        req.getSession(true);
-        req.changeSessionId(); // a new id on every sign-in, so a planted session id is useless
-        var a = new UsernamePasswordAuthenticationToken(username, null, List.of(new SimpleGrantedAuthority("ROLE_OWNER")));
+    public static void signIn(HttpServletRequest request, HttpServletResponse response, SecurityContextRepository contexts, String username) {
+        request.getSession(true);
+        request.changeSessionId(); // a new id on every sign-in, so a planted session id is useless
+        var authentication = new UsernamePasswordAuthenticationToken(username, null, List.of(new SimpleGrantedAuthority("ROLE_OWNER")));
         var ctx = SecurityContextHolder.createEmptyContext();
-        ctx.setAuthentication(a);
+        ctx.setAuthentication(authentication);
         SecurityContextHolder.setContext(ctx);
-        contexts.saveContext(ctx, req, res);
+        contexts.saveContext(ctx, request, response);
     }
 
     /** Undoes a sign-in that was saved to the session (a provider sign-in that isn't allowed in, or not yet). */
-    public static void drop(HttpServletRequest req) {
+    public static void drop(HttpServletRequest request) {
         SecurityContextHolder.clearContext();
-        var s = req.getSession(false);
-        if (s != null) s.removeAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
+        var session = request.getSession(false);
+        if (session != null) session.removeAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
     }
 
     public static String loginError(String message) {

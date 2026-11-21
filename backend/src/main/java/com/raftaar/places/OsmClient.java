@@ -68,8 +68,8 @@ public class OsmClient {
 
     public Address reverse(double lat, double lon) {
         String base = cfg.nominatimUrl().replaceAll("/+$", "");
-        Reverse r = nominatim.call(() -> http.get().uri(base + "/reverse?format=jsonv2&zoom=10&addressdetails=1&accept-language=en&lat={lat}&lon={lon}", lat, lon)
+        Reverse answer = nominatim.call(() -> http.get().uri(base + "/reverse?format=jsonv2&zoom=10&addressdetails=1&accept-language=en&lat={lat}&lon={lon}", lat, lon)
                 .retrieve().body(Reverse.class));
-        return r == null ? null : r.address();
+        return answer == null ? null : answer.address();
     }
 }

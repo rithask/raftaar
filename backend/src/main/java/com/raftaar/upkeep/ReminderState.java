@@ -18,9 +18,9 @@ public final class ReminderState {
     public record Status(State state, LocalDate dueOn, BigDecimal dueOdometer, Long daysLeft, BigDecimal kmLeft,
                          LocalDate projectedOn, String summary) {}
 
-    public static Status of(Reminder r, BigDecimal odometer, BigDecimal kmPerDay, LocalDate today) {
-        LocalDate dueOn = r.effectiveDueOn();
-        BigDecimal dueOdo = r.effectiveDueOdometer();
+    public static Status of(Reminder reminder, BigDecimal odometer, BigDecimal kmPerDay, LocalDate today) {
+        LocalDate dueOn = reminder.effectiveDueOn();
+        BigDecimal dueOdo = reminder.effectiveDueOdometer();
         if (dueOn == null && dueOdo == null) return new Status(State.UNKNOWN, null, null, null, null, null, "Set when it was last done");
 
         Long daysLeft = dueOn == null ? null : ChronoUnit.DAYS.between(today, dueOn);
@@ -31,23 +31,23 @@ public final class ReminderState {
         }
 
         boolean overdue = (daysLeft != null && daysLeft < 0) || (kmLeft != null && kmLeft.signum() <= 0);
-        boolean soon = (daysLeft != null && daysLeft <= r.notifyDaysBefore)
-                || (kmLeft != null && kmLeft.compareTo(BigDecimal.valueOf(r.notifyKmBefore)) <= 0)
-                || (projected != null && ChronoUnit.DAYS.between(today, projected) <= r.notifyDaysBefore);
+        boolean soon = (daysLeft != null && daysLeft <= reminder.notifyDaysBefore)
+                || (kmLeft != null && kmLeft.compareTo(BigDecimal.valueOf(reminder.notifyKmBefore)) <= 0)
+                || (projected != null && ChronoUnit.DAYS.between(today, projected) <= reminder.notifyDaysBefore);
         State state = overdue ? State.OVERDUE : soon ? State.DUE_SOON : State.OK;
         return new Status(state, dueOn, dueOdo, daysLeft, kmLeft, projected, summary(state, daysLeft, kmLeft));
     }
 
     private static String summary(State state, Long daysLeft, BigDecimal kmLeft) {
-        StringBuilder s = new StringBuilder();
+        StringBuilder text = new StringBuilder();
         if (kmLeft != null) {
             long km = kmLeft.setScale(0, RoundingMode.HALF_UP).longValue();
-            s.append(km >= 0 ? "in " + String.format("%,d", km) + " km" : String.format("%,d", -km) + " km over");
+            text.append(km >= 0 ? "in " + String.format("%,d", km) + " km" : String.format("%,d", -km) + " km over");
         }
         if (daysLeft != null) {
-            if (!s.isEmpty()) s.append(" or ");
-            s.append(daysLeft > 1 ? "in " + daysLeft + " days" : daysLeft == 1 ? "tomorrow" : daysLeft == 0 ? "today" : -daysLeft + " days late");
+            if (!text.isEmpty()) text.append(" or ");
+            text.append(daysLeft > 1 ? "in " + daysLeft + " days" : daysLeft == 1 ? "tomorrow" : daysLeft == 0 ? "today" : -daysLeft + " days late");
         }
-        return (state == State.OVERDUE ? "Overdue: " : "Due ") + s;
+        return (state == State.OVERDUE ? "Overdue: " : "Due ") + text;
     }
 }

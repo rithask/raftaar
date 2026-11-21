@@ -23,9 +23,9 @@ public class Settings {
     }
 
     public void set(String key, Object value) {
-        AppSetting s = repo.findById(key).orElseGet(AppSetting::new);
-        s.key = key;
-        s.value = value == null ? null : value.toString();
-        repo.save(s);
+        AppSetting setting = repo.findById(key).orElseGet(AppSetting::new);
+        setting.key = key;
+        setting.value = value == null ? null : value.toString();
+        repo.save(setting);
     }
 }

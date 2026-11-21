@@ -113,9 +113,9 @@ public class RequestLimiter {
 
     /** Busy or unreachable, worth asking again later: 429, 5xx, timeouts and connection failures. */
     static boolean retryable(RuntimeException e) {
-        if (e instanceof RestClientResponseException r) {
-            HttpStatusCode s = r.getStatusCode();
-            return s.value() == 429 || s.is5xxServerError();
+        if (e instanceof RestClientResponseException response) {
+            HttpStatusCode status = response.getStatusCode();
+            return status.value() == 429 || status.is5xxServerError();
         }
         return e instanceof ResourceAccessException;
     }
@@ -139,15 +139,15 @@ public class RequestLimiter {
 
     /** Retry-After in seconds or as an HTTP date; 0 when absent or unreadable. Capped at the longest pause. */
     long retryAfterNanos(RuntimeException e) {
-        if (!(e instanceof RestClientResponseException r) || r.getResponseHeaders() == null) return 0;
-        String v = r.getResponseHeaders().getFirst("Retry-After");
-        if (v == null || v.isBlank()) return 0;
+        if (!(e instanceof RestClientResponseException response) || response.getResponseHeaders() == null) return 0;
+        String header = response.getResponseHeaders().getFirst("Retry-After");
+        if (header == null || header.isBlank()) return 0;
         long nanos;
         try {
-            nanos = TimeUnit.SECONDS.toNanos(Long.parseLong(v.trim()));
+            nanos = TimeUnit.SECONDS.toNanos(Long.parseLong(header.trim()));
         } catch (NumberFormatException notSeconds) {
             try {
-                var at = ZonedDateTime.parse(v.trim(), DateTimeFormatter.RFC_1123_DATE_TIME).toInstant();
+                var at = ZonedDateTime.parse(header.trim(), DateTimeFormatter.RFC_1123_DATE_TIME).toInstant();
                 nanos = Duration.between(Instant.now(), at).toNanos();
             } catch (RuntimeException unreadable) {
                 return 0;

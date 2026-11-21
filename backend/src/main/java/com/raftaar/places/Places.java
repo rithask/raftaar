@@ -67,28 +67,28 @@ public class Places {
     }
 
     private Void fetchTile(String key, long ty, long tx) {
-        var tile = tiles.findById(key);
-        if (fresh(tile.orElse(null))) return null; // fetched by someone else a moment ago
+        var stored = tiles.findById(key);
+        if (fresh(stored.orElse(null))) return null; // fetched by someone else a moment ago
         double south = ty * TILE - PAD, west = tx * TILE - PAD, north = (ty + 1) * TILE + PAD, east = (tx + 1) * TILE + PAD;
-        for (var e : osm.fuelStations(south, west, north, east)) {
-            FuelStation s = new FuelStation();
-            s.osmId = e.type() + "/" + e.id();
-            var tags = e.tags() == null ? java.util.Map.<String, String>of() : e.tags();
-            s.name = Text.firstNonBlank(tags.get("name"), tags.get("brand"), tags.get("operator"));
-            s.brand = Text.firstNonBlank(tags.get("brand"), tags.get("operator"));
-            s.latitude = e.latitude();
-            s.longitude = e.longitude();
-            stations.save(s);
+        for (var element : osm.fuelStations(south, west, north, east)) {
+            FuelStation station = new FuelStation();
+            station.osmId = element.type() + "/" + element.id();
+            var tags = element.tags() == null ? java.util.Map.<String, String>of() : element.tags();
+            station.name = Text.firstNonBlank(tags.get("name"), tags.get("brand"), tags.get("operator"));
+            station.brand = Text.firstNonBlank(tags.get("brand"), tags.get("operator"));
+            station.latitude = element.latitude();
+            station.longitude = element.longitude();
+            stations.save(station);
         }
-        MapTile t = tile.orElseGet(MapTile::new);
-        t.tileKey = key;
-        t.fetchedAt = Instant.now();
-        tiles.save(t);
+        MapTile tile = stored.orElseGet(MapTile::new);
+        tile.tileKey = key;
+        tile.fetchedAt = Instant.now();
+        tiles.save(tile);
         return null;
     }
 
-    private static boolean fresh(MapTile t) {
-        return t != null && t.fetchedAt.isAfter(Instant.now().minus(TILE_TTL));
+    private static boolean fresh(MapTile tile) {
+        return tile != null && tile.fetchedAt.isAfter(Instant.now().minus(TILE_TTL));
     }
 
     public Optional<Region> region(double lat, double lon) {
@@ -107,22 +107,22 @@ public class Places {
     private Optional<Region> lookUp(String key, double lat, double lon) {
         var cached = geocodes.findById(key);
         if (fresh(cached.orElse(null))) return toRegion(cached.get()); // looked up by someone else a moment ago
-        var a = osm.reverse(lat, lon);
-        Geocode g = cached.orElseGet(Geocode::new);
-        g.cellKey = key;
-        g.region = a == null ? null : a.state();
-        g.district = a == null ? null : Text.firstNonBlank(a.stateDistrict(), a.county(), a.city());
-        g.fetchedAt = Instant.now();
-        geocodes.save(g);
-        return toRegion(g);
+        var address = osm.reverse(lat, lon);
+        Geocode geocode = cached.orElseGet(Geocode::new);
+        geocode.cellKey = key;
+        geocode.region = address == null ? null : address.state();
+        geocode.district = address == null ? null : Text.firstNonBlank(address.stateDistrict(), address.county(), address.city());
+        geocode.fetchedAt = Instant.now();
+        geocodes.save(geocode);
+        return toRegion(geocode);
     }
 
-    private static boolean fresh(Geocode g) {
-        return g != null && g.fetchedAt.isAfter(Instant.now().minus(GEOCODE_TTL));
+    private static boolean fresh(Geocode geocode) {
+        return geocode != null && geocode.fetchedAt.isAfter(Instant.now().minus(GEOCODE_TTL));
     }
 
-    private static Optional<Region> toRegion(Geocode g) {
-        return Optional.ofNullable(g.region).map(r -> new Region(r, g.district));
+    private static Optional<Region> toRegion(Geocode geocode) {
+        return Optional.ofNullable(geocode.region).map(r -> new Region(r, geocode.district));
     }
 
     /**

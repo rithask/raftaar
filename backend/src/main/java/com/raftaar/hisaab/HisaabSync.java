@@ -92,22 +92,22 @@ public class HisaabSync extends SyncJob {
             var page = client.changes(cursorTime, since, cursor);
             if (page == null || page.data() == null) break;
             log.debug("Hisaab changes page: {} payments{}", page.data().size(), page.hasMore() ? ", more to come" : "");
-            for (var t : page.data()) {
-                if (t.updatedAt() != null && (newest == null || t.updatedAt().toInstant().isAfter(newest))) newest = t.updatedAt().toInstant();
-                switch (classify(t)) {
+            for (var payment : page.data()) {
+                if (payment.updatedAt() != null && (newest == null || payment.updatedAt().toInstant().isAfter(newest))) newest = payment.updatedAt().toInstant();
+                switch (classify(payment)) {
                     case FUEL -> {
-                        var outcome = suggestions.fromHisaabFuel(t);
+                        var outcome = suggestions.fromHisaabFuel(payment);
                         if (outcome == Suggestions.Outcome.NEW) {
                             fuelNew++;
-                            suggestionRepo.findByHisaabTxnId(t.id()).filter(s -> s.stopAt == null)
+                            suggestionRepo.findByHisaabTxnId(payment.id()).filter(s -> s.stopAt == null)
                                     .ifPresent(s -> geopulse.findStopFor(s.id, s.occurredAt));
                         }
                         if (outcome == Suggestions.Outcome.FLAGGED) flagged++;
                     }
                     case EXPENSE -> {
-                        if (suggestions.fromHisaabExpense(t) == Suggestions.Outcome.NEW) expenseNew++;
+                        if (suggestions.fromHisaabExpense(payment) == Suggestions.Outcome.NEW) expenseNew++;
                     }
-                    case NONE -> leftCategories(t.id());
+                    case NONE -> leftCategories(payment.id());
                 }
             }
             cursor = page.hasMore() ? page.nextCursor() : null;
@@ -123,16 +123,16 @@ public class HisaabSync extends SyncJob {
 
     enum Kind { FUEL, EXPENSE, NONE }
 
-    Kind classify(HisaabClient.Txn t) {
-        if (!"debit".equalsIgnoreCase(t.direction()) || t.category() == null || t.amount() == null) return Kind.NONE;
-        if (matches(t.category(), cfg.fuelCategoryList())) return Kind.FUEL;
-        if (matches(t.category(), cfg.expenseCategoryList())) return Kind.EXPENSE;
+    Kind classify(HisaabClient.Txn payment) {
+        if (!"debit".equalsIgnoreCase(payment.direction()) || payment.category() == null || payment.amount() == null) return Kind.NONE;
+        if (matches(payment.category(), cfg.fuelCategoryList())) return Kind.FUEL;
+        if (matches(payment.category(), cfg.expenseCategoryList())) return Kind.EXPENSE;
         return Kind.NONE;
     }
 
-    private static boolean matches(HisaabClient.Ref c, List<String> wanted) {
-        for (String w : wanted) {
-            if (w.equals(c.id()) || (c.name() != null && w.toLowerCase(Locale.ROOT).equals(c.name().toLowerCase(Locale.ROOT)))) return true;
+    private static boolean matches(HisaabClient.Ref ref, List<String> wanted) {
+        for (String name : wanted) {
+            if (name.equals(ref.id()) || (ref.name() != null && name.toLowerCase(Locale.ROOT).equals(ref.name().toLowerCase(Locale.ROOT)))) return true;
         }
         return false;
     }
@@ -150,9 +150,9 @@ public class HisaabSync extends SyncJob {
     private int checkPending() {
         int gone = 0;
         List<Suggestion> pending = suggestionRepo.findByStatusAndHisaabTxnIdNotNull(Suggestion.Status.PENDING);
-        for (Suggestion s : pending.stream().limit(30).toList()) {
-            if (client.transaction(s.hisaabTxnId).isEmpty()) {
-                suggestions.hisaabGone(s, "No longer in Hisaab (deleted or moved out of fuel)");
+        for (Suggestion suggestion : pending.stream().limit(30).toList()) {
+            if (client.transaction(suggestion.hisaabTxnId).isEmpty()) {
+                suggestions.hisaabGone(suggestion, "No longer in Hisaab (deleted or moved out of fuel)");
                 gone++;
             }
         }
@@ -163,17 +163,17 @@ public class HisaabSync extends SyncJob {
     private int checkConfirmed() {
         settings.set("hisaab.confirmedCheckedAt", Instant.now());
         int flagged = 0;
-        for (FuelEntry f : fuel.findByHisaabTxnIdNotNullAndFilledAtAfter(Instant.now().minus(Duration.ofDays(60))).stream().limit(25).toList()) {
-            if (client.transaction(f.hisaabTxnId).isEmpty() && f.sourceIssue == null) {
-                f.sourceIssue = "This payment is no longer in Hisaab";
-                fuel.save(f);
+        for (FuelEntry fill : fuel.findByHisaabTxnIdNotNullAndFilledAtAfter(Instant.now().minus(Duration.ofDays(60))).stream().limit(25).toList()) {
+            if (client.transaction(fill.hisaabTxnId).isEmpty() && fill.sourceIssue == null) {
+                fill.sourceIssue = "This payment is no longer in Hisaab";
+                fuel.save(fill);
                 flagged++;
             }
         }
         return flagged;
     }
 
-    private boolean lastDailyCheckOlderThan(Duration d) {
-        return settings.instant("hisaab.confirmedCheckedAt").map(t -> t.isBefore(Instant.now().minus(d))).orElse(true);
+    private boolean lastDailyCheckOlderThan(Duration age) {
+        return settings.instant("hisaab.confirmedCheckedAt").map(t -> t.isBefore(Instant.now().minus(age))).orElse(true);
     }
 }

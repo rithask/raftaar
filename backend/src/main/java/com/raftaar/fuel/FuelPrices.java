@@ -87,9 +87,9 @@ public class FuelPrices {
                 try {
                     var looked = source.price(region, district, type);
                     if (looked.isPresent()) {
-                        FuelPrice p = record(region, district, type, looked.get(), Instant.now(), FuelPrice.Source.LOOKUP);
-                        log.debug("Looked up {} price for {}: {}", type, district == null ? region : district + ", " + region, p.price);
-                        return Optional.of(quote(p));
+                        FuelPrice price = record(region, district, type, looked.get(), Instant.now(), FuelPrice.Source.LOOKUP);
+                        log.debug("Looked up {} price for {}: {}", type, district == null ? region : district + ", " + region, price.price);
+                        return Optional.of(quote(price));
                     }
                 } catch (Exception e) {
                     Failures.log(log, "Fuel price lookup for " + region, e);
@@ -104,23 +104,23 @@ public class FuelPrices {
         return Optional.empty();
     }
 
-    public FuelPrice record(String region, String district, FuelType type, BigDecimal price, Instant at, FuelPrice.Source src) {
-        FuelPrice p = new FuelPrice();
-        p.region = region.trim();
-        p.district = district == null || district.isBlank() ? null : district.trim();
-        p.fuelType = type;
-        p.price = price;
-        p.effectiveAt = at;
-        p.source = src;
-        return prices.save(p);
+    public FuelPrice record(String region, String district, FuelType type, BigDecimal price, Instant at, FuelPrice.Source origin) {
+        FuelPrice entry = new FuelPrice();
+        entry.region = region.trim();
+        entry.district = district == null || district.isBlank() ? null : district.trim();
+        entry.fuelType = type;
+        entry.price = price;
+        entry.effectiveAt = at;
+        entry.source = origin;
+        return prices.save(entry);
     }
 
     /** A confirmed fill-up teaches the price for its place, unless a newer price is already known there. */
-    public void learn(FuelEntry e, FuelType type) {
-        if (e.region == null || e.pricePerUnit == null) return;
-        var latest = prices.findFirstByRegionIgnoreCaseAndFuelTypeOrderByEffectiveAtDesc(e.region, type);
-        if (latest.isPresent() && latest.get().effectiveAt.isAfter(e.filledAt)) return;
-        record(e.region, e.district, type, e.pricePerUnit, e.filledAt, FuelPrice.Source.FILL_UP);
+    public void learn(FuelEntry fill, FuelType type) {
+        if (fill.region == null || fill.pricePerUnit == null) return;
+        var latest = prices.findFirstByRegionIgnoreCaseAndFuelTypeOrderByEffectiveAtDesc(fill.region, type);
+        if (latest.isPresent() && latest.get().effectiveAt.isAfter(fill.filledAt)) return;
+        record(fill.region, fill.district, type, fill.pricePerUnit, fill.filledAt, FuelPrice.Source.FILL_UP);
     }
 
     /**
@@ -132,24 +132,24 @@ public class FuelPrices {
         List<FuelPrice> known = prices.findByFuelTypeAndSourceNotOrderByEffectiveAtAsc(type, FuelPrice.Source.FILL_UP);
         Map<Long, BigDecimal> out = new HashMap<>();
         if (known.isEmpty()) return out;
-        for (FuelEntry f : fills) {
-            if (f.region == null) continue;
-            Instant from = f.filledAt.minus(Duration.ofDays(7));
+        for (FuelEntry fill : fills) {
+            if (fill.region == null) continue;
+            Instant from = fill.filledAt.minus(Duration.ofDays(7));
             FuelPrice inDistrict = null, inRegion = null, anyInRegion = null;
-            for (FuelPrice p : known) {
-                if (p.effectiveAt.isAfter(f.filledAt)) break;
-                if (p.effectiveAt.isBefore(from) || !p.region.equalsIgnoreCase(f.region)) continue;
-                anyInRegion = p;
-                if (p.district == null) inRegion = p;
-                else if (f.district != null && p.district.equalsIgnoreCase(f.district)) inDistrict = p;
+            for (FuelPrice price : known) {
+                if (price.effectiveAt.isAfter(fill.filledAt)) break;
+                if (price.effectiveAt.isBefore(from) || !price.region.equalsIgnoreCase(fill.region)) continue;
+                anyInRegion = price;
+                if (price.district == null) inRegion = price;
+                else if (fill.district != null && price.district.equalsIgnoreCase(fill.district)) inDistrict = price;
             }
             FuelPrice best = inDistrict != null ? inDistrict : inRegion != null ? inRegion : anyInRegion;
-            if (best != null) out.put(f.id, best.price);
+            if (best != null) out.put(fill.id, best.price);
         }
         return out;
     }
 
-    private static Quote quote(FuelPrice p) {
-        return new Quote(p.price, p.source.name(), p.effectiveAt, p.region, p.district);
+    private static Quote quote(FuelPrice price) {
+        return new Quote(price.price, price.source.name(), price.effectiveAt, price.region, price.district);
     }
 }
