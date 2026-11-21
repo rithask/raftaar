@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.stream.Collectors;
 import com.raftaar.places.Dwells;
 import com.raftaar.expense.Expense;
 import com.raftaar.expense.ExpenseRepo;
@@ -128,9 +129,21 @@ public class Suggestions {
         return Optional.of(saved);
     }
 
+    /** A fill-up on an active vehicle within the match window of {@code at}: the stop is already logged. */
     private boolean alreadyLogged(Instant at) {
-        return vehicles.findByArchivedFalse().stream().anyMatch(v -> fuel.findByVehicleIdOrderByFilledAtAscIdAsc(v.id).stream()
-                .anyMatch(f -> Math.abs(Duration.between(f.filledAt, at).toMinutes()) <= MATCH_WINDOW.toMinutes()));
+        Set<Long> active = vehicles.findByArchivedFalse().stream().map(vehicle -> vehicle.id).collect(Collectors.toSet());
+        return fillsAround(at, MATCH_WINDOW).stream()
+                .anyMatch(fill -> active.contains(fill.vehicleId)
+                        && Math.abs(Duration.between(fill.filledAt, at).toMinutes()) <= MATCH_WINDOW.toMinutes());
+    }
+
+    /**
+     * Fill-ups whose whole minutes or hours from {@code at} can still be within {@code window}: the comparisons
+     * truncate, so a minute or an hour more is fetched and the caller decides.
+     */
+    private List<FuelEntry> fillsAround(Instant at, Duration window) {
+        Duration margin = window.plusHours(1);
+        return fuel.findByFilledAtBetweenOrderByVehicleIdAscFilledAtAscIdAsc(at.minus(margin), at.plus(margin));
     }
 
     // ---- from Hisaab ------------------------------------------------------------------------------------------
@@ -167,14 +180,12 @@ public class Suggestions {
             return Outcome.UPDATED;
         }
         // Logged by hand already? Same amount, around the same time: link it instead of suggesting it again.
-        for (Vehicle vehicle : vehicles.findAll()) {
-            for (FuelEntry fill : fuel.findByVehicleIdOrderByFilledAtAscIdAsc(vehicle.id)) {
-                if (fill.hisaabTxnId == null && fill.totalCost.compareTo(amount) == 0 && Math.abs(Duration.between(fill.filledAt, at).toHours()) <= 3) {
-                    fill.hisaabTxnId = payment.id();
-                    fill.source = fill.source == FuelEntry.Source.GEOPULSE ? FuelEntry.Source.HISAAB_GEOPULSE : fill.source;
-                    fuel.save(fill);
-                    return Outcome.LINKED;
-                }
+        for (FuelEntry fill : fillsAround(at, Duration.ofHours(3))) {
+            if (fill.hisaabTxnId == null && fill.totalCost.compareTo(amount) == 0 && Math.abs(Duration.between(fill.filledAt, at).toHours()) <= 3) {
+                fill.hisaabTxnId = payment.id();
+                fill.source = fill.source == FuelEntry.Source.GEOPULSE ? FuelEntry.Source.HISAAB_GEOPULSE : fill.source;
+                fuel.save(fill);
+                return Outcome.LINKED;
             }
         }
         // A GeoPulse pump stop waiting for its payment?

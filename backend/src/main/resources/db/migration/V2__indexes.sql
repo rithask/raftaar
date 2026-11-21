@@ -2,6 +2,8 @@
 
 -- a vehicle's fill-ups, in the order they're listed and worked through
 create index fuel_entry_vehicle_filled on fuel_entry (vehicle_id, filled_at, id);
+-- every vehicle's fill-ups around a moment (matching a Hisaab payment or a GeoPulse stop to a fill-up)
+create index fuel_entry_filled on fuel_entry (filled_at);
 -- the inbox: the few fill-ups whose Hisaab payment changed or disappeared
 create index fuel_entry_issue on fuel_entry (id) where source_issue is not null;
 -- a vehicle's reminders
