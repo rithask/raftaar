@@ -80,10 +80,13 @@ public class VehicleController {
         return vehicles.removePhoto(id);
     }
 
-    /** The photo. The URL carries ?v=imageVersion, so it can be cached for good. */
+    /**
+     * The photo, or with {@code ?size=small} its small copy (for the sidebar and lists). The URL carries
+     * ?v=imageVersion, so it can be cached for good.
+     */
     @GetMapping("/vehicles/{id}/image")
-    public ResponseEntity<FileSystemResource> photo(@PathVariable Long id) {
-        var file = vehicles.photo(id).map(FileSystemResource::new).filter(FileSystemResource::exists);
+    public ResponseEntity<FileSystemResource> photo(@PathVariable Long id, @RequestParam(required = false) String size) {
+        var file = vehicles.photo(id, "small".equals(size)).map(FileSystemResource::new).filter(FileSystemResource::exists);
         if (file.isEmpty()) return ResponseEntity.notFound().build();
         return ResponseEntity.ok()
                 .contentType(MediaTypeFactory.getMediaType(file.get()).orElse(MediaType.APPLICATION_OCTET_STREAM))

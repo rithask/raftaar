@@ -360,7 +360,9 @@ export interface Quote {
   quote: { price: number; source: string; asOf: string; region: string | null; district: string | null } | null
 }
 
-export const imageUrl = (v: Vehicle) => (v.imageFile ? `/api/vehicles/${v.id}/image?v=${v.imageVersion}` : null)
+/** The vehicle's photo; `small` is a 192 px copy for where it's shown as an icon (a few KB instead of a few hundred). */
+export const imageUrl = (v: Vehicle, size?: 'small') =>
+  v.imageFile ? `/api/vehicles/${v.id}/image?v=${v.imageVersion}${size ? `&size=${size}` : ''}` : null
 
 export interface Channel {
   id: number | null

@@ -63,7 +63,7 @@ public class Vehicles {
     @Transactional
     public void delete(Long id) {
         Vehicle vehicle = get(id);
-        files.delete(vehicle.imageFile);
+        deletePhotoFiles(vehicle.imageFile);
         vehicles.delete(vehicle);
         log.info("Vehicle \"{}\" deleted with all its records", vehicle.name);
     }
@@ -86,7 +86,8 @@ public class Vehicles {
         vehicle.imageFile = files.saveImage(file);
         vehicle.imageVersion++;
         vehicles.save(vehicle);
-        files.delete(previous);
+        deletePhotoFiles(previous);
+        Thumbnails.write(files.resolve(vehicle.imageFile), files.resolve(Thumbnails.nameFor(vehicle.imageFile)));
         log.debug("Vehicle {}: photo {} ({} bytes)", id, previous == null ? "added" : "replaced", file.getSize());
         return vehicle;
     }
@@ -94,17 +95,35 @@ public class Vehicles {
     @Transactional
     public Vehicle removePhoto(Long id) {
         Vehicle vehicle = get(id);
-        files.delete(vehicle.imageFile);
+        deletePhotoFiles(vehicle.imageFile);
         vehicle.imageFile = null;
         vehicle.imageVersion++;
         log.debug("Vehicle {}: photo removed", id);
         return vehicles.save(vehicle);
     }
 
-    /** Where the vehicle's photo is on disk, if it has one. */
-    public Optional<Path> photo(Long id) {
+    /**
+     * Where the vehicle's photo is on disk, if it has one. {@code small}: its small copy instead, made now for a photo
+     * from before small copies existed; the photo itself when it can't have one (a format the JDK can't read).
+     * Not in a transaction: making a small copy shouldn't hold a database connection.
+     */
+    public Optional<Path> photo(Long id, boolean small) {
         Vehicle vehicle = get(id);
-        return Optional.ofNullable(vehicle.imageFile).map(files::resolve);
+        if (vehicle.imageFile == null) return Optional.empty();
+        Path photo = files.resolve(vehicle.imageFile);
+        if (!small) return Optional.of(photo);
+        Path smallCopy = files.resolve(Thumbnails.nameFor(vehicle.imageFile));
+        if (java.nio.file.Files.exists(smallCopy) || java.nio.file.Files.exists(photo) && Thumbnails.write(photo, smallCopy)) {
+            return Optional.of(smallCopy);
+        }
+        return Optional.of(photo);
+    }
+
+    /** A photo and its small copy. */
+    private void deletePhotoFiles(String photoName) {
+        if (photoName == null) return;
+        files.delete(photoName);
+        files.delete(Thumbnails.nameFor(photoName));
     }
 
     private Vehicle save(Vehicle vehicle, Input input) {

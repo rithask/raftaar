@@ -7,9 +7,9 @@ export function KindIcon({ kind, size = 20, className }: { kind: Kind; size?: nu
   return <Icon size={size} className={className} />
 }
 
-/** The vehicle's photo, or its kind's icon on a tinted background. */
-export function VehicleArt({ vehicle, className, iconSize = 56 }: { vehicle: Vehicle; className?: string; iconSize?: number }) {
-  const src = imageUrl(vehicle)
+/** The vehicle's photo, or its kind's icon on a tinted background. `small`: shown at icon size, so the small copy. */
+export function VehicleArt({ vehicle, className, iconSize = 56, small }: { vehicle: Vehicle; className?: string; iconSize?: number; small?: boolean }) {
+  const src = imageUrl(vehicle, small ? 'small' : undefined)
   if (src) return <img src={src} alt={vehicle.name} className={cx('object-cover', className)} loading="lazy" />
   return (
     <div className={cx('flex items-center justify-center bg-gradient-to-br from-stone-200 to-stone-300 text-stone-500 dark:from-stone-800 dark:to-stone-900 dark:text-stone-600', className)}>

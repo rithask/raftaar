@@ -70,7 +70,7 @@ export function GaragePage() {
           <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
             {retired.map((c) => (
               <Link key={c.vehicle.id} to={`/vehicles/${c.vehicle.id}`} className="flex items-center gap-3 rounded-2xl bg-white p-3 opacity-70 ring-1 ring-stone-900/5 transition duration-100 active:scale-[0.99] active:opacity-100 dark:bg-stone-900 dark:ring-white/10">
-                <VehicleArt vehicle={c.vehicle} className="size-12 rounded-xl" iconSize={22} />
+                <VehicleArt vehicle={c.vehicle} className="size-12 rounded-xl" iconSize={22} small />
                 <span className="font-medium">{c.vehicle.name}</span>
                 <span className="num ml-auto text-sm text-stone-500">{km(c.odometer.known)}</span>
               </Link>

@@ -179,7 +179,7 @@ function Sidebar({ garage, waiting, collapsed, onToggle }: { garage?: GarageData
                   {on && <Highlight />}
                   <span className="relative shrink-0">
                     {imageUrl(v) ? (
-                      <img src={imageUrl(v)!} alt="" className="size-7 rounded-lg object-cover ring-1 ring-stone-900/10 dark:ring-white/10" />
+                      <img src={imageUrl(v, 'small')!} alt="" className="size-7 rounded-lg object-cover ring-1 ring-stone-900/10 dark:ring-white/10" />
                     ) : (
                       <span className="flex size-7 items-center justify-center rounded-lg bg-accent-soft text-accent-strong"><KindIcon kind={v.kind} size={16} /></span>
                     )}
