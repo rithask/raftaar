@@ -34,7 +34,11 @@ public class ServiceRecords {
     @Transactional(readOnly = true)
     public List<ServiceRow> list(Long vehicleId) {
         vehicles.require(vehicleId, "Vehicle");
-        List<ServiceRecord> history = services.findByVehicleIdOrderByServicedOnDescIdDesc(vehicleId);
+        return rows(services.findByVehicleIdOrderByServicedOnDescIdDesc(vehicleId));
+    }
+
+    /** The rows for services already loaded, each with the reminders it completed (one query for all of them). */
+    public List<ServiceRow> rows(List<ServiceRecord> history) {
         if (history.isEmpty()) return List.of();
         // which reminders each service completed: one query for all of them
         Map<Long, List<Long>> completed = new HashMap<>();

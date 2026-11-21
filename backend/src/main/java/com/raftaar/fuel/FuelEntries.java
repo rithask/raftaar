@@ -47,7 +47,11 @@ public class FuelEntries {
     @Transactional(readOnly = true)
     public List<FuelRow> list(Long vehicleId) {
         Vehicle vehicle = vehicles.require(vehicleId, "Vehicle");
-        List<FuelEntry> inOrder = fills.findByVehicleIdOrderByFilledAtAscIdAsc(vehicleId);
+        return rows(vehicle, fills.findByVehicleIdOrderByFilledAtAscIdAsc(vehicleId));
+    }
+
+    /** The rows for a vehicle's fill-ups already loaded (oldest first): newest first, with mileage and the going rate. */
+    public List<FuelRow> rows(Vehicle vehicle, List<FuelEntry> inOrder) {
         Economy.Result economy = Economy.of(inOrder);
         var published = prices.publishedAt(inOrder, vehicle.fuelType);
         return inOrder.reversed().stream().map(fill -> {

@@ -32,10 +32,14 @@ public class Reminders {
     @Transactional(readOnly = true)
     public List<VehicleStats.ReminderView> list(Long vehicleId) {
         Vehicle vehicle = vehicles.require(vehicleId, "Vehicle");
-        VehicleStats.Odometer odometer = stats.odometer(vehicle);
+        return views(reminders.findByVehicleIdOrderByIdAsc(vehicleId), stats.odometer(vehicle));
+    }
+
+    /** How soon each of these reminders is due, given where the odometer stands. */
+    public List<VehicleStats.ReminderView> views(List<Reminder> all, VehicleStats.Odometer odometer) {
         BigDecimal current = odometer.estimated() != null ? odometer.estimated() : odometer.known();
         LocalDate today = LocalDate.now();
-        return reminders.findByVehicleIdOrderByIdAsc(vehicleId).stream()
+        return all.stream()
                 .map(reminder -> new VehicleStats.ReminderView(reminder, ReminderState.of(reminder, current, odometer.kmPerDay(), today))).toList();
     }
 

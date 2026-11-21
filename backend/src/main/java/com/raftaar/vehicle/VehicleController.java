@@ -18,11 +18,13 @@ public class VehicleController {
     private final Vehicles vehicles;
     private final Garage garage;
     private final VehicleStats stats;
+    private final VehiclePage vehiclePage;
 
-    public VehicleController(Vehicles vehicles, Garage garage, VehicleStats stats) {
+    public VehicleController(Vehicles vehicles, Garage garage, VehicleStats stats, VehiclePage vehiclePage) {
         this.vehicles = vehicles;
         this.garage = garage;
         this.stats = stats;
+        this.vehiclePage = vehiclePage;
     }
 
     @GetMapping("/garage")
@@ -38,6 +40,12 @@ public class VehicleController {
     @GetMapping("/vehicles/{id}")
     public VehicleStats.Summary get(@PathVariable Long id) {
         return stats.summary(vehicles.get(id));
+    }
+
+    /** The vehicle page in one request: summary, fill-ups, reminders, services, expenses and trips. */
+    @GetMapping("/vehicles/{id}/page")
+    public VehiclePage.Page page(@PathVariable Long id) {
+        return vehiclePage.load(id);
     }
 
     @PostMapping("/vehicles")
