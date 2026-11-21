@@ -1,7 +1,7 @@
 import { CaretDoubleLeft, Garage, Gear, Scroll, SignOut, Tray } from '@phosphor-icons/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation, useOutlet } from 'react-router-dom'
 import { signOut } from '@/features/auth/session'
 import { KindIcon } from '@/features/vehicle/VehicleArt'
@@ -9,7 +9,7 @@ import { imageUrl } from '@/features/vehicle/photo'
 import { type Garage as GarageData } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
 import { OutboxBar } from './OutboxBar'
-import { cx, ErrorBoundary, exitFast, Logo, pageSpring, slideSpring, spring } from '@/ui'
+import { cx, ErrorBoundary, exitFast, Loading, Logo, pageSpring, slideSpring, spring } from '@/ui'
 import { keys, useGarage } from '@/lib/queries'
 import { VehicleLink } from '@/features/vehicle/VehicleLink'
 
@@ -55,7 +55,7 @@ export function Layout() {
             exit={{ opacity: 0, transition: exitFast }}
           >
             {/* a page that fails shows a message in its place; the navigation around it keeps working */}
-            <ErrorBoundary resetKey={location.pathname}>{outlet}</ErrorBoundary>
+            <ErrorBoundary resetKey={location.pathname}><Suspense fallback={<Loading />}>{outlet}</Suspense></ErrorBoundary>
           </motion.div>
         </AnimatePresence>
       </main>

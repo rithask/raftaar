@@ -1,10 +1,9 @@
 import { Receipt } from '@phosphor-icons/react'
 import { motion } from 'motion/react'
-import { Bar, BarChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { date, expenseLabel, money, money2 } from '@/lib/format'
 import { type Expense, type Summary } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
-import { axis, ChartCard, grid, margin, monthLabel, short, tooltipStyle } from '@/ui/charts'
+import { MonthlyChart } from '../LazyCharts'
 import { AddLink, Card, cx, EmptyState, IconBadge, List, ListRow, RowMeta, Section, softSpring } from '@/ui'
 
 /** Where the money went, then the expenses list. */
@@ -44,18 +43,7 @@ export function SpendTab({ summary, expenses, onOpen, onAdd }: { summary: Summar
       </Section>
       {months.length >= 2 && (
         <Section title="By month" meta={`last ${months.length} months · avg ${money(monthAvg)}`}>
-          <ChartCard>
-            <BarChart data={months} margin={{ ...margin, left: -12 }}>
-              {grid}
-              <XAxis dataKey="month" {...axis} tickFormatter={(m: string) => monthLabel(m)} interval="preserveStartEnd" />
-              <YAxis {...axis} tickCount={4} allowDecimals={false} tickFormatter={short} />
-              <Tooltip labelFormatter={(m) => monthLabel(String(m), true)} formatter={(val, name) => [money(Number(val)), name === 'fuel' ? 'Fuel' : name === 'service' ? 'Service' : 'Other']}
-                cursor={{ fill: 'currentColor', className: 'text-stone-500/10' }} {...tooltipStyle} />
-              <Bar dataKey="fuel" stackId="m" fill="var(--color-accent)" isAnimationActive={false} />
-              <Bar dataKey="service" stackId="m" fill="var(--color-sky-500, #0ea5e9)" isAnimationActive={false} />
-              <Bar dataKey="other" stackId="m" fill="var(--color-violet-500, #8b5cf6)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
-            </BarChart>
-          </ChartCard>
+          <MonthlyChart months={months} />
         </Section>
       )}
       <Section title="Expenses" meta={list.length ? `${list.length} · ${money(c.expenses)}` : undefined} action={<AddLink label="Add" onClick={onAdd} />}>

@@ -1,17 +1,21 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
-import { Login } from '@/features/auth/LoginPage'
 import { GaragePage } from '@/features/garage/GaragePage'
-import { InboxPage } from '@/features/inbox/InboxPage'
-import { PapersPage } from '@/features/papers/PapersPage'
-import { SettingsPage } from '@/features/settings/SettingsPage'
-import { VehiclePage } from '@/features/vehicle/VehiclePage'
+import { loadVehiclePage } from '@/features/vehicle/loadVehiclePage'
 import { api } from '@/lib/api'
 import { startOutbox } from '@/lib/outbox'
 import { Layout } from './Layout'
 import { Loading } from '@/ui'
 import { keys } from '@/lib/queries'
+
+// The garage comes with the app: it's the first screen nearly every time. The other pages are loaded when first
+// opened (a few KB each), and the sign-in page only when it's needed.
+const Login = lazy(() => import('@/features/auth/LoginPage').then((page) => ({ default: page.Login })))
+const VehiclePage = lazy(() => loadVehiclePage().then((page) => ({ default: page.VehiclePage })))
+const InboxPage = lazy(() => import('@/features/inbox/InboxPage').then((page) => ({ default: page.InboxPage })))
+const PapersPage = lazy(() => import('@/features/papers/PapersPage').then((page) => ({ default: page.PapersPage })))
+const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then((page) => ({ default: page.SettingsPage })))
 
 export function App() {
   const qc = useQueryClient()
@@ -27,7 +31,7 @@ export function App() {
   useEffect(() => (signedIn ? startOutbox(qc) : undefined), [signedIn, qc])
 
   if (me.isLoading) return <Loading />
-  if (!me.data?.username) return <Login />
+  if (!me.data?.username) return <Suspense fallback={<Loading />}><Login /></Suspense>
   return (
     <Routes>
       <Route element={<Layout />}>

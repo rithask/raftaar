@@ -1,11 +1,10 @@
 import { Trash } from '@phosphor-icons/react'
 import { useState } from 'react'
-import { Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '@/lib/api'
 import { date, fromLocalInput, km, n1, num, time, toLocalInput } from '@/lib/format'
 import { type Odometer, type OdometerReading } from '@/lib/types'
 import { useSave } from '@/lib/useSave'
-import { axis, ChartCard, evenTicks, grid, margin, short, tooltipStyle } from '@/ui/charts'
+import { OdometerChart } from '@/features/vehicle/LazyCharts'
 import { DateTimeInput, ErrorText, Field, FormScreen, Input, List, Section } from '@/ui'
 import { refresh, useOdometerHistory } from '@/lib/queries'
 
@@ -47,7 +46,6 @@ export function OdometerHistory({ vehicleId, odometer }: { vehicleId: number; od
   if (!list.length) return null
   const chart = [...list].reverse().map((r) => ({ t: new Date(r.at).getTime(), km: r.odometer }))
   const spansTime = chart.length >= 2 && chart[chart.length - 1].t - chart[0].t >= DAY
-  const yearTicks = chart.length && new Date(chart[0].t).getFullYear() !== new Date(chart[chart.length - 1].t).getFullYear()
   const meta = [
     odometer?.kmPerDay != null ? `${n1(odometer.kmPerDay)} km a day` : null,
     odometer?.tripKmSince != null ? `≈ ${km(odometer.tripKmSince)} since the last reading` : null,
@@ -55,16 +53,7 @@ export function OdometerHistory({ vehicleId, odometer }: { vehicleId: number; od
   return (
     <Section title="History" meta={meta || undefined} className="pt-2">
       {spansTime && (
-        <ChartCard className="h-32">
-          <LineChart data={chart} margin={{ ...margin, left: -4 }}>
-            {grid}
-            <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} {...axis} ticks={evenTicks(chart[0].t, chart[chart.length - 1].t)}
-              tickFormatter={(t: number) => new Date(t).toLocaleDateString('en-IN', yearTicks ? { month: 'short', year: '2-digit' } : { day: 'numeric', month: 'short' })} />
-            <YAxis {...axis} domain={['auto', 'auto']} tickCount={3} tickFormatter={short} />
-            <Tooltip labelFormatter={(t) => date(new Date(Number(t)).toISOString())} formatter={(v) => [km(Number(v)), 'Odometer']} {...tooltipStyle} />
-            <Line type="linear" dataKey="km" stroke="var(--color-accent-strong)" strokeWidth={2} dot={{ r: 2.5 }} isAnimationActive={false} />
-          </LineChart>
-        </ChartCard>
+        <OdometerChart readings={chart} />
       )}
       <List>
         {list.map((r, i) => {

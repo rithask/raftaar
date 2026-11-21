@@ -1,8 +1,9 @@
 // The app's own components and motion, from one place: import { Button, Card, List } from '@/ui'.
-// (charts.tsx is imported on its own: it pulls in the charting library, which only the pages with charts need.)
+// (charts.tsx is imported on its own: it pulls in the charting library, which is loaded only when a chart is shown.)
 export * from './Badge'
 export * from './Button'
 export * from './Card'
+export * from './chartHelpers'
 export * from './cx'
 export * from './DateField'
 export * from './ErrorBoundary'
