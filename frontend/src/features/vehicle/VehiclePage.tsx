@@ -1,5 +1,5 @@
 import { Scroll, Wrench } from '@phosphor-icons/react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence } from 'motion/react'
 import { useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { economyUnit, money, money2, n1 } from '@/lib/format'
@@ -19,22 +19,13 @@ import { PapersSection } from './tabs/PapersTab'
 import { SpendTab } from './tabs/SpendTab'
 import { TripsTab } from './tabs/TripsTab'
 import { RemindersSection, ServicesSection } from './tabs/UpkeepTab'
-import { Card, ErrorBoundary, ErrorText, Loading, Tabs } from '@/ui'
+import { Card, ErrorText, Loading, TabPager } from '@/ui'
 import { useVehiclePage, useVehicles } from '@/lib/queries'
 
-export type Tab = 'fuel' | 'upkeep' | 'papers' | 'spend' | 'trips'
-export const TABS: Tab[] = ['fuel', 'upkeep', 'papers', 'spend', 'trips']
 export function VehiclePage() {
   const id = Number(useParams().id)
   const page = useVehiclePage(id)
   const vehicles = useVehicles()
-  const [tab, setTab] = useState<Tab>('fuel')
-  // tab content slides in from the side you moved towards
-  const tabDir = useRef(0)
-  const pickTab = (t: Tab) => {
-    tabDir.current = TABS.indexOf(t) > TABS.indexOf(tab) ? 1 : -1
-    setTab(t)
-  }
   const [open, setOpen] = useState<Open>(null)
   const close = () => setOpen(null)
   const headRef = useRef<HTMLDivElement>(null)
@@ -104,43 +95,26 @@ export function VehiclePage() {
       )}
       </aside>
 
-      <div className="min-w-0 space-y-5 xl:col-start-1 xl:row-start-1">
-      <Tabs value={tab} onChange={pickTab} options={[
-        { value: 'fuel', label: 'Fuel' },
-        { value: 'upkeep', label: 'Upkeep', dot: worst(due.some((r) => r.status.state === 'OVERDUE'), due.length > 0) },
-        { value: 'papers', label: 'Papers', dot: worst(papers.some((d) => d.state === 'EXPIRED'), papers.length > 0) },
-        { value: 'spend', label: 'Spend' },
-        { value: 'trips', label: 'Trips' },
-      ]} />
-
-      <AnimatePresence mode="popLayout" initial={false} custom={tabDir.current}>
-        <motion.div
-          key={tab}
-          custom={tabDir.current}
-          variants={{
-            enter: (d: number) => ({ opacity: 0, x: d * 32 }),
-            show: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 420, damping: 38 } },
-            leave: (d: number) => ({ opacity: 0, x: d * -24, transition: { duration: 0.12 } }),
-          }}
-          initial="enter"
-          animate="show"
-          exit="leave"
-          className="space-y-6"
-        >
-          <ErrorBoundary resetKey={tab} fallback="section">
-          {tab === 'fuel' && <FuelTab vehicleId={id} summary={s} fills={fuel} onOpen={(row) => setOpen({ kind: 'fuel', row })} />}
-          {tab === 'upkeep' && (
-            <>
-              <RemindersSection vehicleId={id} reminders={reminders} odometer={odo} onOpen={(r) => setOpen({ kind: 'reminder', r })} onAdd={() => setOpen({ kind: 'reminder' })} />
-              <ServicesSection services={services} onOpen={(row) => setOpen({ kind: 'service', row })} onAdd={() => setOpen({ kind: 'service' })} />
-            </>
-          )}
-          {tab === 'papers' && <PapersSection docs={docs} onOpen={(d) => setOpen({ kind: 'doc', d })} onRenew={(d) => setOpen({ kind: 'doc', d, renewing: true })} onAdd={() => setOpen({ kind: 'doc' })} />}
-          {tab === 'spend' && <SpendTab summary={s} expenses={expenses} onOpen={(e) => setOpen({ kind: 'expense', e })} onAdd={() => setOpen({ kind: 'expense' })} />}
-          {tab === 'trips' && <TripsTab trips={trips} />}
-          </ErrorBoundary>
-        </motion.div>
-      </AnimatePresence>
+      {/* the tabs' pages side by side: tap a tab or swipe between them */}
+      <div className="min-w-0 xl:col-start-1 xl:row-start-1">
+        <TabPager tabs={[
+          { value: 'fuel', label: 'Fuel', content: <FuelTab vehicleId={id} summary={s} fills={fuel} onOpen={(row) => setOpen({ kind: 'fuel', row })} /> },
+          {
+            value: 'upkeep', label: 'Upkeep', dot: worst(due.some((r) => r.status.state === 'OVERDUE'), due.length > 0),
+            content: (
+              <>
+                <RemindersSection vehicleId={id} reminders={reminders} odometer={odo} onOpen={(r) => setOpen({ kind: 'reminder', r })} onAdd={() => setOpen({ kind: 'reminder' })} />
+                <ServicesSection services={services} onOpen={(row) => setOpen({ kind: 'service', row })} onAdd={() => setOpen({ kind: 'service' })} />
+              </>
+            ),
+          },
+          {
+            value: 'papers', label: 'Papers', dot: worst(papers.some((d) => d.state === 'EXPIRED'), papers.length > 0),
+            content: <PapersSection docs={docs} onOpen={(d) => setOpen({ kind: 'doc', d })} onRenew={(d) => setOpen({ kind: 'doc', d, renewing: true })} onAdd={() => setOpen({ kind: 'doc' })} />,
+          },
+          { value: 'spend', label: 'Spend', content: <SpendTab summary={s} expenses={expenses} onOpen={(e) => setOpen({ kind: 'expense', e })} onAdd={() => setOpen({ kind: 'expense' })} /> },
+          { value: 'trips', label: 'Trips', content: <TripsTab trips={trips} /> },
+        ]} />
       </div>
       </div>
 
