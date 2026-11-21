@@ -5,6 +5,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-22
+
 ### Fixed
 
 - Bottom bar on phones: the icon of the section you leave no longer jumps sideways once the slide has finished.
