@@ -33,7 +33,11 @@ export function Tabs<T extends string>({ value, onChange, options }: {
             )}
           >
             <span className="relative inline-flex items-center gap-1">
-              {o.label}
+              {/* always as wide as the label in semibold, so a tab's text and dot don't shift when it's chosen or left */}
+              <span className="inline-grid text-center">
+                <span className="col-start-1 row-start-1">{o.label}</span>
+                <span className="invisible col-start-1 row-start-1 font-semibold" aria-hidden>{o.label}</span>
+              </span>
               {o.dot && <span className={cx('size-1.5 rounded-full', o.dot === 'bad' ? 'bg-red-500' : 'bg-amber-500')} aria-label="needs attention" />}
             </span>
             {on && <motion.span layoutId={bar} transition={spring} className="absolute inset-x-3 -bottom-px h-[3px] rounded-full bg-accent-strong sm:inset-x-6" />}
