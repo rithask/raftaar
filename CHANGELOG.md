@@ -5,8 +5,19 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+### Added
+
+- The vehicle page's tabs slide side by side, like pages on iOS: tap a tab or swipe between them. Each tab keeps
+  its own scroll position, and switching no longer stutters or waits for anything to load.
+- Logs say what the app is doing: at the normal level, which integrations are set up at startup, sign-ins,
+  deletions, settings changes and each sync's result; with `LOG_LEVEL=DEBUG`, each record change, outside call and
+  request. A request that takes 2 seconds or more is logged as a warning.
+
 ### Changed
 
+- Vehicle photos in lists and cards are sent as small thumbnails (made the first time they're asked for), so the
+  garage loads a few KB of images instead of the full photos.
+- The Inbox and "Sold or retired" headings look like every other section heading.
 - Faster: the garage and the vehicle page each load in one request with far fewer database queries, the app's
   files are sent compressed and kept by the browser, and the inbox no longer reads every fill-up ever recorded.
 - The container starts in about half the time (Java's AOT cache, made when the image is built). The image is about
