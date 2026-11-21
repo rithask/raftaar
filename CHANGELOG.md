@@ -9,6 +9,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 - Faster: the garage and the vehicle page each load in one request with far fewer database queries, the app's
   files are sent compressed and kept by the browser, and the inbox no longer reads every fill-up ever recorded.
+- The container starts in about half the time (Java's AOT cache, made when the image is built). The image is about
+  115 MB bigger for it.
 - The database gets a few new indexes for the lookups every page makes. This version upgrades the database when it
   starts, so going back to 0.6.0 afterwards means restoring the copy of `data/db` taken before upgrading.
 

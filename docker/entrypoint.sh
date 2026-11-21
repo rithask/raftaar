@@ -6,4 +6,4 @@ uid="${PUID:-10001}"
 gid="${PGID:-10001}"
 mkdir -p "$STORAGE_DIR"
 chown -R "$uid:$gid" "$STORAGE_DIR" 2>/dev/null || true
-exec setpriv --reuid="$uid" --regid="$gid" --clear-groups java $JAVA_OPTS -jar /app/app.jar
+exec setpriv --reuid="$uid" --regid="$gid" --clear-groups java -XX:AOTCache=/app/app.aot $JAVA_OPTS -jar /app/app.jar

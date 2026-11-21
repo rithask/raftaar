@@ -22,6 +22,8 @@ COPY backend/.mvn .mvn
 RUN --mount=type=cache,target=/root/.m2 chmod +x mvnw && ./mvnw -q -B dependency:go-offline
 COPY backend/src src
 RUN --mount=type=cache,target=/root/.m2 ./mvnw -q -B -DskipTests package && cp target/*.jar /api/app.jar
+# Unpacked (app.jar plus lib/): what the AOT cache below needs, and it starts a little faster anyway.
+RUN java -Djarmode=tools -jar /api/app.jar extract --destination /api/extracted
 
 # ---- 3. runtime -------------------------------------------------------------------------------------------
 FROM eclipse-temurin:25-jre
@@ -35,8 +37,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl python3 py
     && useradd --system --uid 10001 --user-group --home /app raftaar \
     && mkdir -p /app/static /data && chown -R raftaar:raftaar /app /data
 WORKDIR /app
-COPY --from=api /api/app.jar /app/app.jar
+COPY --from=api /api/extracted/ /app/
 COPY --from=web /web/dist /app/static
+# The AOT cache (Java 25): a training run starts the app once, here, and keeps the classes it loaded, already parsed
+# and linked, so each real start skips that work (about half the startup time). It has to be made by this stage's
+# JRE, so it is built per platform. The run needs no database: it stops once the app is wired up, before it would
+# connect. If the cache doesn't fit at runtime (e.g. other JAVA_OPTS), Java ignores it and starts as before.
+RUN cd /app && STORAGE_DIR=/tmp/aot-training java -XX:AOTCacheOutput=/app/app.aot -Dspring.context.exit=onRefresh \
+        -Dspring.flyway.enabled=false -Dspring.jpa.hibernate.ddl-auto=none \
+        -Dspring.jpa.properties.hibernate.boot.allow_jdbc_metadata_access=false \
+        -Dspring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect -jar app.jar \
+    && rm -rf /tmp/aot-training && test -s /app/app.aot
 COPY docker/entrypoint.sh /app/entrypoint.sh
 RUN chmod 755 /app/entrypoint.sh
 

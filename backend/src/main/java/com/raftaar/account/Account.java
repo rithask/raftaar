@@ -128,7 +128,8 @@ public class Account implements org.springframework.beans.factory.SmartInitializ
 
     void fromEnvironment() {
         var auth = props.auth();
-        if (!exists() && notBlank(auth.password())) {
+        // the settings first: with neither set this doesn't touch the database (so the image's AOT training run needs none)
+        if (notBlank(auth.password()) && !exists()) {
             create(notBlank(auth.username()) ? auth.username() : "admin", auth.password());
             log.info("Account created from APP_USERNAME/APP_PASSWORD; those can now be removed from .env");
         }
