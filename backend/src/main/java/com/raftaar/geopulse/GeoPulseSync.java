@@ -87,6 +87,7 @@ public class GeoPulseSync extends SyncJob {
         Instant from = settings.instant("geopulse.syncedTo").map(t -> t.minus(OVERLAP))
                 .orElse(to.minus(Duration.ofDays(cfg.importDays())));
         var timeline = client.timeline(from, to);
+        log.debug("GeoPulse timeline from {}: {} trips, {} stays", from, timeline.trips().size(), timeline.stays().size());
         List<String> types = cfg.movementTypeList();
 
         int added = 0, stops = 0;
@@ -138,6 +139,7 @@ public class GeoPulseSync extends SyncJob {
             }
         }
         trips.save(trip);
+        if (isNew) log.debug("New {} trip {} at {}{}", type, trip.id, trip.startedAt, trip.status == Trip.Status.ASSIGNED ? ", assigned to vehicle " + trip.vehicleId : "");
         return isNew;
     }
 
@@ -167,6 +169,7 @@ public class GeoPulseSync extends SyncJob {
             for (var d : Dwells.find(points, 40, 30, MAX_STAY_SECONDS).reversed()) {
                 var pump = places.nearestStation(d.lat(), d.lon(), 80);
                 if (pump.isPresent()) {
+                    log.debug("Suggestion {}: found the stop at {} for the payment", suggestionId, pump.get().station().name);
                     suggestions.attachStop(suggestionId, d, pump.get().station());
                     return;
                 }

@@ -1,5 +1,7 @@
 package com.raftaar.upkeep;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.raftaar.common.Text;
 import com.raftaar.vehicle.VehicleRepo;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,7 @@ import java.util.Map;
 /** A vehicle's service history. Logging a service also restarts the reminders it took care of. */
 @Service
 public class ServiceRecords {
+    private static final Logger log = LoggerFactory.getLogger(ServiceRecords.class);
     private final ServiceRecordRepo services;
     private final ReminderRepo reminders;
     private final VehicleRepo vehicles;
@@ -53,16 +56,21 @@ public class ServiceRecords {
         vehicles.require(vehicleId, "Vehicle");
         ServiceRecord service = new ServiceRecord();
         service.vehicleId = vehicleId;
-        return save(service, input);
+        ServiceRow saved = save(service, input);
+        log.debug("Service {} added to vehicle {}", saved.record().id, vehicleId);
+        return saved;
     }
 
     @Transactional
     public ServiceRow update(Long id, Input input) {
-        return save(services.require(id, "Service record"), input);
+        ServiceRow saved = save(services.require(id, "Service record"), input);
+        log.debug("Service {} changed", id);
+        return saved;
     }
 
     public void delete(Long id) {
         services.deleteById(id);
+        log.info("Service {} deleted", id);
     }
 
     private ServiceRow save(ServiceRecord service, Input input) {
@@ -86,12 +94,16 @@ public class ServiceRecords {
 
     /** Restarts a reminder from this service, but only forwards: editing an old service never undoes a newer one. */
     private void completeReminder(Reminder reminder, ServiceRecord service) {
-        if (reminder.lastDoneOn != null && service.servicedOn.isBefore(reminder.lastDoneOn)) return;
+        if (reminder.lastDoneOn != null && service.servicedOn.isBefore(reminder.lastDoneOn)) {
+            log.debug("Reminder {} left as it is: service {} is older than its last done ({})", reminder.id, service.id, reminder.lastDoneOn);
+            return;
+        }
         reminder.lastDoneOn = service.servicedOn;
         if (service.odometer != null) reminder.lastDoneOdometer = service.odometer;
         reminder.lastNotifiedState = null;
         // one-off reminders are finished once done
         if (reminder.intervalKm == null && reminder.intervalMonths == null) reminder.active = false;
         reminders.save(reminder);
+        log.debug("Reminder {} restarted from service {}{}", reminder.id, service.id, reminder.active ? "" : " (one-off: now finished)");
     }
 }

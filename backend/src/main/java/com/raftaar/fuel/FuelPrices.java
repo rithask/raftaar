@@ -65,12 +65,15 @@ public class FuelPrices {
     public FuelPrice setManually(ManualPrice input) {
         if (input.region() == null || input.region().isBlank()) throw new IllegalArgumentException("Which state?");
         if (input.price() == null || input.price().signum() <= 0) throw new IllegalArgumentException("Enter the price");
-        return record(input.region(), input.district(), input.fuelType() != null ? input.fuelType() : FuelType.PETROL, input.price(),
+        FuelPrice saved = record(input.region(), input.district(), input.fuelType() != null ? input.fuelType() : FuelType.PETROL, input.price(),
                 input.effectiveAt() != null ? input.effectiveAt() : Instant.now(), FuelPrice.Source.MANUAL);
+        log.info("Fuel price for {} set to {} by hand", saved.district == null ? saved.region : saved.district + ", " + saved.region, saved.price);
+        return saved;
     }
 
     public void delete(Long id) {
         prices.deleteById(id);
+        log.info("Fuel price {} deleted", id);
     }
 
     public Optional<Quote> current(String region, String district, FuelType type, Long vehicleId) {
@@ -85,6 +88,7 @@ public class FuelPrices {
                     var looked = source.price(region, district, type);
                     if (looked.isPresent()) {
                         FuelPrice p = record(region, district, type, looked.get(), Instant.now(), FuelPrice.Source.LOOKUP);
+                        log.debug("Looked up {} price for {}: {}", type, district == null ? region : district + ", " + region, p.price);
                         return Optional.of(quote(p));
                     }
                 } catch (Exception e) {

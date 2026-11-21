@@ -91,6 +91,7 @@ public class HisaabSync extends SyncJob {
         do {
             var page = client.changes(cursorTime, since, cursor);
             if (page == null || page.data() == null) break;
+            log.debug("Hisaab changes page: {} payments{}", page.data().size(), page.hasMore() ? ", more to come" : "");
             for (var t : page.data()) {
                 if (t.updatedAt() != null && (newest == null || t.updatedAt().toInstant().isAfter(newest))) newest = t.updatedAt().toInstant();
                 switch (classify(t)) {

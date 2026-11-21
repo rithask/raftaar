@@ -10,7 +10,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * When each integration last ran, what it did, and its last error. Also keeps two runs of one from overlapping, and
- * is the one place a run's failure is logged, whether it ran on schedule or from "Sync now".
+ * is the one place a run's result or failure is logged, whether it ran on schedule or from "Sync now".
  */
 @Service
 public class SyncLog {
@@ -31,9 +31,14 @@ public class SyncLog {
     /** Runs {@code job} unless it's already running; returns what it did. {@code title} names it in the log. */
     public String run(String name, String title, Job job) {
         ReentrantLock lock = locks.computeIfAbsent(name, k -> new ReentrantLock());
-        if (!lock.tryLock()) return "Already running";
+        if (!lock.tryLock()) {
+            log.debug("{} is already running; not starting it again", title);
+            return "Already running";
+        }
+        long started = System.nanoTime();
         try {
             String result = job.run();
+            log.info("{}: {} ({} ms)", title, result, (System.nanoTime() - started) / 1_000_000);
             settings.set(name + ".lastRun", Instant.now());
             settings.set(name + ".lastResult", result);
             settings.set(name + ".lastError", null);

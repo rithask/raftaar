@@ -1,5 +1,10 @@
 package com.raftaar.settings;
 
+import java.util.Objects;
+import org.springframework.context.event.EventListener;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import com.raftaar.common.AppProperties;
 import com.raftaar.common.SyncLog;
 import com.raftaar.geopulse.GeoPulseSync;
@@ -17,6 +22,7 @@ import java.util.NoSuchElementException;
 /** The outside services Raftaar talks to: whether each is set up, how it last went, and running one now. */
 @Service
 public class Integrations {
+    private static final Logger log = LoggerFactory.getLogger(Integrations.class);
     private final AppProperties props;
     private final SyncLog syncLog;
     private final GeoPulseSync geopulse;
@@ -49,6 +55,18 @@ public class Integrations {
                 new Integration(Alerts.NAME, notifications.configured(), null, syncLog.status(Alerts.NAME), Map.of("cron", props.alerts().cron())),
                 new Integration("osm", osm.enabled(), osmTarget(), new SyncLog.Status(null, null, null, null, false),
                         Map.of("pumps", osm.pumps(), "places", osm.places(), "priceSource", props.fuelPrice().configured())));
+    }
+
+    /** Says at startup what's set up, so a missing or mistyped setting shows in the first lines of the log. */
+    @EventListener(ApplicationReadyEvent.class)
+    public void logSetup() {
+        var geo = props.geopulse();
+        var money = props.hisaab();
+        log.info("GeoPulse: {} · Hisaab: {} · Fuel prices: {} · OpenStreetMap: {}",
+                geo.configured() ? host(geo.url()) + ", every " + geo.pollInterval() : "not set up",
+                money.configured() ? host(money.url()) + ", every " + money.pollInterval() : "not set up",
+                props.fuelPrice().configured() ? "looked up" : "from your fill-ups and by hand",
+                Objects.requireNonNullElse(osmTarget(), "off"));
     }
 
     /** Runs a sync or the reminder check now; what it did, in a line. */

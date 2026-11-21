@@ -38,11 +38,14 @@ public abstract class SyncJob {
         return syncLog.run(name(), title(), this::work);
     }
 
-    /** For the {@code @Scheduled} method: runs it when it's set up, and logs what it did. */
+    /** For the {@code @Scheduled} method: runs it when it's set up (SyncLog logs what it did). */
     protected void runOnSchedule() {
-        if (!configured()) return;
+        if (!configured()) {
+            log.trace("{} isn't set up; skipped", title());
+            return;
+        }
         try {
-            log.info("{}: {}", title(), run());
+            run();
         } catch (RuntimeException alreadyLogged) {
             log.debug("{} failed", title(), alreadyLogged);
         }

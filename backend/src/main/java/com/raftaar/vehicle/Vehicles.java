@@ -54,7 +54,9 @@ public class Vehicles {
 
     @Transactional
     public Vehicle update(Long id, Input input) {
-        return save(get(id), input);
+        Vehicle saved = save(get(id), input);
+        log.debug("Vehicle {} changed", id);
+        return saved;
     }
 
     /** Removes the vehicle with everything recorded for it (the database cascades) and its photo. */
@@ -74,6 +76,7 @@ public class Vehicles {
             vehicle.sortOrder = position;
             vehicles.save(vehicle);
         }
+        log.debug("Garage reordered: {}", ids);
     }
 
     @Transactional
@@ -84,6 +87,7 @@ public class Vehicles {
         vehicle.imageVersion++;
         vehicles.save(vehicle);
         files.delete(previous);
+        log.debug("Vehicle {}: photo {} ({} bytes)", id, previous == null ? "added" : "replaced", file.getSize());
         return vehicle;
     }
 
@@ -93,6 +97,7 @@ public class Vehicles {
         files.delete(vehicle.imageFile);
         vehicle.imageFile = null;
         vehicle.imageVersion++;
+        log.debug("Vehicle {}: photo removed", id);
         return vehicles.save(vehicle);
     }
 

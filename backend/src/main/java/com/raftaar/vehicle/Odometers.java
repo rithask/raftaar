@@ -1,5 +1,7 @@
 package com.raftaar.vehicle;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.raftaar.common.Text;
 import org.springframework.stereotype.Service;
 
@@ -11,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 /** Odometer readings: the ones you enter, and the full history from every fill-up, service and expense too. */
 @Service
 public class Odometers {
+    private static final Logger log = LoggerFactory.getLogger(Odometers.class);
     private final OdometerReadingRepo readings;
     private final VehicleRepo vehicles;
     private final VehicleStats stats;
@@ -43,10 +46,13 @@ public class Odometers {
         reading.readAt = input.readAt() != null ? input.readAt() : Instant.now();
         reading.odometer = input.odometer();
         reading.notes = Text.trimToNull(input.notes());
-        return readings.save(reading);
+        OdometerReading saved = readings.save(reading);
+        log.debug("Odometer reading {} added to vehicle {}: {} km", saved.id, vehicleId, saved.odometer);
+        return saved;
     }
 
     public void delete(Long id) {
         readings.deleteById(id);
+        log.info("Odometer reading {} deleted", id);
     }
 }

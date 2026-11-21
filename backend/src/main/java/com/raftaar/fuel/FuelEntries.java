@@ -75,24 +75,30 @@ public class FuelEntries {
                 return same.get();
             }
         }
-        return save(new FuelEntry(), input.forVehicle(vehicleId));
+        FuelEntry saved = save(new FuelEntry(), input.forVehicle(vehicleId));
+        log.debug("Fill-up {} added to vehicle {} at {} km", saved.id, vehicleId, saved.odometer);
+        return saved;
     }
 
     @Transactional
     public FuelEntry update(Long id, Input input) {
         FuelEntry fill = fills.require(id, "Fill-up");
-        return save(fill, input.forVehicle(input.vehicleId() != null ? input.vehicleId() : fill.vehicleId));
+        FuelEntry saved = save(fill, input.forVehicle(input.vehicleId() != null ? input.vehicleId() : fill.vehicleId));
+        log.debug("Fill-up {} changed", id);
+        return saved;
     }
 
     /** Marks a "the Hisaab payment changed" note as seen. */
     public FuelEntry resolveIssue(Long id) {
         FuelEntry fill = fills.require(id, "Fill-up");
         fill.sourceIssue = null;
+        log.debug("Fill-up {}: Hisaab issue marked as seen", id);
         return fills.save(fill);
     }
 
     public void delete(Long id) {
         fills.deleteById(id);
+        log.info("Fill-up {} deleted", id);
     }
 
     /** Fills in a fill-up from the input: works out the missing one of price, volume and total, and the state. */

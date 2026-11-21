@@ -1,5 +1,7 @@
 package com.raftaar.papers;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.raftaar.common.Files;
 import com.raftaar.common.Text;
 import com.raftaar.vehicle.VehicleRepo;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 /** Certificates and papers: insurance, PUC, RC, road tax… and your own, like a driving licence (no vehicle). */
 @Service
 public class Papers {
+    private static final Logger log = LoggerFactory.getLogger(Papers.class);
     private final DocumentRepo papers;
     private final VehicleRepo vehicles;
     private final Files files;
@@ -49,17 +52,22 @@ public class Papers {
     }
 
     public Document create(Input input) {
-        return save(new Document(), input);
+        Document saved = save(new Document(), input);
+        log.debug("Paper {} added ({})", saved.id, saved.type);
+        return saved;
     }
 
     public Document update(Long id, Input input) {
-        return save(get(id), input);
+        Document saved = save(get(id), input);
+        log.debug("Paper {} changed", id);
+        return saved;
     }
 
     public void delete(Long id) {
         Document paper = get(id);
         files.delete(paper.fileName);
         papers.delete(paper);
+        log.info("Paper {} deleted{}", id, paper.fileName == null ? "" : " with its file");
     }
 
     /** Attaches the scan or photo, replacing any earlier one. */
@@ -71,6 +79,7 @@ public class Papers {
         paper.fileOriginalName = file.getOriginalFilename();
         papers.save(paper);
         files.delete(previous);
+        log.debug("Paper {}: file attached ({}, {} bytes){}", id, paper.fileType, file.getSize(), previous == null ? "" : ", replacing the earlier one");
         return paper;
     }
 
@@ -80,6 +89,7 @@ public class Papers {
         paper.fileName = null;
         paper.fileType = null;
         paper.fileOriginalName = null;
+        log.info("Paper {}: file removed", id);
         return papers.save(paper);
     }
 

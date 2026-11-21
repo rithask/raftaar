@@ -1,5 +1,7 @@
 package com.raftaar.upkeep;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.raftaar.common.Text;
 import com.raftaar.vehicle.Vehicle;
 import com.raftaar.vehicle.VehicleRepo;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 /** Reminders for oil changes, chain lube, services…: by km, by date, or both. */
 @Service
 public class Reminders {
+    private static final Logger log = LoggerFactory.getLogger(Reminders.class);
     private final ReminderRepo reminders;
     private final VehicleRepo vehicles;
     private final VehicleStats stats;
@@ -47,15 +50,20 @@ public class Reminders {
         vehicles.require(vehicleId, "Vehicle");
         Reminder reminder = new Reminder();
         reminder.vehicleId = vehicleId;
-        return save(reminder, input);
+        Reminder saved = save(reminder, input);
+        log.debug("Reminder {} added to vehicle {}", saved.id, vehicleId);
+        return saved;
     }
 
     public Reminder update(Long id, Input input) {
-        return save(reminders.require(id, "Reminder"), input);
+        Reminder saved = save(reminders.require(id, "Reminder"), input);
+        log.debug("Reminder {} changed", id);
+        return saved;
     }
 
     public void delete(Long id) {
         reminders.deleteById(id);
+        log.info("Reminder {} deleted", id);
     }
 
     private Reminder save(Reminder reminder, Input input) {

@@ -1,5 +1,7 @@
 package com.raftaar.common.http;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.HttpStatusCode;
@@ -18,6 +20,7 @@ import java.io.InputStream;
  * to tell which call it was or to find it in the other side's logs.
  */
 public class NamedRequests implements ClientHttpRequestInterceptor {
+    private static final Logger log = LoggerFactory.getLogger(NamedRequests.class);
 
     /** An I/O failure of one request; its message starts with the request. */
     public static class Failed extends IOException {
@@ -37,8 +40,15 @@ public class NamedRequests implements ClientHttpRequestInterceptor {
     @Override
     public ClientHttpResponse intercept(HttpRequest req, byte[] body, ClientHttpRequestExecution execution) throws IOException {
         String name = req.getMethod() + " " + req.getURI();
+        long started = System.nanoTime();
         try {
-            return new Named(execution.execute(req, body), name);
+            var response = execution.execute(req, body);
+            if (log.isDebugEnabled()) {
+                // without the query, which can carry a key
+                log.debug("{} {}{} → {} in {} ms", req.getMethod(), req.getURI().getHost(), req.getURI().getRawPath(),
+                        response.getStatusCode().value(), (System.nanoTime() - started) / 1_000_000);
+            }
+            return new Named(response, name);
         } catch (Failed e) {
             throw e;
         } catch (IOException e) {

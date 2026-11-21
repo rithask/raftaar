@@ -1,5 +1,7 @@
 package com.raftaar.inbox;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.raftaar.hisaab.HisaabClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,7 @@ import com.raftaar.vehicle.VehicleRepo;
  */
 @Service
 public class Suggestions {
+    private static final Logger log = LoggerFactory.getLogger(Suggestions.class);
     static final Duration MATCH_WINDOW = Duration.ofMinutes(45);
 
     private final SuggestionRepo repo;
@@ -119,7 +122,10 @@ public class Suggestions {
         if (s.suggestedVehicleId == null) s.suggestedVehicleId = vehicleAt(at).orElse(null);
         s.note = s.hisaabTxnId != null ? "Paid in Hisaab and stopped at this pump" : "Stopped at this pump for " + Math.max(1, seconds / 60) + " min";
         price(s);
-        return Optional.of(save(s));
+        Suggestion saved = save(s);
+        log.debug("Fuel stop at {} ({} min): suggestion {}{}", saved.stationName, Math.max(1, seconds / 60), saved.id,
+                saved.hisaabTxnId != null ? ", matched to a Hisaab payment" : "");
+        return Optional.of(saved);
     }
 
     private boolean alreadyLogged(Instant at) {
@@ -235,6 +241,7 @@ public class Suggestions {
             s.dismissReason = why;
         }
         save(s);
+        log.debug("Suggestion {}: {}", s.id, why);
     }
 
     // ---- shared -----------------------------------------------------------------------------------------------
@@ -297,6 +304,7 @@ public class Suggestions {
         FuelEntry saved = fuelEntries.save(e, withPlace);
         s.status = Suggestion.Status.ACCEPTED;
         save(s);
+        log.debug("Suggestion {} confirmed as fill-up {} on vehicle {}", id, saved.id, saved.vehicleId);
         return saved;
     }
 
@@ -320,6 +328,7 @@ public class Suggestions {
         Expense saved = expenses.save(e);
         s.status = Suggestion.Status.ACCEPTED;
         save(s);
+        log.debug("Suggestion {} confirmed as expense {} on vehicle {}", id, saved.id, saved.vehicleId);
         return saved;
     }
 
@@ -329,6 +338,7 @@ public class Suggestions {
         s.status = Suggestion.Status.DISMISSED;
         s.dismissReason = reason == null || reason.isBlank() ? "Dismissed" : reason;
         save(s);
+        log.debug("Suggestion {} dismissed", id);
     }
 
     private Suggestion pending(Long id, Suggestion.Kind kind) {

@@ -117,6 +117,7 @@ public class Alerts extends SyncJob {
             if (!changed && !weeklyAgain) continue;
             anyOverdue |= state == ReminderState.State.OVERDUE;
             lines.add("• " + v.name + ": " + r.title + " — " + status.summary());
+            log.debug("Reminder {} on vehicle {} is {}{}", r.id, v.id, state, changed ? "" : " (weekly repeat)");
             afterSend.add(() -> {
                 r.lastNotifiedState = state.name();
                 r.lastNotifiedAt = Instant.now();
@@ -136,6 +137,7 @@ public class Alerts extends SyncJob {
             String when = days < 0 ? "expired on " + DAY.format(d.expiresOn) : days == 0 ? "expires today" : days == 1 ? "expires tomorrow"
                     : "expires in " + days + " days (" + DAY.format(d.expiresOn) + ")";
             lines.add("• " + who + " " + d.title + " " + when);
+            log.debug("Paper {} {} (warning step {})", d.id, when, step);
             afterSend.add(() -> {
                 d.lastNotifiedExpiry = d.expiresOn;
                 d.lastNotifiedDays = step;

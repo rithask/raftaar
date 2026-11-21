@@ -1,5 +1,7 @@
 package com.raftaar.expense;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.raftaar.common.Text;
 import com.raftaar.vehicle.VehicleRepo;
 import org.springframework.stereotype.Service;
@@ -12,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 /** Money spent on a vehicle besides fuel and services: upgrades, accessories, gear, tolls, parking. */
 @Service
 public class Expenses {
+    private static final Logger log = LoggerFactory.getLogger(Expenses.class);
     private final ExpenseRepo expenses;
     private final VehicleRepo vehicles;
 
@@ -33,15 +36,20 @@ public class Expenses {
         vehicles.require(vehicleId, "Vehicle");
         Expense expense = new Expense();
         expense.vehicleId = vehicleId;
-        return save(expense, input);
+        Expense saved = save(expense, input);
+        log.debug("Expense {} added to vehicle {}", saved.id, vehicleId);
+        return saved;
     }
 
     public Expense update(Long id, Input input) {
-        return save(expenses.require(id, "Expense"), input);
+        Expense saved = save(expenses.require(id, "Expense"), input);
+        log.debug("Expense {} changed", id);
+        return saved;
     }
 
     public void delete(Long id) {
         expenses.deleteById(id);
+        log.info("Expense {} deleted", id);
     }
 
     private Expense save(Expense expense, Input input) {

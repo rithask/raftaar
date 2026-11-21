@@ -1,6 +1,7 @@
 package com.raftaar.notifications;
 
 import com.raftaar.common.AppProperties;
+import com.raftaar.common.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -70,25 +71,30 @@ public class Notifications {
         c.label = label == null || label.isBlank() ? null : label.trim();
         c.url = url;
         repo.save(c);
+        log.info("Notification channel {} added ({})", name(c), service(url));
         return view(c);
     }
 
     public Channel update(Long id, String label, Boolean enabled) {
         NotificationChannel c = find(id);
         if (label != null) c.label = label.isBlank() ? null : label.trim();
+        if (enabled != null && enabled != c.enabled) log.info("Notification channel {} turned {}", name(c), enabled ? "on" : "off");
         if (enabled != null) c.enabled = enabled;
         repo.save(c);
         return view(c);
     }
 
     public void delete(Long id) {
-        repo.delete(find(id));
+        NotificationChannel c = find(id);
+        repo.delete(c);
+        log.info("Notification channel {} removed", name(c));
     }
 
     /** Sends a test to one channel and remembers how it went. */
     public Channel test(Long id) {
         NotificationChannel c = find(id);
-        deliver(c, "Raftaar", "Notifications from Raftaar work.", AppriseClient.Level.SUCCESS);
+        if (deliver(c, "Raftaar", "Notifications from Raftaar work.", AppriseClient.Level.SUCCESS)) log.info("Test sent to {}", name(c));
+        else log.warn("Test to {} failed: {}", name(c), c.lastError);
         return view(c);
     }
 
@@ -116,6 +122,7 @@ public class Notifications {
         if (sent == 0 && failed == 0) throw new IllegalStateException("No notification channels. Add one in Settings → Notifications.");
         if (sent == 0) throw new IllegalStateException("Every channel failed: " + String.join("; ", errors));
         if (failed > 0) log.warn("Some notification channels failed: {}", errors);
+        log.debug("\"{}\" sent to {}", title, Text.plural(sent, "channel"));
         return new Outcome(sent, failed, errors);
     }
 
