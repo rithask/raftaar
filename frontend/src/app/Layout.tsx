@@ -241,7 +241,7 @@ function BottomBar({ waiting }: { waiting: number }) {
                 layout
                 transition={spring}
                 whileTap={{ scale: 0.92 }}
-                className={cx('relative flex h-12 items-center justify-center gap-2 rounded-full', isActive ? 'px-4 text-on-accent' : 'w-14 text-stone-500 dark:text-stone-400')}
+                className={cx('relative flex h-12 items-center justify-center rounded-full', isActive ? 'px-4 text-on-accent' : 'w-14 text-stone-500 dark:text-stone-400')}
               >
                 {isActive && <motion.span layoutId="bar-pill" transition={spring} className="absolute inset-0 rounded-full bg-accent shadow-sm shadow-black/20" />}
                 <span className="relative">
@@ -274,7 +274,9 @@ function BottomBar({ waiting }: { waiting: number }) {
                       exit={{ width: 0, opacity: 0 }}
                       transition={spring}
                     >
-                      {label}
+                      {/* the space before the label is inside it, so it shrinks away with the label: a gap on the row
+                          would stay until the label is gone, then the icon would jump to the centre */}
+                      <span className="block pl-2">{label}</span>
                     </motion.span>
                   )}
                 </AnimatePresence>
