@@ -343,13 +343,41 @@ public class Suggestions {
         return saved;
     }
 
+    /** The reason a suggestion you dismissed yourself carries; the sync's own dismissals say why instead. */
+    public static final String DISMISSED_BY_YOU = "Dismissed";
+
     @Transactional
     public void dismiss(Long id, String reason) {
         Suggestion suggestion = repo.require(id, "Suggestion");
         suggestion.status = Suggestion.Status.DISMISSED;
-        suggestion.dismissReason = reason == null || reason.isBlank() ? "Dismissed" : reason;
+        suggestion.dismissReason = reason == null || reason.isBlank() ? DISMISSED_BY_YOU : reason;
         save(suggestion);
         log.debug("Suggestion {} dismissed", id);
+    }
+
+    /**
+     * Whether a handled suggestion can go back to the Inbox: one you dismissed, or one you added whose fill-up or
+     * expense has since been deleted. Not one the sync dismissed because its payment left Hisaab: there's nothing to add.
+     */
+    public static boolean restorable(Suggestion suggestion, boolean recordExists) {
+        return switch (suggestion.status) {
+            case DISMISSED -> DISMISSED_BY_YOU.equals(suggestion.dismissReason);
+            case ACCEPTED -> suggestion.hisaabTxnId != null && !recordExists;
+            case PENDING -> false;
+        };
+    }
+
+    /** Back to the Inbox, to add or dismiss again. The next sync checks its payment as it does any pending one. */
+    @Transactional
+    public Suggestion restore(Long id) {
+        Suggestion suggestion = repo.require(id, "Suggestion");
+        boolean recordExists = suggestion.hisaabTxnId != null && (suggestion.kind == Suggestion.Kind.FUEL
+                ? fuel.findByHisaabTxnId(suggestion.hisaabTxnId).isPresent() : expenses.findByHisaabTxnId(suggestion.hisaabTxnId).isPresent());
+        if (!restorable(suggestion, recordExists)) throw new IllegalStateException("This one can't go back to the Inbox");
+        suggestion.status = Suggestion.Status.PENDING;
+        suggestion.dismissReason = null;
+        log.debug("Suggestion {} back in the Inbox", id);
+        return save(suggestion);
     }
 
     private Suggestion pending(Long id, Suggestion.Kind kind) {

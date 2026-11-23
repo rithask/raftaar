@@ -10,4 +10,5 @@ public interface ExpenseRepo extends EntityRepo<Expense> {
     List<Expense> findByVehicleIdOrderBySpentOnDescIdDesc(Long vehicleId);
     List<Expense> findByVehicleIdInOrderBySpentOnDescIdDesc(Collection<Long> vehicleIds);
     Optional<Expense> findByHisaabTxnId(String id);
+    List<Expense> findByHisaabTxnIdIn(Collection<String> ids);
 }

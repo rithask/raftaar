@@ -5,6 +5,7 @@ import com.raftaar.fuel.FuelEntries;
 import com.raftaar.fuel.FuelEntry;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.List;
 
 @RestController
@@ -23,6 +24,11 @@ public class InboxController {
     @GetMapping("/inbox")
     public Inbox.Overview overview() {
         return inbox.overview();
+    }
+
+    @GetMapping("/inbox/handled")
+    public Inbox.HandledPage handled(@RequestParam(required = false) Instant before, @RequestParam(defaultValue = "30") int limit) {
+        return inbox.handled(before != null ? before : Instant.now().plusSeconds(60), Math.clamp(limit, 1, 100));
     }
 
     public record Assign(Long vehicleId) {}
@@ -59,6 +65,11 @@ public class InboxController {
     @PostMapping("/suggestions/{id}/expense")
     public Expense acceptExpense(@PathVariable Long id, @RequestBody Suggestions.ExpenseInput input) {
         return suggestions.acceptExpense(id, input);
+    }
+
+    @PostMapping("/suggestions/{id}/restore")
+    public Suggestion restore(@PathVariable Long id) {
+        return suggestions.restore(id);
     }
 
     @PostMapping("/suggestions/{id}/dismiss")

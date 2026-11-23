@@ -11,6 +11,7 @@ public interface FuelEntryRepo extends EntityRepo<FuelEntry> {
     List<FuelEntry> findByVehicleIdOrderByFilledAtAscIdAsc(Long vehicleId);
     List<FuelEntry> findByVehicleIdInOrderByFilledAtAscIdAsc(Collection<Long> vehicleIds);
     Optional<FuelEntry> findByHisaabTxnId(String id);
+    List<FuelEntry> findByHisaabTxnIdIn(Collection<String> ids);
     /** Fill-ups whose Hisaab payment changed or disappeared since. */
     List<FuelEntry> findBySourceIssueIsNotNullOrderByIdAsc();
     List<FuelEntry> findByHisaabTxnIdNotNullAndFilledAtAfter(Instant after);
