@@ -380,6 +380,23 @@ public class Suggestions {
         return save(suggestion);
     }
 
+    /**
+     * Undoes adding it, straight after: deletes the fill-up or expense it became ({@code recordId}, from the reply to
+     * adding it) and puts it back in the Inbox.
+     */
+    @Transactional
+    public Suggestion undoAdd(Long id, Long recordId) {
+        Suggestion suggestion = repo.require(id, "Suggestion");
+        if (suggestion.status != Suggestion.Status.ACCEPTED) throw new IllegalStateException("It isn't added");
+        String recordPayment = suggestion.kind == Suggestion.Kind.FUEL ? fuel.require(recordId, "Fill-up").hisaabTxnId : expenses.require(recordId, "Expense").hisaabTxnId;
+        if (!Objects.equals(recordPayment, suggestion.hisaabTxnId)) throw new IllegalArgumentException("That isn't what this one became");
+        if (suggestion.kind == Suggestion.Kind.FUEL) fuel.deleteById(recordId);
+        else expenses.deleteById(recordId);
+        suggestion.status = Suggestion.Status.PENDING;
+        log.info("Suggestion {}: adding it undone ({} {} deleted)", id, suggestion.kind == Suggestion.Kind.FUEL ? "fill-up" : "expense", recordId);
+        return save(suggestion);
+    }
+
     private Suggestion pending(Long id, Suggestion.Kind kind) {
         Suggestion suggestion = repo.require(id, "Suggestion");
         if (suggestion.kind != kind) throw new IllegalArgumentException("That isn't a " + kind.name().toLowerCase() + " suggestion");

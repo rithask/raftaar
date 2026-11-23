@@ -48,6 +48,14 @@ public class Trips {
         return tripIds.size();
     }
 
+    /** Several back to the Inbox at once (undoing "assign these"). */
+    @Transactional
+    public int unassignAll(List<Long> tripIds) {
+        tripIds.forEach(this::unassign);
+        log.debug("{} back in the Inbox", Text.plural(tripIds.size(), "trip"));
+        return tripIds.size();
+    }
+
     /** Back to the Inbox. */
     public Trip unassign(Long tripId) {
         Trip trip = trips.require(tripId, "Trip");

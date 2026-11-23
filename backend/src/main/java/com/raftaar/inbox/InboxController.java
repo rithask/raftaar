@@ -37,6 +37,10 @@ public class InboxController {
 
     public record Dismiss(String reason) {}
 
+    public record TripIds(List<Long> tripIds) {}
+
+    public record UndoAdd(Long recordId) {}
+
     @PostMapping("/trips/{id}/assign")
     public Trip assign(@PathVariable Long id, @RequestBody Assign assign) {
         return trips.assign(id, assign.vehicleId());
@@ -45,6 +49,11 @@ public class InboxController {
     @PostMapping("/trips/assign")
     public int assignAll(@RequestBody AssignAll assign) {
         return trips.assignAll(assign.tripIds(), assign.vehicleId());
+    }
+
+    @PostMapping("/trips/unassign")
+    public int unassignAll(@RequestBody TripIds trips) {
+        return this.trips.unassignAll(trips.tripIds());
     }
 
     @PostMapping("/trips/{id}/unassign")
@@ -65,6 +74,11 @@ public class InboxController {
     @PostMapping("/suggestions/{id}/expense")
     public Expense acceptExpense(@PathVariable Long id, @RequestBody Suggestions.ExpenseInput input) {
         return suggestions.acceptExpense(id, input);
+    }
+
+    @PostMapping("/suggestions/{id}/undo-add")
+    public Suggestion undoAdd(@PathVariable Long id, @RequestBody UndoAdd undo) {
+        return suggestions.undoAdd(id, undo.recordId());
     }
 
     @PostMapping("/suggestions/{id}/restore")
