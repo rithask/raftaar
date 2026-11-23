@@ -8,6 +8,7 @@ import { INDIAN_STATES } from '@/lib/states'
 import { type FuelEntry, type Quote, type Suggestion, type Vehicle } from '@/lib/types'
 import { deleteWithUndo } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
+import { inboxRequests } from '@/features/inbox/inboxRequests'
 import { Badge, Button, DateTimeInput, ErrorText, Field, FormScreen, Input, Select, TextArea, Toggle } from '@/ui'
 import { refresh } from '@/lib/queries'
 
@@ -184,7 +185,7 @@ export function FuelForm({
     }
   }, { refresh: refresh.vehicleRecords, onDone: onClose, done: (r) => (r?.queued ? "Saved on this phone. It'll be sent when you're back online." : suggestion ? 'Fill-up added' : entry ? 'Fill-up updated' : 'Fill-up saved'),
     // added from the Inbox: Undo deletes the fill-up and puts the suggestion back
-    undo: suggestion ? (added) => api(`/suggestions/${suggestion.id}/undo-add`, { body: { recordId: added.id } }) : undefined })
+    undo: suggestion ? (added) => inboxRequests.undoAdd(suggestion.id, added.id!) : undefined })
 
   const enteredKm = num(odometer)
   const below = enteredKm != null && lastOdometer != null && !entry && enteredKm < lastOdometer

@@ -1,12 +1,13 @@
 import { ArrowCounterClockwise, Checks, GasPump, Path, Receipt } from '@phosphor-icons/react'
 import { useMemo } from 'react'
-import { api } from '@/lib/api'
-import { date, km, money, time } from '@/lib/format'
+import { km, money, time } from '@/lib/format'
 import { refresh, useHandled } from '@/lib/queries'
-import { type Handled, type Trip, type Vehicle } from '@/lib/types'
+import { type Handled, type Vehicle } from '@/lib/types'
 import { useSave } from '@/lib/useSave'
 import { VehicleLink } from '@/features/vehicle/VehicleLink'
 import { Button, EmptyState, ErrorText, IconBadge, List, ListSkeleton, RowText, rowPress } from '@/ui'
+import { byDay } from './byDay'
+import { inboxRequests } from './inboxRequests'
 
 /** The reason a suggestion you dismissed yourself carries (Suggestions.DISMISSED_BY_YOU on the server). */
 const DISMISSED_BY_YOU = 'Dismissed'
@@ -17,24 +18,19 @@ const DISMISSED_BY_YOU = 'Dismissed'
  */
 export function HandledList({ vehicles }: { vehicles: Vehicle[] }) {
   const handled = useHandled()
-  // Undo puts it back as it was: a trip on its vehicle (or not mine), a suggestion dismissed. One that was added
-  // can't be added again from a toast (that takes the form), so it has no Undo.
-  const restoreTrip = useSave((trip: Trip) => api(`/trips/${trip.id}/unassign`, { method: 'POST' }), {
-    refresh: refresh.inbox, done: 'Back in To do', undo: (_, trip) => api('/trips/assign', { body: { tripIds: [trip.id], vehicleId: trip.vehicleId } }),
-  })
-  const restoreDismissed = useSave((id: number) => api(`/suggestions/${id}/restore`, { method: 'POST' }), {
-    refresh: refresh.inbox, done: 'Back in To do', undo: (_, id) => api(`/suggestions/${id}/dismiss`, { method: 'POST' }),
-  })
-  const restoreAdded = useSave((id: number) => api(`/suggestions/${id}/restore`, { method: 'POST' }), { refresh: refresh.inbox, done: 'Back in To do' })
+  const putBack = useSave(
+    (item: Handled) => (item.trip ? inboxRequests.unassignTrips([item.trip.id]) : inboxRequests.restore(item.suggestion!.id)),
+    {
+      refresh: refresh.inbox,
+      done: 'Back in To do',
+      // back as it was: a trip on its vehicle (or not mine), a suggestion dismissed. One that was added can't be
+      // added again from a toast (that takes the form), so it has no Undo.
+      undo: (_, item) => (item.trip ? inboxRequests.assignTrips([item.trip.id], item.trip.vehicleId) : inboxRequests.dismiss(item.suggestion!.id)),
+      canUndo: (_, item) => item.trip != null || item.suggestion!.status === 'DISMISSED',
+    },
+  )
   const vehicleName = (id: number | null) => vehicles.find((vehicle) => vehicle.id === id)?.name
-  const days = useMemo(() => {
-    const byDay = new Map<string, Handled[]>()
-    for (const item of handled.data?.pages.flatMap((page) => page.items) ?? []) {
-      const day = date(item.at)
-      byDay.set(day, [...(byDay.get(day) ?? []), item])
-    }
-    return [...byDay.entries()]
-  }, [handled.data])
+  const days = useMemo(() => byDay(handled.data?.pages.flatMap((page) => page.items) ?? [], (item) => item.at), [handled.data])
 
   if (handled.isLoading) return <ListSkeleton />
   if (handled.error) return <ErrorText error={handled.error} />
@@ -42,25 +38,16 @@ export function HandledList({ vehicles }: { vehicles: Vehicle[] }) {
     return <EmptyState icon={<Checks size={48} />} title="Nothing done yet">Fill-ups, expenses and trips you add, dismiss or sort show up here.</EmptyState>
   }
 
-  const restoring = (item: Handled) => item.trip
-    ? restoreTrip.isPending && restoreTrip.variables.id === item.trip.id
-    : [restoreDismissed, restoreAdded].some((restoreSuggestion) => restoreSuggestion.isPending && restoreSuggestion.variables === item.suggestion!.id)
-  const restore = (item: Handled) => {
-    if (item.trip) restoreTrip.mutate(item.trip)
-    else if (item.suggestion!.status === 'DISMISSED') restoreDismissed.mutate(item.suggestion!.id)
-    else restoreAdded.mutate(item.suggestion!.id)
-  }
-
   return (
     <>
-      <ErrorText error={restoreTrip.error ?? restoreDismissed.error ?? restoreAdded.error} />
+      <ErrorText error={putBack.error} />
       {days.map(([day, items]) => (
         <section key={day} className="space-y-2">
           <h3 className="px-1 text-xs text-stone-500">{day}</h3>
           <List>
             {items.map((item) => (
-              <HandledRow key={item.trip ? `t${item.trip.id}` : `s${item.suggestion!.id}`} item={item} vehicleName={vehicleName}
-                restoring={restoring(item)} onRestore={() => restore(item)} />
+              <HandledRow key={keyOf(item)} item={item} vehicleName={vehicleName}
+                restoring={putBack.isPending && keyOf(putBack.variables) === keyOf(item)} onRestore={() => putBack.mutate(item)} />
             ))}
           </List>
         </section>
@@ -71,6 +58,8 @@ export function HandledList({ vehicles }: { vehicles: Vehicle[] }) {
     </>
   )
 }
+
+const keyOf = (item: Handled) => (item.trip ? `trip:${item.trip.id}` : `suggestion:${item.suggestion!.id}`)
 
 function HandledRow({ item, vehicleName, restoring, onRestore }: {
   item: Handled; vehicleName: (id: number | null) => string | undefined; restoring: boolean; onRestore: () => void

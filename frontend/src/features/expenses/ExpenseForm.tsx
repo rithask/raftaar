@@ -4,6 +4,7 @@ import { expenseLabel, num, today, toLocalDate } from '@/lib/format'
 import { type Expense, type ExpenseCategory, type Suggestion, type Vehicle } from '@/lib/types'
 import { deleteWithUndo } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
+import { inboxRequests } from '@/features/inbox/inboxRequests'
 import { DateInput, ErrorText, Field, FormScreen, Input, Select, TextArea } from '@/ui'
 import { refresh } from '@/lib/queries'
 
@@ -29,7 +30,7 @@ export function ExpenseForm({ open, onClose, vehicles, vehicleId, expense, sugge
   }, {
     refresh: refresh.vehicleRecords, onDone: onClose, done: suggestion ? 'Expense added' : 'Expense saved',
     // added from the Inbox: Undo deletes the expense and puts the suggestion back
-    undo: suggestion ? (added) => api(`/suggestions/${suggestion.id}/undo-add`, { body: { recordId: added.id } }) : undefined,
+    undo: suggestion ? (added) => inboxRequests.undoAdd(suggestion.id, added.id) : undefined,
   })
 
   return (
