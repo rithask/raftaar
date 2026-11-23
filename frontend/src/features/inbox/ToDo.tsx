@@ -3,19 +3,22 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Link } from 'react-router-dom'
 import { ago, date, dateTime, money, money2, n2 } from '@/lib/format'
 import { refresh, useIntegrations } from '@/lib/queries'
-import { type Inbox, type Vehicle } from '@/lib/types'
+import { type Inbox, type Suggestion, type Vehicle } from '@/lib/types'
 import { useSave } from '@/lib/useSave'
 import { VehicleLink } from '@/features/vehicle/VehicleLink'
 import { Badge, Button, Card, EmptyState, IconBadge, Loading, Section } from '@/ui'
 import { cardMotion } from './cardMotion'
 import { inboxRequests } from './inboxRequests'
+import { suggestionTitle } from './labels'
 import { TripsToSort } from './TripsToSort'
 
 export type Pending = Inbox['suggestions'][number]
 
 /** Suggestions to add or dismiss, fill-ups to check, and trips to put on a vehicle. */
 export function ToDo({ inbox, vehicles, onConfirm }: { inbox: Inbox; vehicles: Vehicle[]; onConfirm: (suggestion: Pending) => void }) {
-  const dismiss = useSave(inboxRequests.dismiss, { refresh: refresh.inbox, done: 'Dismissed', undo: (_, id) => inboxRequests.restore(id) })
+  const dismiss = useSave((suggestion: Suggestion) => inboxRequests.dismiss(suggestion.id), {
+    refresh: refresh.inbox, done: (_, suggestion) => `${suggestionTitle(suggestion)} dismissed`, undo: (_, suggestion) => inboxRequests.restore(suggestion.id),
+  })
   const vehicleName = (id: number | null) => vehicles.find((vehicle) => vehicle.id === id)?.name
   if (!inbox.trips.length && !inbox.suggestions.length && !inbox.issues.length) return <InboxEmpty />
 
@@ -27,7 +30,7 @@ export function ToDo({ inbox, vehicles, onConfirm }: { inbox: Inbox; vehicles: V
           {inbox.suggestions.map((pending) => (
             <motion.div key={pending.suggestion.id} {...cardMotion}>
               <SuggestionCard pending={pending} vehicleName={vehicleName} onAdd={() => onConfirm(pending)}
-                dismissing={dismiss.isPending && dismiss.variables === pending.suggestion.id} onDismiss={() => dismiss.mutate(pending.suggestion.id)} />
+                dismissing={dismiss.isPending && dismiss.variables.id === pending.suggestion.id} onDismiss={() => dismiss.mutate(pending.suggestion)} />
             </motion.div>
           ))}
           </AnimatePresence>
@@ -63,7 +66,7 @@ function SuggestionCard({ pending, vehicleName, onAdd, dismissing, onDismiss }: 
         <IconBadge square tone={fuel ? 'accent' : 'violet'}>{fuel ? <GasPump size={22} /> : <Receipt size={22} />}</IconBadge>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold">{suggestion.stationName ?? suggestion.payee ?? (fuel ? 'Fuel stop' : 'Payment')}</span>
+            <span className="font-semibold">{suggestionTitle(suggestion)}</span>
             {suggestion.hisaabTxnId && <Badge tone="info">Hisaab</Badge>}
             {suggestion.stopAt && <Badge tone="info">GeoPulse</Badge>}
           </div>

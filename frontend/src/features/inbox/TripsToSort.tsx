@@ -1,7 +1,6 @@
 import { Check, Path } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useMemo, useState } from 'react'
-import { km, time } from '@/lib/format'
 import { refresh } from '@/lib/queries'
 import { type Trip, type Vehicle } from '@/lib/types'
 import { useSave } from '@/lib/useSave'
@@ -10,6 +9,7 @@ import { Button, Card, Chip, ErrorText, popSpring, Section, softSpring } from '@
 import { byDay } from './byDay'
 import { cardMotion } from './cardMotion'
 import { inboxRequests } from './inboxRequests'
+import { tripTitle } from './labels'
 
 const MODE: Record<string, string> = { CAR: 'Car', MOTORCYCLE: 'Motorcycle', UNKNOWN: 'Unknown mode' }
 
@@ -75,7 +75,7 @@ export function TripsToSort({ trips, vehicles }: { trips: Trip[]; vehicles: Vehi
                 </button>
                 <Path size={18} className="text-stone-400" />
                 <div className="min-w-0 flex-1">
-                  <div className="num text-sm font-medium">{time(trip.startedAt)} – {time(trip.endedAt)} · {km(trip.distanceM / 1000)}</div>
+                  <div className="num text-sm font-medium">{tripTitle(trip)}</div>
                   <div className="text-xs text-stone-500">{MODE[trip.movementType ?? 'UNKNOWN'] ?? 'Unknown mode'}</div>
                 </div>
               </div>

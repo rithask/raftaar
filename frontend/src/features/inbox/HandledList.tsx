@@ -1,6 +1,6 @@
 import { ArrowCounterClockwise, Checks, GasPump, Path, Receipt } from '@phosphor-icons/react'
 import { useMemo } from 'react'
-import { km, money, time } from '@/lib/format'
+import { money, time } from '@/lib/format'
 import { refresh, useHandled } from '@/lib/queries'
 import { type Handled, type Vehicle } from '@/lib/types'
 import { useSave } from '@/lib/useSave'
@@ -8,6 +8,7 @@ import { VehicleLink } from '@/features/vehicle/VehicleLink'
 import { Button, EmptyState, ErrorText, IconBadge, List, ListSkeleton, RowText, rowPress } from '@/ui'
 import { byDay } from './byDay'
 import { inboxRequests } from './inboxRequests'
+import { suggestionTitle, tripTitle } from './labels'
 
 /** The reason a suggestion you dismissed yourself carries (Suggestions.DISMISSED_BY_YOU on the server). */
 const DISMISSED_BY_YOU = 'Dismissed'
@@ -22,7 +23,7 @@ export function HandledList({ vehicles }: { vehicles: Vehicle[] }) {
     (item: Handled) => (item.trip ? inboxRequests.unassignTrips([item.trip.id]) : inboxRequests.restore(item.suggestion!.id)),
     {
       refresh: refresh.inbox,
-      done: 'Back in To do',
+      done: (_, item) => `${item.trip ? 'Trip' : suggestionTitle(item.suggestion!)} back in To do`,
       // back as it was: a trip on its vehicle (or not mine), a suggestion dismissed. One that was added can't be
       // added again from a toast (that takes the form), so it has no Undo.
       undo: (_, item) => (item.trip ? inboxRequests.assignTrips([item.trip.id], item.trip.vehicleId) : inboxRequests.dismiss(item.suggestion!.id)),
@@ -69,9 +70,7 @@ function HandledRow({ item, vehicleName, restoring, onRestore }: {
   const icon = trip
     ? <IconBadge tone="emerald"><Path size={18} /></IconBadge>
     : fuel ? <IconBadge><GasPump size={18} /></IconBadge> : <IconBadge tone="violet"><Receipt size={18} /></IconBadge>
-  const title = trip
-    ? `${time(trip.startedAt)} – ${time(trip.endedAt)} · ${km(trip.distanceM / 1000)}`
-    : suggestion!.stationName ?? suggestion!.payee ?? (fuel ? 'Fuel stop' : 'Payment')
+  const title = trip ? tripTitle(trip) : suggestionTitle(suggestion!)
   const details = trip ? null : [time(item.at), suggestion!.amount != null ? money(suggestion!.amount) : null].filter(Boolean).join(' · ')
   // what became of it gets a line of its own, wrapping rather than cut short
   const text = (
