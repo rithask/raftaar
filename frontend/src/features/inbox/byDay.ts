@@ -5,7 +5,9 @@ export function byDay<T>(items: T[], when: (item: T) => string): [string, T[]][]
   const days = new Map<string, T[]>()
   for (const item of items) {
     const day = date(when(item))
-    days.set(day, [...(days.get(day) ?? []), item])
+    const list = days.get(day)
+    if (list) list.push(item)
+    else days.set(day, [item])
   }
   return [...days.entries()]
 }

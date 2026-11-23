@@ -5,6 +5,7 @@ import com.raftaar.fuel.FuelEntries;
 import com.raftaar.fuel.FuelEntry;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -28,7 +29,8 @@ public class InboxController {
 
     @GetMapping("/inbox/handled")
     public Inbox.HandledPage handled(@RequestParam(required = false) Instant before, @RequestParam(defaultValue = "30") int limit) {
-        return inbox.handled(before != null ? before : Instant.now().plusSeconds(60), Math.clamp(limit, 1, 100));
+        // the first page: everything, including a payment stamped a little ahead of this server's clock
+        return inbox.handled(before != null ? before : Instant.now().plus(Duration.ofDays(1)), Math.clamp(limit, 1, 100));
     }
 
     public record Assign(Long vehicleId) {}

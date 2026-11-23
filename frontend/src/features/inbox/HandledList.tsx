@@ -10,9 +10,6 @@ import { byDay } from './byDay'
 import { inboxRequests } from './inboxRequests'
 import { suggestionTitle, tripTitle } from './labels'
 
-/** The reason a suggestion you dismissed yourself carries (Suggestions.DISMISSED_BY_YOU on the server). */
-const DISMISSED_BY_YOU = 'Dismissed'
-
 /**
  * The Inbox's Done tab: what's been added, dismissed or sorted, newest first and by day. Each row says what became
  * of it and opens the vehicle it went to; what can be is put back in To do with one tap.
@@ -27,7 +24,7 @@ export function HandledList({ vehicles }: { vehicles: Vehicle[] }) {
       // back as it was: a trip on its vehicle (or not mine), a suggestion dismissed. One that was added can't be
       // added again from a toast (that takes the form), so it has no Undo.
       undo: (_, item) => (item.trip ? inboxRequests.assignTrips([item.trip.id], item.trip.vehicleId) : inboxRequests.dismiss(item.suggestion!.id)),
-      canUndo: (_, item) => item.trip != null || item.suggestion!.status === 'DISMISSED',
+      canUndo: (_, item) => item.resolution !== 'ADDED_THEN_DELETED',
     },
   )
   const vehicleName = (id: number | null) => vehicles.find((vehicle) => vehicle.id === id)?.name
@@ -98,10 +95,15 @@ function HandledRow({ item, vehicleName, restoring, onRestore }: {
 }
 
 /** What became of it, in a few words. */
-function outcome({ suggestion, trip, vehicleId, restorable }: Handled, vehicleName: (id: number | null) => string | undefined) {
-  if (trip) return trip.status === 'ASSIGNED' ? `On ${vehicleName(trip.vehicleId) ?? 'a vehicle'}` : 'Not mine'
-  const [aRecord, record] = suggestion!.kind === 'FUEL' ? ['a fill-up', 'fill-up'] : ['an expense', 'expense']
-  if (suggestion!.status === 'DISMISSED') return suggestion!.dismissReason === DISMISSED_BY_YOU ? 'Dismissed' : `Dismissed: ${suggestion!.dismissReason}`
-  if (vehicleId != null) return `Added as ${aRecord} on ${vehicleName(vehicleId) ?? 'a vehicle'}`
-  return restorable ? `Added; the ${record} has since been deleted` : `Added as ${aRecord}`
+function outcome({ suggestion, vehicleId, resolution }: Handled, vehicleName: (id: number | null) => string | undefined) {
+  const [aRecord, record] = suggestion?.kind === 'EXPENSE' ? ['an expense', 'expense'] : ['a fill-up', 'fill-up']
+  const where = vehicleId != null ? ` on ${vehicleName(vehicleId) ?? 'a vehicle'}` : ''
+  switch (resolution) {
+    case 'ADDED': return `Added as ${aRecord}${where}`
+    case 'ADDED_THEN_DELETED': return `Added; the ${record} has since been deleted`
+    case 'DISMISSED': return 'Dismissed'
+    case 'DISMISSED_BY_SYNC': return `Dismissed: ${suggestion!.dismissReason}`
+    case 'ON_VEHICLE': return `On ${vehicleName(vehicleId) ?? 'a vehicle'}`
+    case 'NOT_MINE': return 'Not mine'
+  }
 }

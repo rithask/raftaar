@@ -248,9 +248,12 @@ export interface Suggestion {
   suggestedPrice: number | null
   suggestedVehicleId: number | null
   note: string | null
-  /** "Dismissed" when you dismissed it; otherwise why the sync did. */
+  /** Why it was dismissed (see Handled's resolution for whether by you). */
   dismissReason: string | null
 }
+
+/** What became of something in the Inbox (Resolution on the server). */
+export type Resolution = 'ADDED' | 'ADDED_THEN_DELETED' | 'DISMISSED' | 'DISMISSED_BY_SYNC' | 'ON_VEHICLE' | 'NOT_MINE'
 
 /**
  * Something already dealt with in the Inbox: a suggestion (added or dismissed) or a trip (on a vehicle or not mine).
@@ -261,6 +264,7 @@ export interface Handled {
   suggestion: Suggestion | null
   trip: Trip | null
   vehicleId: number | null
+  resolution: Resolution
   restorable: boolean
 }
 

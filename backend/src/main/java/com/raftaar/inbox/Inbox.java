@@ -63,9 +63,13 @@ public class Inbox {
     /**
      * Something already dealt with: a suggestion (added or dismissed) or a trip (on a vehicle or not mine).
      * {@code vehicleId}: where it went (for an added suggestion, its fill-up's or expense's vehicle, while that exists).
-     * {@code restorable}: it can go back to the Inbox.
+     * {@code resolution}: what became of it; {@code restorable}: it can go back to the Inbox (from the resolution).
      */
-    public record Handled(Instant at, Suggestion suggestion, Trip trip, Long vehicleId, boolean restorable) {}
+    public record Handled(Instant at, Suggestion suggestion, Trip trip, Long vehicleId, Resolution resolution, boolean restorable) {
+        Handled(Instant at, Suggestion suggestion, Trip trip, Long vehicleId, Resolution resolution) {
+            this(at, suggestion, trip, vehicleId, resolution, resolution.restorable);
+        }
+    }
 
     /** {@code next}: pass it as {@code before} for the page after this one; null when there's no more. */
     public record HandledPage(List<Handled> items, Instant next) {}
@@ -90,7 +94,7 @@ public class Inbox {
 
     /** Sorted trips: any can go back to the Inbox. */
     private static List<Handled> tripViews(Collection<Trip> sorted) {
-        return sorted.stream().map(trip -> new Handled(trip.startedAt, null, trip, trip.vehicleId, true)).toList();
+        return sorted.stream().map(trip -> new Handled(trip.startedAt, null, trip, trip.vehicleId, Resolution.of(trip))).toList();
     }
 
     /** Handled suggestions, each with the vehicle of the fill-up or expense it became (all looked up in one go). */
@@ -102,7 +106,7 @@ public class Inbox {
         return handled.stream().map(suggestion -> {
             Long vehicleId = suggestion.hisaabTxnId == null ? null
                     : (suggestion.kind == Suggestion.Kind.FUEL ? fillVehicles : expenseVehicles).get(suggestion.hisaabTxnId);
-            return new Handled(suggestion.occurredAt, suggestion, null, vehicleId, Suggestions.restorable(suggestion, vehicleId != null));
+            return new Handled(suggestion.occurredAt, suggestion, null, vehicleId, Resolution.of(suggestion, vehicleId != null));
         }).toList();
     }
 
