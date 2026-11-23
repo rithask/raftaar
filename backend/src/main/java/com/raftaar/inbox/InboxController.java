@@ -52,8 +52,8 @@ public class InboxController {
     }
 
     @PostMapping("/trips/unassign")
-    public int unassignAll(@RequestBody TripIds trips) {
-        return this.trips.unassignAll(trips.tripIds());
+    public int unassignAll(@RequestBody TripIds picked) {
+        return trips.unassignAll(picked.tripIds());
     }
 
     @PostMapping("/trips/{id}/unassign")

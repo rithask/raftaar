@@ -371,9 +371,7 @@ public class Suggestions {
     @Transactional
     public Suggestion restore(Long id) {
         Suggestion suggestion = repo.require(id, "Suggestion");
-        boolean recordExists = suggestion.hisaabTxnId != null && (suggestion.kind == Suggestion.Kind.FUEL
-                ? fuel.findByHisaabTxnId(suggestion.hisaabTxnId).isPresent() : expenses.findByHisaabTxnId(suggestion.hisaabTxnId).isPresent());
-        if (!restorable(suggestion, recordExists)) throw new IllegalStateException("This one can't go back to the Inbox");
+        if (!restorable(suggestion, recordExists(suggestion))) throw new IllegalStateException("This one can't go back to the Inbox");
         suggestion.status = Suggestion.Status.PENDING;
         suggestion.dismissReason = null;
         log.debug("Suggestion {} back in the Inbox", id);
@@ -388,13 +386,22 @@ public class Suggestions {
     public Suggestion undoAdd(Long id, Long recordId) {
         Suggestion suggestion = repo.require(id, "Suggestion");
         if (suggestion.status != Suggestion.Status.ACCEPTED) throw new IllegalStateException("It isn't added");
-        String recordPayment = suggestion.kind == Suggestion.Kind.FUEL ? fuel.require(recordId, "Fill-up").hisaabTxnId : expenses.require(recordId, "Expense").hisaabTxnId;
+        boolean fuelKind = suggestion.kind == Suggestion.Kind.FUEL;
+        String recordPayment = fuelKind ? fuel.require(recordId, "Fill-up").hisaabTxnId : expenses.require(recordId, "Expense").hisaabTxnId;
         if (!Objects.equals(recordPayment, suggestion.hisaabTxnId)) throw new IllegalArgumentException("That isn't what this one became");
-        if (suggestion.kind == Suggestion.Kind.FUEL) fuel.deleteById(recordId);
+        if (fuelKind) fuel.deleteById(recordId);
         else expenses.deleteById(recordId);
         suggestion.status = Suggestion.Status.PENDING;
-        log.info("Suggestion {}: adding it undone ({} {} deleted)", id, suggestion.kind == Suggestion.Kind.FUEL ? "fill-up" : "expense", recordId);
+        log.info("Suggestion {}: adding it undone ({} {} deleted)", id, fuelKind ? "fill-up" : "expense", recordId);
         return save(suggestion);
+    }
+
+    /** Whether the fill-up or expense an added suggestion became is still there (found by its Hisaab payment). */
+    private boolean recordExists(Suggestion suggestion) {
+        if (suggestion.hisaabTxnId == null) return false;
+        return suggestion.kind == Suggestion.Kind.FUEL
+                ? fuel.findByHisaabTxnId(suggestion.hisaabTxnId).isPresent()
+                : expenses.findByHisaabTxnId(suggestion.hisaabTxnId).isPresent();
     }
 
     private Suggestion pending(Long id, Suggestion.Kind kind) {

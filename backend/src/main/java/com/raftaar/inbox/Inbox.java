@@ -14,7 +14,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Collection;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Limit;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,34 +73,44 @@ public class Inbox {
     /** What's been dealt with, newest first by when it happened, {@code limit} at a time from before {@code before}. */
     public HandledPage handled(Instant before, int limit) {
         Limit oneMore = Limit.of(limit + 1);
-        var handled = new ArrayList<Handled>(views(suggestions.findByStatusNotAndOccurredAtBeforeOrderByOccurredAtDescIdDesc(Suggestion.Status.PENDING, before, oneMore)));
-        handled.addAll(trips.findByStatusNotAndStartedAtBeforeOrderByStartedAtDescIdDesc(Trip.Status.PENDING, before, oneMore).stream().map(Inbox::handled).toList());
-        handled.sort(Comparator.comparing(Handled::at).reversed());
+        var handled = new ArrayList<>(suggestionViews(suggestions.findByStatusNotAndOccurredAtBeforeOrderByOccurredAtDescIdDesc(Suggestion.Status.PENDING, before, oneMore)));
+        handled.addAll(tripViews(trips.findByStatusNotAndStartedAtBeforeOrderByStartedAtDescIdDesc(Trip.Status.PENDING, before, oneMore)));
+        handled.sort(NEWEST_FIRST);
         if (handled.size() <= limit) return new HandledPage(handled, null);
         // The page ends with everything at the instant of its last item, read whole (the lists above may have stopped
         // part way through it), so the next page, strictly before that instant, misses nothing.
         Instant last = handled.get(limit - 1).at();
         var page = new ArrayList<>(handled.stream().filter(item -> item.at().isAfter(last)).toList());
-        page.addAll(views(suggestions.findByStatusNotAndOccurredAtOrderByIdDesc(Suggestion.Status.PENDING, last)));
-        page.addAll(trips.findByStatusNotAndStartedAtOrderByIdDesc(Trip.Status.PENDING, last).stream().map(Inbox::handled).toList());
+        page.addAll(suggestionViews(suggestions.findByStatusNotAndOccurredAtOrderByIdDesc(Suggestion.Status.PENDING, last)));
+        page.addAll(tripViews(trips.findByStatusNotAndStartedAtOrderByIdDesc(Trip.Status.PENDING, last)));
         return new HandledPage(page, last);
     }
 
-    private static Handled handled(Trip trip) {
-        return new Handled(trip.startedAt, null, trip, trip.vehicleId, true);
+    private static final Comparator<Handled> NEWEST_FIRST = Comparator.comparing(Handled::at).reversed();
+
+    /** Sorted trips: any can go back to the Inbox. */
+    private static List<Handled> tripViews(Collection<Trip> sorted) {
+        return sorted.stream().map(trip -> new Handled(trip.startedAt, null, trip, trip.vehicleId, true)).toList();
     }
 
-    /** Handled suggestions, with the fill-ups and expenses they became looked up in one go. */
-    private List<Handled> views(List<Suggestion> handled) {
-        var paymentIds = handled.stream().filter(s -> s.status == Suggestion.Status.ACCEPTED).map(s -> s.hisaabTxnId).filter(Objects::nonNull).toList();
-        Map<String, Long> fillVehicles = paymentIds.isEmpty() ? Map.of()
-                : fills.findByHisaabTxnIdIn(paymentIds).stream().collect(Collectors.toMap(fill -> fill.hisaabTxnId, fill -> fill.vehicleId, (a, b) -> a));
-        Map<String, Long> expenseVehicles = paymentIds.isEmpty() ? Map.of()
-                : expenses.findByHisaabTxnIdIn(paymentIds).stream().collect(Collectors.toMap(expense -> expense.hisaabTxnId, expense -> expense.vehicleId, (a, b) -> a));
+    /** Handled suggestions, each with the vehicle of the fill-up or expense it became (all looked up in one go). */
+    private List<Handled> suggestionViews(List<Suggestion> handled) {
+        Map<String, Long> fillVehicles = recordVehicles(handled, Suggestion.Kind.FUEL,
+                ids -> fills.findByHisaabTxnIdIn(ids).stream().collect(Collectors.toMap(fill -> fill.hisaabTxnId, fill -> fill.vehicleId, (a, b) -> a)));
+        Map<String, Long> expenseVehicles = recordVehicles(handled, Suggestion.Kind.EXPENSE,
+                ids -> expenses.findByHisaabTxnIdIn(ids).stream().collect(Collectors.toMap(expense -> expense.hisaabTxnId, expense -> expense.vehicleId, (a, b) -> a)));
         return handled.stream().map(suggestion -> {
-            Long vehicleId = suggestion.status != Suggestion.Status.ACCEPTED || suggestion.hisaabTxnId == null ? null
+            Long vehicleId = suggestion.hisaabTxnId == null ? null
                     : (suggestion.kind == Suggestion.Kind.FUEL ? fillVehicles : expenseVehicles).get(suggestion.hisaabTxnId);
             return new Handled(suggestion.occurredAt, suggestion, null, vehicleId, Suggestions.restorable(suggestion, vehicleId != null));
         }).toList();
+    }
+
+    /** Payment id to vehicle, for the added suggestions of {@code kind} whose fill-up or expense still exists. */
+    private static Map<String, Long> recordVehicles(List<Suggestion> handled, Suggestion.Kind kind, Function<List<String>, Map<String, Long>> lookUp) {
+        List<String> paymentIds = handled.stream()
+                .filter(suggestion -> suggestion.status == Suggestion.Status.ACCEPTED && suggestion.kind == kind && suggestion.hisaabTxnId != null)
+                .map(suggestion -> suggestion.hisaabTxnId).toList();
+        return paymentIds.isEmpty() ? Map.of() : lookUp.apply(paymentIds);
     }
 }
