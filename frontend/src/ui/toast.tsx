@@ -1,7 +1,7 @@
 import { CheckCircle, WarningCircle } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import { exitSoft, spring } from './motion'
+import { exitSoft, slideSpring } from './motion'
 
 type Action = { label: string; onClick: () => void }
 type Toast = { id: number; text: string; tone: 'ok' | 'bad'; action?: Action; duration: number }
@@ -9,6 +9,9 @@ let toasts: Toast[] = []
 let next = 1
 const listeners = new Set<() => void>()
 const emit = () => listeners.forEach((l) => l())
+
+/** How far apart stacked toasts are: one's height (h-11) and the gap (gap-2). */
+const TOAST_STEP = 52
 
 /** The most toasts with an action shown at once; past it, the oldest goes early. More would cover the page. */
 const MAX_WITH_ACTION = 3
@@ -66,11 +69,14 @@ export function Toasts() {
       {list.map((shown) => (
         <motion.div
           key={shown.id}
+          // A new one rises from a toast's height below while the others move up that much, on the same spring, so
+          // it pushes them up in one movement; one leaving fades where it is and the ones above close the gap.
           layout
-          initial={{ opacity: 0, y: 24, scale: 0.9 }}
-          animate={{ opacity: 1, y: 0, scale: 1, transition: spring }}
-          exit={{ opacity: 0, y: 8, scale: 0.96, transition: exitSoft }}
-          className="flex max-w-full items-center gap-2 rounded-full bg-stone-900 px-4 py-2.5 text-sm font-medium text-white shadow-lg dark:bg-stone-100 dark:text-stone-900"
+          initial={{ opacity: 0, y: TOAST_STEP, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.96, transition: exitSoft }}
+          transition={{ ...slideSpring, opacity: { duration: 0.15 } }}
+          className="flex h-11 max-w-full shrink-0 items-center gap-2 rounded-full bg-stone-900 px-4 text-sm font-medium text-white shadow-lg dark:bg-stone-100 dark:text-stone-900"
         >
           {shown.tone === 'ok' ? <CheckCircle size={18} weight="fill" className="text-emerald-400 dark:text-emerald-600" /> : <WarningCircle size={18} weight="fill" className="text-red-400" />}
           <span className="min-w-0 truncate">{shown.text}</span>
@@ -97,8 +103,9 @@ function Countdown({ ms }: { ms: number }) {
     return () => window.clearInterval(timer)
   }, [ms])
   return (
-    <span className="relative -my-1 ml-1 flex size-6 shrink-0 items-center justify-center" aria-label={`${left} seconds left to undo`}>
-      <svg viewBox="0 0 24 24" className="absolute inset-0 -rotate-90" aria-hidden>
+    // hidden from screen readers: in the toasts' live region, every tick would be read out
+    <span className="relative -my-1 ml-1 flex size-6 shrink-0 items-center justify-center" aria-hidden data-countdown={left}>
+      <svg viewBox="0 0 24 24" className="absolute inset-0 -rotate-90">
         <circle cx="12" cy="12" r="10" fill="none" strokeWidth="2" className="stroke-white/20 dark:stroke-black/15" />
         <motion.circle cx="12" cy="12" r="10" fill="none" strokeWidth="2" strokeLinecap="round" className="stroke-sky-300 dark:stroke-sky-700"
           initial={{ pathLength: 1 }} animate={{ pathLength: 0 }} transition={{ duration: ms / 1000, ease: 'linear' }} />
