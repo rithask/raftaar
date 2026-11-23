@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { api } from '@/lib/api'
 import { date, km, money, time } from '@/lib/format'
 import { refresh, useHandled } from '@/lib/queries'
-import { type Handled, type Vehicle } from '@/lib/types'
+import { type Handled, type Trip, type Vehicle } from '@/lib/types'
 import { useSave } from '@/lib/useSave'
 import { VehicleLink } from '@/features/vehicle/VehicleLink'
 import { Button, EmptyState, ErrorText, IconBadge, List, ListSkeleton, RowText, rowPress } from '@/ui'
@@ -17,8 +17,15 @@ const DISMISSED_BY_YOU = 'Dismissed'
  */
 export function HandledList({ vehicles }: { vehicles: Vehicle[] }) {
   const handled = useHandled()
-  const restoreSuggestion = useSave((id: number) => api(`/suggestions/${id}/restore`, { method: 'POST' }), { refresh: refresh.inbox, done: 'Back in To do' })
-  const restoreTrip = useSave((id: number) => api(`/trips/${id}/unassign`, { method: 'POST' }), { refresh: refresh.inbox, done: 'Back in To do' })
+  // Undo puts it back as it was: a trip on its vehicle (or not mine), a suggestion dismissed. One that was added
+  // can't be added again from a toast (that takes the form), so it has no Undo.
+  const restoreTrip = useSave((trip: Trip) => api(`/trips/${trip.id}/unassign`, { method: 'POST' }), {
+    refresh: refresh.inbox, done: 'Back in To do', undo: (_, trip) => api('/trips/assign', { body: { tripIds: [trip.id], vehicleId: trip.vehicleId } }),
+  })
+  const restoreDismissed = useSave((id: number) => api(`/suggestions/${id}/restore`, { method: 'POST' }), {
+    refresh: refresh.inbox, done: 'Back in To do', undo: (_, id) => api(`/suggestions/${id}/dismiss`, { method: 'POST' }),
+  })
+  const restoreAdded = useSave((id: number) => api(`/suggestions/${id}/restore`, { method: 'POST' }), { refresh: refresh.inbox, done: 'Back in To do' })
   const vehicleName = (id: number | null) => vehicles.find((vehicle) => vehicle.id === id)?.name
   const days = useMemo(() => {
     const byDay = new Map<string, Handled[]>()
@@ -36,13 +43,17 @@ export function HandledList({ vehicles }: { vehicles: Vehicle[] }) {
   }
 
   const restoring = (item: Handled) => item.trip
-    ? restoreTrip.isPending && restoreTrip.variables === item.trip.id
-    : restoreSuggestion.isPending && restoreSuggestion.variables === item.suggestion!.id
-  const restore = (item: Handled) => (item.trip ? restoreTrip.mutate(item.trip.id) : restoreSuggestion.mutate(item.suggestion!.id))
+    ? restoreTrip.isPending && restoreTrip.variables.id === item.trip.id
+    : [restoreDismissed, restoreAdded].some((restoreSuggestion) => restoreSuggestion.isPending && restoreSuggestion.variables === item.suggestion!.id)
+  const restore = (item: Handled) => {
+    if (item.trip) restoreTrip.mutate(item.trip)
+    else if (item.suggestion!.status === 'DISMISSED') restoreDismissed.mutate(item.suggestion!.id)
+    else restoreAdded.mutate(item.suggestion!.id)
+  }
 
   return (
     <>
-      <ErrorText error={restoreSuggestion.error ?? restoreTrip.error} />
+      <ErrorText error={restoreTrip.error ?? restoreDismissed.error ?? restoreAdded.error} />
       {days.map(([day, items]) => (
         <section key={day} className="space-y-2">
           <h3 className="px-1 text-xs text-stone-500">{day}</h3>

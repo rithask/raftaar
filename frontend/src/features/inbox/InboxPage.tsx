@@ -56,7 +56,9 @@ export function InboxPage() {
 
 /** Suggestions to add or dismiss, fill-ups to check, and trips to put on a vehicle. */
 function ToDo({ data, vehicles, onConfirm }: { data: Inbox; vehicles: Vehicle[]; onConfirm: (suggestion: Pending) => void }) {
-  const dismiss = useSave((id: number) => api(`/suggestions/${id}/dismiss`, { method: 'POST' }), { refresh: refresh.inbox, done: 'Dismissed' })
+  const dismiss = useSave((id: number) => api(`/suggestions/${id}/dismiss`, { method: 'POST' }), {
+    refresh: refresh.inbox, done: 'Dismissed', undo: (_, id) => api(`/suggestions/${id}/restore`, { method: 'POST' }),
+  })
   const name = (id: number | null) => vehicles.find((vehicle) => vehicle.id === id)?.name
   if (!data.trips.length && !data.suggestions.length && !data.issues.length) return <InboxEmpty />
 
@@ -124,7 +126,15 @@ function ToDo({ data, vehicles, onConfirm }: { data: Inbox; vehicles: Vehicle[];
 function Trips({ trips, vehicles }: { trips: Trip[]; vehicles: Vehicle[] }) {
   const [picked, setPicked] = useState<number[]>([])
   const vname = (id: number | null) => vehicles.find((vehicle) => vehicle.id === id)?.name
-  const assign = useSave((a: { ids: number[]; vehicleId: number | null }) => api('/trips/assign', { body: { tripIds: a.ids, vehicleId: a.vehicleId } }).then(() => a), { refresh: refresh.inbox, onDone: () => setPicked([]), done: (a) => (a.vehicleId ? `${a.ids.length === 1 ? 'Trip' : `${a.ids.length} trips`} added to ${vname(a.vehicleId)}` : a.ids.length === 1 ? 'Trip hidden' : `${a.ids.length} trips hidden`) })
+  const assign = useSave(
+    (a: { ids: number[]; vehicleId: number | null }) => api('/trips/assign', { body: { tripIds: a.ids, vehicleId: a.vehicleId } }).then(() => a),
+    {
+      refresh: refresh.inbox,
+      onDone: () => setPicked([]),
+      done: (a) => (a.vehicleId ? `${a.ids.length === 1 ? 'Trip' : `${a.ids.length} trips`} added to ${vname(a.vehicleId)}` : a.ids.length === 1 ? 'Trip hidden' : `${a.ids.length} trips hidden`),
+      undo: (a) => api('/trips/unassign', { body: { tripIds: a.ids } }),
+    },
+  )
   const days = useMemo(() => {
     const m = new Map<string, Trip[]>()
     for (const trip of trips) {

@@ -11,6 +11,9 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
   expenses you added (tap one to open its vehicle), ones you dismissed or that left Hisaab, and trips you put on a
   vehicle or marked "Not mine". Anything you dismissed, any trip, and anything added whose fill-up or expense has
   since been deleted can be put back in To do with one tap.
+- Undo for everything you do in the Inbox: dismissing, putting trips on a vehicle or "Not mine", adding a fill-up
+  or expense (Undo deletes it again), and putting something back in To do. It's on the confirmation for a few
+  seconds, like Undo after a delete.
 
 ## [0.7.1] - 2026-11-22
 

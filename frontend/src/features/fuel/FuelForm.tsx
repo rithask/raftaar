@@ -164,7 +164,7 @@ export function FuelForm({
     }
   }
 
-  const save = useSave(async (): Promise<{ queued?: boolean }> => {
+  const save = useSave(async (): Promise<{ queued?: boolean; id?: number }> => {
     if (!vid) throw new Error('Pick a vehicle')
     if (suggestion) return api(`/suggestions/${suggestion.id}/fuel`, { body: body() })
     if (entry) return api(`/fuel/${entry.id}`, { method: 'PUT', body: body() })
@@ -182,7 +182,9 @@ export function FuelForm({
       queueFill(vid, vehicle?.name ?? 'vehicle', b)
       return { queued: true }
     }
-  }, { refresh: refresh.vehicleRecords, onDone: onClose, done: (r) => (r?.queued ? "Saved on this phone. It'll be sent when you're back online." : suggestion ? 'Fill-up added' : entry ? 'Fill-up updated' : 'Fill-up saved') })
+  }, { refresh: refresh.vehicleRecords, onDone: onClose, done: (r) => (r?.queued ? "Saved on this phone. It'll be sent when you're back online." : suggestion ? 'Fill-up added' : entry ? 'Fill-up updated' : 'Fill-up saved'),
+    // added from the Inbox: Undo deletes the fill-up and puts the suggestion back
+    undo: suggestion ? (added) => api(`/suggestions/${suggestion.id}/undo-add`, { body: { recordId: added.id } }) : undefined })
 
   const enteredKm = num(odometer)
   const below = enteredKm != null && lastOdometer != null && !entry && enteredKm < lastOdometer

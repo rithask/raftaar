@@ -22,11 +22,15 @@ export function ExpenseForm({ open, onClose, vehicles, vehicleId, expense, sugge
   })
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((o) => ({ ...o, [k]: v }))
   const body = () => ({ ...form, amount: num(form.amount), odometer: num(form.odometer) })
-  const save = useSave(() => {
+  const save = useSave((): Promise<{ id: number }> => {
     if (suggestion) return api(`/suggestions/${suggestion.id}/expense`, { body: body() })
     if (expense) return api(`/expenses/${expense.id}`, { method: 'PUT', body: body() })
     return api(`/vehicles/${form.vehicleId}/expenses`, { body: body() })
-  }, { refresh: refresh.vehicleRecords, onDone: onClose, done: 'Expense saved' })
+  }, {
+    refresh: refresh.vehicleRecords, onDone: onClose, done: suggestion ? 'Expense added' : 'Expense saved',
+    // added from the Inbox: Undo deletes the expense and puts the suggestion back
+    undo: suggestion ? (added) => api(`/suggestions/${suggestion.id}/undo-add`, { body: { recordId: added.id } }) : undefined,
+  })
 
   return (
     <FormScreen open={open} onClose={onClose} title={suggestion ? 'Add as expense' : expense ? 'Edit expense' : 'Add expense'} onSave={() => save.mutate(undefined)} saving={save.isPending} onDelete={expense ? () => { deleteWithUndo({ refresh: refresh.vehicleRecords, text: 'Expense deleted', what: 'the expense', hide: `expense:${expense.id}`, run: () => api(`/expenses/${expense.id}`, { method: 'DELETE' }) }); onClose() } : undefined}>
