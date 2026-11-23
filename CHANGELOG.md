@@ -17,6 +17,11 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
   several things in a row and their confirmations stack up (up to three), each with its own Undo, and say what
   they're about ("HP Petrol dismissed").
 
+### Fixed
+
+- On a computer, a swipe between tabs that started on a link (a fill-up, a "Needs a look" row) dragged the link
+  instead of moving to the next tab.
+
 ## [0.7.1] - 2026-11-22
 
 ### Fixed

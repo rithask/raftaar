@@ -22,7 +22,7 @@ export function InboxPage() {
       <PageHeader title="Inbox" />
       <TabPager tabs={[
         { value: 'todo', label: 'To do', content: <ToDo inbox={inbox.data!} vehicles={active} onConfirm={setConfirming} /> },
-        { value: 'done', label: 'Done', content: <HandledList vehicles={vehicles.data ?? []} /> },
+        { value: 'done', label: 'Done', lazy: true, content: <HandledList vehicles={vehicles.data ?? []} /> },
       ]} />
 
       <AnimatePresence>

@@ -13,12 +13,14 @@ export interface PagerTab<T extends string> {
   label: string
   dot?: 'warn' | 'bad'
   content: ReactNode
+  /** Rendered only once it's first shown, or a swipe heads its way: for a page that loads data of its own. */
+  lazy?: boolean
 }
 
 /**
  * Tabs whose pages sit side by side, like iOS: tapping a tab slides the row of pages to it, and a page can be swiped
  * to the next one with the finger (the row follows it, and a flick carries on). Every page is rendered up front, so
- * nothing loads or lays out mid-slide.
+ * nothing loads or lays out mid-slide, except a lazy one, which waits until it's first wanted.
  *
  * Each page keeps its own scroll position. While the strip is stuck to the top, the page coming in is shown from
  * where you left it (from its top the first time): it's offset while it slides, and once it's settled the offset is
@@ -43,6 +45,10 @@ export function TabPager<T extends string>({ tabs, initial }: { tabs: PagerTab<T
   const slide = useRef<ReturnType<typeof animate> | null>(null)
   const sliding = useRef(false)
   const dragged = useRef(false) // a drag just ended: the click that follows isn't a tap on a row
+  const [opened, setOpened] = useState(() => new Set([index])) // pages shown at least once (for lazy ones)
+  const open = useCallback((...pages: number[]) => {
+    setOpened((current) => (pages.every((page) => current.has(page)) ? current : new Set([...current, ...pages])))
+  }, [])
 
   /** How far the page showing is scrolled under the strip (0 while the strip isn't stuck). */
   const scrolledIntoShowing = useCallback(() => {
@@ -96,9 +102,10 @@ export function TabPager<T extends string>({ tabs, initial }: { tabs: PagerTab<T
   // a tab tapped in the strip
   useEffect(() => {
     if (index === settled.current && !sliding.current) return
+    open(index)
     prepare()
     slideTo(index)
-  }, [index, prepare, slideTo])
+  }, [index, open, prepare, slideTo])
 
   // the row follows the width (rotating the phone, resizing the window)
   useLayoutEffect(() => {
@@ -140,13 +147,15 @@ export function TabPager<T extends string>({ tabs, initial }: { tabs: PagerTab<T
           dragElastic={0.18}
           dragConstraints={{ left: -(tabs.length - 1) * width, right: 0 }}
           onPointerDownCapture={() => { dragged.current = false }}
+          // a mouse swipe that starts on a link or an image would drag that (the browser's own drag) instead of the page
+          onDragStartCapture={(event) => event.preventDefault()}
           onClickCapture={(event) => { if (dragged.current) { event.preventDefault(); event.stopPropagation() } }}
-          onDragStart={() => { dragged.current = true; slide.current?.stop(); sliding.current = true; prepare() }}
+          onDragStart={() => { dragged.current = true; open(settled.current - 1, settled.current + 1); slide.current?.stop(); sliding.current = true; prepare() }}
           onDragEnd={onDragEnd}
         >
           {tabs.map((tab, page) => (
             <Panel key={tab.value} offset={offsets[page]} hidden={page !== index} refCallback={(el) => { panels.current[page] = el }}>
-              <ErrorBoundary resetKey={tab.value} fallback="section">{tab.content}</ErrorBoundary>
+              {(!tab.lazy || opened.has(page)) && <ErrorBoundary resetKey={tab.value} fallback="section">{tab.content}</ErrorBoundary>}
             </Panel>
           ))}
         </motion.div>
