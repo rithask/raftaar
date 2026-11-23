@@ -13,7 +13,9 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
   since been deleted can be put back in To do with one tap.
 - Undo for everything you do in the Inbox: dismissing, putting trips on a vehicle or "Not mine", adding a fill-up
   or expense (Undo deletes it again), and putting something back in To do; also for taking a trip off a vehicle.
-- Every Undo (these, and after a delete) is offered for 5 seconds, with a ring that counts the time down.
+- Every Undo (these, and after a delete) is offered for 5 seconds, with a ring that counts the time down. Do
+  several things in a row and their confirmations stack up (up to three), each with its own Undo, and say what
+  they're about ("HP Petrol dismissed").
 
 ## [0.7.1] - 2026-11-22
 

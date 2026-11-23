@@ -10,17 +10,28 @@ let next = 1
 const listeners = new Set<() => void>()
 const emit = () => listeners.forEach((l) => l())
 
-/** A short confirmation at the bottom of the screen ("Fill-up saved"). */
+/** The most toasts with an action shown at once; past it, the oldest goes early. More would cover the page. */
+const MAX_WITH_ACTION = 3
+
+/**
+ * A short confirmation at the bottom of the screen ("Fill-up saved"). Ones with an action (Undo) stack up, newest at
+ * the bottom, each staying for its own time, so two things done in a row can each still be undone; one without
+ * replaces the others without.
+ */
 export function toast(text: string, tone: Toast['tone'] = 'ok', opts: { action?: Action; duration?: number } = {}) {
   const duration = opts.duration ?? (tone === 'ok' ? 2200 : 4000)
   const shown = { id: next++, text, tone, action: opts.action, duration }
-  toasts = [shown] // only the newest: a pile of them covers what you're looking at
+  const withAction = toasts.filter((other) => other.action)
+  toasts = [...(shown.action ? withAction.slice(1 - MAX_WITH_ACTION) : withAction), shown]
   emit()
   if (tone === 'ok' && 'vibrate' in navigator) navigator.vibrate?.(8) // a tiny tick on Android
-  setTimeout(() => {
-    toasts = toasts.filter((x) => x.id !== shown.id)
-    emit()
-  }, duration)
+  setTimeout(() => remove(shown.id), duration)
+}
+
+function remove(id: number) {
+  if (!toasts.some((shown) => shown.id === id)) return
+  toasts = toasts.filter((shown) => shown.id !== id)
+  emit()
 }
 
 /** How long Undo is offered for. */
@@ -59,13 +70,13 @@ export function Toasts() {
           initial={{ opacity: 0, y: 24, scale: 0.9 }}
           animate={{ opacity: 1, y: 0, scale: 1, transition: spring }}
           exit={{ opacity: 0, y: 8, scale: 0.96, transition: exitSoft }}
-          className="flex items-center gap-2 rounded-full bg-stone-900 px-4 py-2.5 text-sm font-medium text-white shadow-lg dark:bg-stone-100 dark:text-stone-900"
+          className="flex max-w-full items-center gap-2 rounded-full bg-stone-900 px-4 py-2.5 text-sm font-medium text-white shadow-lg dark:bg-stone-100 dark:text-stone-900"
         >
           {shown.tone === 'ok' ? <CheckCircle size={18} weight="fill" className="text-emerald-400 dark:text-emerald-600" /> : <WarningCircle size={18} weight="fill" className="text-red-400" />}
-          {shown.text}
+          <span className="min-w-0 truncate">{shown.text}</span>
           {shown.action && <Countdown ms={shown.duration} />}
           {shown.action && (
-            <button type="button" onClick={() => { shown.action!.onClick(); toasts = toasts.filter((x) => x.id !== shown.id); emit() }}
+            <button type="button" onClick={() => { remove(shown.id); shown.action!.onClick() }}
               className="pointer-events-auto -my-1 ml-1 rounded-full px-3 py-1 font-semibold text-sky-300 transition active:scale-95 active:bg-white/10 dark:text-sky-700 dark:active:bg-black/10">
               {shown.action.label}
             </button>
