@@ -5,6 +5,13 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+### Added
+
+- The Inbox has a To do | Done switch. Done lists what you've already dealt with, newest first: fill-ups and
+  expenses you added (tap one to open its vehicle), ones you dismissed or that left Hisaab, and trips you put on a
+  vehicle or marked "Not mine". Anything you dismissed, any trip, and anything added whose fill-up or expense has
+  since been deleted can be put back in To do with one tap.
+
 ## [0.7.1] - 2026-11-22
 
 ### Fixed

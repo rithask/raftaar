@@ -1,7 +1,7 @@
-import { queryOptions, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
+import { queryOptions, useInfiniteQuery, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { api } from './api'
-import type { AccountView, ChannelList, DocView, FuelPrice, Garage, Inbox, Integration, OdometerReading, Vehicle, VehiclePageData } from './types'
+import type { AccountView, ChannelList, DocView, FuelPrice, Garage, HandledPage, Inbox, Integration, OdometerReading, Vehicle, VehiclePageData } from './types'
 
 /**
  * Every piece of server data the app reads, by name: its cache key and where it comes from. A key that's a prefix
@@ -17,6 +17,7 @@ export const keys = {
   odometerHistory: (vehicleId: number) => ['odometer', vehicleId] as const,
   documents: ['documents'] as const,
   inbox: ['inbox'] as const,
+  handled: ['inbox', 'handled'] as const, // under inbox: whatever refreshes the Inbox refreshes this too
   integrations: ['integrations'] as const,
   channels: ['channels'] as const,
   fuelPrices: ['fuel-prices'] as const,
@@ -54,6 +55,14 @@ export const useOdometerHistory = (vehicleId: number) =>
   useQuery({ queryKey: keys.odometerHistory(vehicleId), queryFn: () => api<OdometerReading[]>(`/vehicles/${vehicleId}/odometer`) })
 export const useDocuments = () => useQuery({ queryKey: keys.documents, queryFn: () => api<DocView[]>('/documents') })
 export const useInbox = () => useQuery({ queryKey: keys.inbox, queryFn: () => api<Inbox>('/inbox') })
+/** The Inbox's Done list, a page at a time, newest first. */
+export const useHandled = () =>
+  useInfiniteQuery({
+    queryKey: keys.handled,
+    queryFn: ({ pageParam }) => api<HandledPage>(`/inbox/handled${pageParam ? `?before=${encodeURIComponent(pageParam)}` : ''}`),
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) => page.next,
+  })
 /** {@code live}: checked every 10 seconds, for the screen that shows a sync running. */
 export const useIntegrations = (live = false) =>
   useQuery({ queryKey: keys.integrations, queryFn: () => api<Integration[]>('/integrations'), refetchInterval: live ? 10_000 : false })

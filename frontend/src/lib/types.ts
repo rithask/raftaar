@@ -230,7 +230,7 @@ export interface Trip {
 export interface Suggestion {
   id: number
   kind: 'FUEL' | 'EXPENSE'
-  status: string
+  status: 'PENDING' | 'ACCEPTED' | 'DISMISSED'
   occurredAt: string
   amount: number | null
   payee: string | null
@@ -248,6 +248,26 @@ export interface Suggestion {
   suggestedPrice: number | null
   suggestedVehicleId: number | null
   note: string | null
+  /** "Dismissed" when you dismissed it; otherwise why the sync did. */
+  dismissReason: string | null
+}
+
+/**
+ * Something already dealt with in the Inbox: a suggestion (added or dismissed) or a trip (on a vehicle or not mine).
+ * {@code vehicleId}: where it went. {@code restorable}: it can go back to To do.
+ */
+export interface Handled {
+  at: string
+  suggestion: Suggestion | null
+  trip: Trip | null
+  vehicleId: number | null
+  restorable: boolean
+}
+
+/** {@code next}: where the page after this one starts; null at the end. */
+export interface HandledPage {
+  items: Handled[]
+  next: string | null
 }
 
 export interface Inbox {

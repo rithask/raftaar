@@ -9,9 +9,10 @@ import { useSave } from '@/lib/useSave'
 import { ExpenseForm } from '@/features/expenses/ExpenseForm'
 import { FuelForm } from '@/features/fuel/FuelForm'
 import { KindIcon } from '@/features/vehicle/VehicleArt'
-import { Badge, Button, Card, Chip, easeOut, EmptyState, ErrorText, Loading, PageHeader, popSpring, Section, softSpring } from '@/ui'
+import { Badge, Button, Card, Chip, easeOut, EmptyState, ErrorText, Loading, PageHeader, popSpring, Section, softSpring, TabPager } from '@/ui'
 import { refresh, useInbox, useIntegrations, useVehicles } from '@/lib/queries'
 import { VehicleLink } from '@/features/vehicle/VehicleLink'
+import { HandledList } from './HandledList'
 
 type Pending = Inbox['suggestions'][number]
 /** Cards come in softly, and slide off to the left when they're dealt with; the rest close the gap. */
@@ -23,24 +24,44 @@ const cardMotion = {
 } as const
 const MODE: Record<string, string> = { CAR: 'Car', MOTORCYCLE: 'Motorcycle', UNKNOWN: 'Unknown mode' }
 
+/** The Inbox: what's waiting for you (To do) and what you've already dealt with (Done), side by side. */
 export function InboxPage() {
   const inbox = useInbox()
   const vehicles = useVehicles()
   const [confirming, setConfirming] = useState<Pending | null>(null)
-  const dismiss = useSave((id: number) => api(`/suggestions/${id}/dismiss`, { body: { reason: 'Dismissed' } }), { refresh: refresh.inbox, done: 'Dismissed' })
 
   if (inbox.isLoading || vehicles.isLoading) return <Loading />
   if (inbox.error) return <ErrorText error={inbox.error} />
-  const data = inbox.data!
   const active = (vehicles.data ?? []).filter((vehicle) => !vehicle.archived)
-  const name = (id: number | null) => active.find((vehicle) => vehicle.id === id)?.name
-  const empty = !data.trips.length && !data.suggestions.length && !data.issues.length
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader title="Inbox" />
-      {empty && <InboxEmpty />}
+      <TabPager tabs={[
+        { value: 'todo', label: 'To do', content: <ToDo data={inbox.data!} vehicles={active} onConfirm={setConfirming} /> },
+        { value: 'done', label: 'Done', content: <HandledList vehicles={vehicles.data ?? []} /> },
+      ]} />
 
+      <AnimatePresence>
+      {confirming?.suggestion.kind === 'FUEL' && (
+        <FuelForm key="fuel" open onClose={() => setConfirming(null)} vehicles={active} suggestion={confirming.suggestion} estimatedOdometer={confirming.estimatedOdometer} />
+      )}
+      {confirming?.suggestion.kind === 'EXPENSE' && (
+        <ExpenseForm key="expense" open onClose={() => setConfirming(null)} vehicles={active} suggestion={confirming.suggestion} />
+      )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+/** Suggestions to add or dismiss, fill-ups to check, and trips to put on a vehicle. */
+function ToDo({ data, vehicles, onConfirm }: { data: Inbox; vehicles: Vehicle[]; onConfirm: (suggestion: Pending) => void }) {
+  const dismiss = useSave((id: number) => api(`/suggestions/${id}/dismiss`, { method: 'POST' }), { refresh: refresh.inbox, done: 'Dismissed' })
+  const name = (id: number | null) => vehicles.find((vehicle) => vehicle.id === id)?.name
+  if (!data.trips.length && !data.suggestions.length && !data.issues.length) return <InboxEmpty />
+
+  return (
+    <>
       {data.suggestions.length > 0 && (
         <Section title="To confirm" className="!space-y-3">
           <AnimatePresence initial={false} mode="popLayout">
@@ -70,7 +91,7 @@ export function InboxPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="primary" className="flex-1" onClick={() => setConfirming(p)}>
+                  <Button variant="primary" className="flex-1" onClick={() => onConfirm(p)}>
                     <Check size={16} /> {fuel ? `Add fill-up${name(suggestion.suggestedVehicleId) ? ` · ${name(suggestion.suggestedVehicleId)}` : ''}` : 'Add expense'}
                   </Button>
                   <Button variant="ghost" busy={dismiss.isPending && dismiss.variables === suggestion.id} onClick={() => dismiss.mutate(suggestion.id)}><X size={16} /> Dismiss</Button>
@@ -94,17 +115,8 @@ export function InboxPage() {
         </Section>
       )}
 
-      {data.trips.length > 0 && <Trips trips={data.trips} vehicles={active} />}
-
-      <AnimatePresence>
-      {confirming?.suggestion.kind === 'FUEL' && (
-        <FuelForm key="fuel" open onClose={() => setConfirming(null)} vehicles={active} suggestion={confirming.suggestion} estimatedOdometer={confirming.estimatedOdometer} />
-      )}
-      {confirming?.suggestion.kind === 'EXPENSE' && (
-        <ExpenseForm key="expense" open onClose={() => setConfirming(null)} vehicles={active} suggestion={confirming.suggestion} />
-      )}
-      </AnimatePresence>
-    </div>
+      {data.trips.length > 0 && <Trips trips={data.trips} vehicles={vehicles} />}
+    </>
   )
 }
 
