@@ -5,6 +5,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-24
+
 ### Added
 
 - The Inbox has a To do | Done switch. Done lists what you've already dealt with, newest first: fill-ups and
