@@ -1,6 +1,6 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query'
 import { useSyncExternalStore } from 'react'
-import { toast } from '@/ui'
+import { toast, UNDO_WAIT, undoToast } from '@/ui'
 
 /**
  * Deleting without a "are you sure?": the thing disappears at once and a toast offers Undo for a few seconds.
@@ -10,8 +10,6 @@ import { toast } from '@/ui'
  * {@code hide} names what disappears meanwhile ("fuel:12"); lists skip anything {@link useHidden} reports.
  * {@code refresh} is what to fetch again once it's gone (see refresh in queries.ts).
  */
-/** How long an Undo is offered for. */
-export const UNDO_WAIT = 5000
 type Pending = { run: () => Promise<unknown>; hide?: string; timer: number; what: string; refresh: readonly QueryKey[] }
 const pending = new Map<number, Pending>()
 let hidden = new Set<string>()
@@ -39,19 +37,13 @@ export function deleteWithUndo({ text, what, hide, run, refresh = [] }: {
   setHidden(hide, true)
   const timer = window.setTimeout(() => commit(id), UNDO_WAIT)
   pending.set(id, { run, hide, timer, what, refresh })
-  toast(text, 'ok', {
-    duration: UNDO_WAIT,
-    action: {
-      label: 'Undo',
-      onClick: () => {
-        const entry = pending.get(id)
-        if (!entry) return
-        window.clearTimeout(entry.timer)
-        pending.delete(id)
-        setHidden(entry.hide, false)
-        toast('Restored')
-      },
-    },
+  undoToast(text, () => {
+    const entry = pending.get(id)
+    if (!entry) return
+    window.clearTimeout(entry.timer)
+    pending.delete(id)
+    setHidden(entry.hide, false)
+    toast('Restored')
   })
 }
 
