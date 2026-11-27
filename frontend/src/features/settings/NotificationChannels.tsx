@@ -4,10 +4,11 @@ import { api } from '@/lib/api'
 import { ago } from '@/lib/format'
 import { type Channel } from '@/lib/types'
 import { deleteWithUndo, useHidden } from '@/lib/undo'
-import { useSave } from '@/lib/useSave'
+import { failed, useSave } from '@/lib/useSave'
 import { Badge, Button, Card, ErrorText, Field, Input, List, Loading, Toggle , Code } from '@/ui'
 import { refresh, useChannels } from '@/lib/queries'
 
+import { TestButton } from './TestButton'
 import { ThisDevice } from './ThisDevice'
 
 /** Where notifications go: this device and others (Web Push), then Apprise URLs, only ever shown masked (they hold tokens). */
@@ -19,7 +20,10 @@ export function NotificationChannels() {
     setLabel('')
     setUrl('')
   }, done: 'Channel added' })
-  const test = useSave((id: number) => api<Channel>(`/notifications/channels/${id}/test`, { method: 'POST' }), { refresh: refresh.channels, done: (channel) => (channel.lastOk ? 'Test sent' : 'Test failed') })
+  const test = useSave((id: number) => api<Channel>(`/notifications/channels/${id}/test`, { method: 'POST' }), {
+    refresh: refresh.channels,
+    done: (channel) => (channel.lastOk ? `Test sent to ${channel.label ?? channel.service}` : failed(`Test to ${channel.label ?? channel.service} failed: ${channel.lastError}`)),
+  })
   const toggle = useSave((c: { id: number; enabled: boolean }) => api(`/notifications/channels/${c.id}`, { method: 'PUT', body: { enabled: c.enabled } }), { refresh: refresh.channels })
   const hidden = useHidden()
   const remove = (channel: Channel) => deleteWithUndo({ refresh: refresh.channels, text: 'Channel removed', what: 'the channel', hide: `channel:${channel.id}`, run: () => api(`/notifications/channels/${channel.id}`, { method: 'DELETE' }) })
@@ -61,7 +65,7 @@ export function NotificationChannels() {
                 </div>
                 {channel.id != null && (
                   <>
-                    <Button variant="ghost" className="!py-1.5 text-xs" busy={test.isPending && test.variables === channel.id} onClick={() => test.mutate(channel.id!)}>Test</Button>
+                    <TestButton to={channel.label ?? channel.service} busy={test.isPending && test.variables === channel.id} onClick={() => test.mutate(channel.id!)} />
                     <button onClick={() => remove(channel)} className="-m-1 rounded-lg p-2 text-stone-400 transition hover:text-red-600 active:scale-90 active:bg-red-500/10 active:text-red-600" aria-label="Remove channel"><Trash size={16} /></button>
                   </>
                 )}
