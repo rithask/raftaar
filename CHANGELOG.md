@@ -31,12 +31,25 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
   Chrome and Edge there's an Install button. Other devices with notifications on are listed, each removable.
 - A Test button on each device with notifications on, like each Apprise channel's; its row shows how it went.
 
+- Search from the sidebar on tablets and computers, and with the / key from anywhere.
+- Swipe a row in the Inbox's Done tab left to put it back in To do.
+
 ### Changed
 
+- Fill-ups are listed by month, newest first: each month's heading (count, spent, average mileage) stays at the top
+  while you scroll through it, and earlier months open six at a time, so a long history loads quickly.
+- A sold or retired vehicle's page says so (and when), and offers nothing to act on: no due chips, warning dots,
+  Fuel button, quick add or Done.
+- Settings → Notifications: this device first, then one list of every other device and Apprise channel, each with
+  its Test (and a channel's on/off switch in its row); a channel's form opens from Add channel.
+- Settings → Data: export is one row for everything, with each kind folded beneath it, so Import is on the first
+  screen.
+- A section's figures ("156 · ₹94,994") sit beside its heading instead of on a line of their own.
+- Dark mode: secondary text (dates, units, notes) is brighter, so it's easy to read on dark cards.
 - The database gets a vehicle's sale, a table of imports and, on each record, which import added it, and a table of
-  devices with notifications on. Nothing about
-  the data already there changes, but this version upgrades the database when it starts, so going back to 0.8.x
-  afterwards means restoring the copy of `data/db` taken before upgrading.
+  devices with notifications on. Nothing about the data already there changes, but this version upgrades the
+  database when it starts, so going back to 0.8.x afterwards means restoring the copy of `data/db` taken before
+  upgrading.
 - km a day (on the vehicle page, and behind due-soon warnings) is worked out from at least two weeks of readings
   or trips, instead of a few days, so it isn't thrown off by a single long ride.
 
