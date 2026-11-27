@@ -119,12 +119,11 @@ public class WebPush {
         return new Outcome(sent, failed, errors);
     }
 
-    /** To one device, to check it works. */
+    /** To one device, to check it works: the device with how it went (lastOk, lastError), as a channel's test does. */
     public PushSubscription test(Long id) {
         PushSubscription device = subscriptions.require(id, "Device");
-        if (!deliver(device, "Raftaar", "Notifications on this device work.", "/settings/notifications")) {
-            throw new IllegalStateException(device.id == null ? "That device has turned notifications off" : device.lastError);
-        }
+        deliver(device, "Raftaar", "Notifications on this device work.", "/settings/notifications");
+        if (device.id == null) throw new IllegalStateException("That device has turned notifications off, so it's been taken off the list");
         return device;
     }
 

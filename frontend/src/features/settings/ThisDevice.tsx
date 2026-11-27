@@ -1,4 +1,4 @@
-import { DeviceMobile, DownloadSimple, Export, Trash } from '@phosphor-icons/react'
+import { DeviceMobile, DownloadSimple, Export, PaperPlaneTilt, Trash } from '@phosphor-icons/react'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { api } from '@/lib/api'
 import { ago } from '@/lib/format'
@@ -35,7 +35,7 @@ export function ThisDevice() {
     await unsubscribe()
     setEndpoint(null)
   }, { refresh: refresh.push, done: 'Notifications off for this device' })
-  const test = useSave((id: number) => api<PushDevice>(`/push/devices/${id}/test`, { method: 'POST' }), { refresh: refresh.push, done: 'Sent: it should show in a moment' })
+  const test = useTestDevice()
 
   return (
     <div className="space-y-3">
@@ -49,7 +49,7 @@ export function ThisDevice() {
           <>
             <Toggle checked={mine != null} onChange={(on) => (on ? turnOn.mutate(undefined) : turnOff.mutate(undefined))}
               label="Notifications here" hint="Reminders and expiring papers, as notifications on this device." />
-            {mine && <Button variant="ghost" className="!py-1.5 text-xs" busy={test.isPending} onClick={() => test.mutate(mine.id)}>Send a test</Button>}
+            {mine && <Button variant="ghost" className="!py-1.5 text-xs" busy={test.isPending} onClick={() => test.mutate(mine.id)}><PaperPlaneTilt size={14} /> Send a test here</Button>}
           </>
         )}
         {support === 'unsupported' && <p className="text-sm text-stone-500">This browser can't show notifications from a site.</p>}
@@ -82,9 +82,10 @@ function InstallHint({ support }: { support: PushSupport | null }) {
   return null
 }
 
-/** The other phones and browsers with notifications on, each removable. */
+/** The other phones and browsers with notifications on, each with a test and removable. */
 function OtherDevices({ devices }: { devices: PushDevice[] }) {
   const hidden = useHidden()
+  const test = useTestDevice()
   const list = devices.filter((device) => !hidden(`push:${device.id}`))
   if (!list.length) return null
   return (
@@ -95,6 +96,8 @@ function OtherDevices({ devices }: { devices: PushDevice[] }) {
           <RowText title={<span className="flex items-center gap-2">{device.label}{device.lastOk === false && <Badge tone="bad">failed</Badge>}</span>}>
             {device.lastError ?? (device.lastSentAt ? `Last sent ${ago(device.lastSentAt)}` : `Added ${ago(device.createdAt)}`)}
           </RowText>
+          <Button variant="ghost" className="shrink-0 !px-2.5 !py-1.5 text-xs" busy={test.isPending && test.variables === device.id}
+            onClick={() => test.mutate(device.id)} aria-label={`Send a test to ${device.label}`}>Test</Button>
           <button type="button" aria-label={`Stop notifications on ${device.label}`}
             onClick={() => deleteWithUndo({ text: 'Device removed', what: 'the device', hide: `push:${device.id}`, refresh: refresh.push,
               run: () => api(`/push/devices/${device.id}`, { method: 'DELETE' }) })}
@@ -105,6 +108,14 @@ function OtherDevices({ devices }: { devices: PushDevice[] }) {
       ))}
     </List>
   )
+}
+
+/** A test notification to one device. A device's row shows how its last one went, failed or not. */
+function useTestDevice() {
+  return useSave((id: number) => api<PushDevice>(`/push/devices/${id}/test`, { method: 'POST' }), {
+    refresh: refresh.push,
+    done: (device) => (device.lastOk ? `Test sent to ${device.label}: it should show in a moment` : `Test to ${device.label} failed: ${device.lastError}`),
+  })
 }
 
 function usePushSupport() {

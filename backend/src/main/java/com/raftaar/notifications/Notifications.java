@@ -103,6 +103,13 @@ public class Notifications {
 
     public record Outcome(int sent, int failed, List<String> errors) {}
 
+    /** A test through every channel and to every device (where tapping it opens Notifications). */
+    public Outcome testAll() {
+        var outcome = send("Raftaar", "A test: notifications from Raftaar reach you here.", AppriseClient.Level.SUCCESS, "/settings/notifications");
+        log.info("Test sent to {} channels and devices{}", outcome.sent(), outcome.failed() > 0 ? ", " + outcome.failed() + " failed" : "");
+        return outcome;
+    }
+
     /**
      * Sends to every enabled channel and every device with push notifications on (where tapping it {@code opens} a page).
      * Throws only when nothing at all got through.
