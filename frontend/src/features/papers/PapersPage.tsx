@@ -8,6 +8,7 @@ import { DocumentForm } from './DocumentForm'
 import { needsRenewal, PaperRow, paperSub } from './PaperRow'
 import { Button, EmptyState, List, Loading, PageHeader, Section } from '@/ui'
 import { useDocuments, useVehicles } from '@/lib/queries'
+import { vehicleNames } from '@/lib/vehicles'
 
 /** Every certificate and paper in one place: what needs attention first (expired, then expiring), then the rest. */
 export function PapersPage() {
@@ -20,7 +21,8 @@ export function PapersPage() {
   if (docs.isLoading) return <Loading />
   const list = (docs.data ?? []).filter((paper) => !hidden(`doc:${paper.document.id}`))
   const vs = (vehicles.data ?? []).filter((vehicle) => !vehicle.archived)
-  const name = (id: number | null) => (id == null ? 'You' : (vehicles.data ?? []).find((vehicle) => vehicle.id === id)?.name ?? '—')
+  // a paper of your own (a licence) has no vehicle
+  const name = (id: number | null) => (id == null ? 'You' : vehicleNames(vehicles.data)(id) ?? '—')
   const byExpiry = (paper: DocView, b: DocView) => (paper.document.expiresOn ?? '').localeCompare(b.document.expiresOn ?? '')
   const groups = [
     { title: 'Needs attention', items: list.filter(needsRenewal).sort((paper, b) => Number(b.state === 'EXPIRED') - Number(paper.state === 'EXPIRED') || byExpiry(paper, b)) },

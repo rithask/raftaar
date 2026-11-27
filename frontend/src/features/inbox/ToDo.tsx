@@ -5,6 +5,7 @@ import { ago, date, dateTime, money, money2, n2 } from '@/lib/format'
 import { refresh, useIntegrations } from '@/lib/queries'
 import { type Inbox, type Suggestion, type Vehicle } from '@/lib/types'
 import { useSave } from '@/lib/useSave'
+import { vehicleNames } from '@/lib/vehicles'
 import { VehicleLink } from '@/features/vehicle/VehicleLink'
 import { Badge, Button, Card, EmptyState, IconBadge, Loading, Section } from '@/ui'
 import { cardMotion } from './cardMotion'
@@ -19,7 +20,7 @@ export function ToDo({ inbox, vehicles, onConfirm }: { inbox: Inbox; vehicles: V
   const dismiss = useSave((suggestion: Suggestion) => inboxRequests.dismiss(suggestion.id), {
     refresh: refresh.inbox, done: (_, suggestion) => `${suggestionTitle(suggestion)} dismissed`, undo: (_, suggestion) => inboxRequests.restore(suggestion.id),
   })
-  const vehicleName = (id: number | null) => vehicles.find((vehicle) => vehicle.id === id)?.name
+  const vehicleName = vehicleNames(vehicles)
   if (!inbox.trips.length && !inbox.suggestions.length && !inbox.issues.length) return <InboxEmpty />
 
   return (

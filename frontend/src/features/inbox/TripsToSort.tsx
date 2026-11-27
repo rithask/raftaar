@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { refresh } from '@/lib/queries'
 import { type Trip, type Vehicle } from '@/lib/types'
 import { useSave } from '@/lib/useSave'
+import { vehicleNames } from '@/lib/vehicles'
 import { KindIcon } from '@/features/vehicle/VehicleArt'
 import { Button, Card, Chip, ErrorText, popSpring, Section, softSpring } from '@/ui'
 import { byDay } from './byDay'
@@ -16,7 +17,7 @@ const MODE: Record<string, string> = { CAR: 'Car', MOTORCYCLE: 'Motorcycle', UNK
 /** Trips by day. Tap a vehicle on a trip, or pick several and put them all on one vehicle. */
 export function TripsToSort({ trips, vehicles }: { trips: Trip[]; vehicles: Vehicle[] }) {
   const [picked, setPicked] = useState<number[]>([])
-  const vehicleName = (id: number | null) => vehicles.find((vehicle) => vehicle.id === id)?.name
+  const vehicleName = vehicleNames(vehicles)
   const assign = useSave(
     (assignment: { ids: number[]; vehicleId: number | null }) => inboxRequests.assignTrips(assignment.ids, assignment.vehicleId).then(() => assignment),
     {

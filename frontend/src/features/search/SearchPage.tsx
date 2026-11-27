@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { dayOf, money } from '@/lib/format'
 import { useSearch, useVehicles } from '@/lib/queries'
 import { type SearchHit } from '@/lib/types'
+import { vehicleNames } from '@/lib/vehicles'
 import { EmptyState, ErrorText, IconBadge, Input, List, ListSkeleton, PageHeader, rowPress, RowText, Section } from '@/ui'
 
 /** How long typing pauses before the search runs. */
@@ -33,7 +34,7 @@ export function SearchPage() {
   }, [words])
   const results = useSearch(words)
   const vehicles = useVehicles()
-  const vehicleName = (id: number | null) => (id == null ? null : vehicles.data?.find((vehicle) => vehicle.id === id)?.name)
+  const vehicleName = vehicleNames(vehicles.data)
 
   return (
     <div className="space-y-5">

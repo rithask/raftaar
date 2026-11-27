@@ -4,6 +4,7 @@ import { money, time } from '@/lib/format'
 import { refresh, useHandled } from '@/lib/queries'
 import { type Handled, type Vehicle } from '@/lib/types'
 import { useSave } from '@/lib/useSave'
+import { vehicleNames } from '@/lib/vehicles'
 import { VehicleLink } from '@/features/vehicle/VehicleLink'
 import { Button, EmptyState, ErrorText, IconBadge, List, ListSkeleton, RowText, rowPress } from '@/ui'
 import { byDay } from './byDay'
@@ -27,7 +28,7 @@ export function HandledList({ vehicles }: { vehicles: Vehicle[] }) {
       canUndo: (_, item) => item.resolution !== 'ADDED_THEN_DELETED',
     },
   )
-  const vehicleName = (id: number | null) => vehicles.find((vehicle) => vehicle.id === id)?.name
+  const vehicleName = vehicleNames(vehicles)
   const days = useMemo(() => byDay(handled.data?.pages.flatMap((page) => page.items) ?? [], (item) => item.at), [handled.data])
 
   if (handled.isLoading) return <ListSkeleton />
