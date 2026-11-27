@@ -1,7 +1,7 @@
 import { queryOptions, useInfiniteQuery, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { api } from './api'
-import type { AccountView, ChannelList, DocView, FuelPrice, Garage, HandledPage, Inbox, SearchHit, Integration, OdometerReading, Vehicle, VehiclePageData } from './types'
+import type { AccountView, ChannelList, DocView, FuelPrice, Garage, HandledPage, ImportBatch, Inbox, SearchHit, Integration, OdometerReading, Vehicle, VehiclePageData } from './types'
 
 /**
  * Every piece of server data the app reads, by name: its cache key and where it comes from. A key that's a prefix
@@ -20,6 +20,7 @@ export const keys = {
   handled: ['inbox', 'handled'] as const, // under inbox: whatever refreshes the Inbox refreshes this too
   integrations: ['integrations'] as const,
   searches: ['search'] as const,
+  imports: ['imports'] as const,
   search: (words: string) => ['search', words] as const,
   channels: ['channels'] as const,
   fuelPrices: ['fuel-prices'] as const,
@@ -44,6 +45,8 @@ export const refresh = {
   channels: [keys.channels, keys.integrations],
   fuelPrices: [keys.fuelPrices],
   account: [keys.account, keys.me],
+  /** An import, or removing one: records and vehicles anywhere. */
+  imported: [keys.imports, keys.vehicles, keys.garage, keys.vehiclePages, keys.documents, keys.odometerHistories, keys.inbox, keys.searches],
 } satisfies Record<string, readonly QueryKey[]>
 
 export const garageQuery = queryOptions({ queryKey: keys.garage, queryFn: () => api<Garage>('/garage') })
@@ -65,6 +68,7 @@ export const useSearch = (words: string) =>
     enabled: words.length >= 2,
     placeholderData: (previous) => previous,
   })
+export const useImports = () => useQuery({ queryKey: keys.imports, queryFn: () => api<ImportBatch[]>('/imports') })
 /** The Inbox's Done list, a page at a time, newest first. */
 export const useHandled = () =>
   useInfiniteQuery({

@@ -82,7 +82,7 @@ function SectionList({ active }: { active?: Key }) {
       : `${on} of ${integrations.data.length} on`,
     notifications: !channels.data ? '' : nChannels === 0 ? 'No channels yet' : nChannels === 1 ? '1 channel' : `${nChannels} channels`,
     'fuel-prices': !prices.data ? '' : prices.data.length === 0 ? 'None yet' : prices.data.length === 1 ? '1 state' : `${prices.data.length} prices`,
-    data: 'Export your records',
+    data: 'Export and import',
     account: account.data?.username ?? '',
   }
   const logout = async () => {

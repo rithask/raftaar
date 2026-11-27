@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import com.raftaar.common.EntityRepo;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.Query;
 import java.util.Collection;
@@ -24,4 +25,8 @@ public interface FuelEntryRepo extends EntityRepo<FuelEntry> {
     /** Fill-ups whose pump, place or notes contain {@code text} (a lowercase LIKE pattern), newest first. */
     @Query("select f from FuelEntry f where lower(f.stationName) like :text escape '\\' or lower(f.stationBrand) like :text escape '\\' or lower(f.district) like :text escape '\\' or lower(f.region) like :text escape '\\' or lower(f.notes) like :text escape '\\' order by f.filledAt desc, f.id desc")
     List<FuelEntry> search(String text, Limit limit);
+    /** Removes what an import added (DataImport.remove). */
+    @Transactional
+    long deleteByImportBatchId(Long importBatchId);
+    boolean existsByVehicleId(Long vehicleId);
 }

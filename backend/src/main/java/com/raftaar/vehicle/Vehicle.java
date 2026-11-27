@@ -1,5 +1,6 @@
 package com.raftaar.vehicle;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -35,6 +36,8 @@ public class Vehicle {
     public boolean archived;
     public int sortOrder;
     public String notes;
+    /** The import that added it (DataImport), if one did. */
+    @JsonIgnore public Long importBatchId;
     public Instant createdAt = Instant.now();
 
     /** GeoPulse movement types this vehicle could have made. */

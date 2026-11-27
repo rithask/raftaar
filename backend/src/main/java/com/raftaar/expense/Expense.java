@@ -1,5 +1,6 @@
 package com.raftaar.expense;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -22,5 +23,7 @@ public class Expense {
     public String vendor;
     public String hisaabTxnId;
     public String notes;
+    /** The import that added it (DataImport), if one did. */
+    @JsonIgnore public Long importBatchId;
     public Instant createdAt = Instant.now();
 }

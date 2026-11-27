@@ -7,4 +7,5 @@ import com.raftaar.common.EntityRepo;
 public interface VehicleRepo extends EntityRepo<Vehicle> {
     List<Vehicle> findAllByOrderByArchivedAscSortOrderAscIdAsc();
     List<Vehicle> findByArchivedFalse();
+    List<Vehicle> findByImportBatchId(Long importBatchId);
 }

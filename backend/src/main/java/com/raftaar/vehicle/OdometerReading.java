@@ -1,5 +1,6 @@
 package com.raftaar.vehicle;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -14,5 +15,7 @@ public class OdometerReading {
     public Instant readAt;
     public BigDecimal odometer;
     public String notes;
+    /** The import that added it (DataImport), if one did. */
+    @JsonIgnore public Long importBatchId;
     public Instant createdAt = Instant.now();
 }

@@ -20,11 +20,17 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
   what you sold it for; per km over the distance you had it, and per month ("so far" for one you still have). Mark
   a vehicle sold or retired and its Edit screen asks what it sold for, the odometer then and the date. Sold cards in
   the Garage show their cost per km. Anything missing is named instead of the figure guessing.
+- Import, in Settings → Data: Raftaar's own export (to move between installs), Fuelio's backup CSV, and CSVs from
+  other apps such as Drivvo, read by their column names (best effort: check a few records afterwards). A preview
+  shows what's in the file, which of your vehicles each of its vehicles goes to (or a new one), and what's already
+  here and will be left out; nothing is saved until Import. Each import is listed and can be removed whole, and the
+  Import toast has Undo.
 
 ### Changed
 
-- The database gets three new columns for a vehicle's sale. This version upgrades the database when it starts, so
-  going back to 0.8.x afterwards means restoring the copy of `data/db` taken before upgrading.
+- The database gets a vehicle's sale, a table of imports and, on each record, which import added it. Nothing about
+  the data already there changes, but this version upgrades the database when it starts, so going back to 0.8.x
+  afterwards means restoring the copy of `data/db` taken before upgrading.
 - km a day (on the vehicle page, and behind due-soon warnings) is worked out from at least two weeks of readings
   or trips, instead of a few days, so it isn't thrown off by a single long ride.
 

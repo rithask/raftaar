@@ -30,5 +30,7 @@ public class Document {
     @JsonIgnore public LocalDate lastNotifiedExpiry;
     @JsonIgnore public Integer lastNotifiedDays;
     public String notes;
+    /** The import that added it (DataImport), if one did. */
+    @JsonIgnore public Long importBatchId;
     public Instant createdAt = Instant.now();
 }

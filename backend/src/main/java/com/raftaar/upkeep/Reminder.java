@@ -1,5 +1,6 @@
 package com.raftaar.upkeep;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -25,6 +26,8 @@ public class Reminder {
     public String lastNotifiedState;
     public Instant lastNotifiedAt;
     public String notes;
+    /** The import that added it (DataImport), if one did. */
+    @JsonIgnore public Long importBatchId;
     public Instant createdAt = Instant.now();
 
     /** The date it's due: an interval from when it was last done, or a fixed date. */

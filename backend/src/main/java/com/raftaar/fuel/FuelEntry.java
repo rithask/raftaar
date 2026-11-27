@@ -1,5 +1,6 @@
 package com.raftaar.fuel;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -30,5 +31,7 @@ public class FuelEntry {
     public String hisaabTxnId;
     public String sourceIssue;
     public String notes;
+    /** The import that added it (DataImport), if one did. */
+    @JsonIgnore public Long importBatchId;
     public Instant createdAt = Instant.now();
 }

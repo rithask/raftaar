@@ -2,8 +2,9 @@ import { DownloadSimple, FileArchive, FileCsv } from '@phosphor-icons/react'
 import { type ReactNode } from 'react'
 import { IconBadge, List, rowPress, RowText, Section } from '@/ui'
 import { EXPORTS, exportUrl } from './exports'
+import { ImportSection } from './ImportSection'
 
-/** Settings → Data: your records as files, for a spreadsheet, a backup or another app. */
+/** Settings → Data: your records as files (for a spreadsheet, a backup or another app), and records from files. */
 export function DataSection() {
   return (
     <div className="space-y-6">
@@ -16,6 +17,7 @@ export function DataSection() {
         </List>
         <p className="px-1 text-xs text-stone-500">One vehicle's records: Export, at the bottom of its Edit screen.</p>
       </Section>
+      <ImportSection />
     </div>
   )
 }

@@ -275,6 +275,45 @@ export interface Suggestion {
   dismissReason: string | null
 }
 
+/** Per kind of record, how many (DataImport.Counts): fill-ups, services, expenses, readings, papers, reminders, new vehicles. */
+export interface RecordCounts {
+  fuel: number
+  services: number
+  expenses: number
+  odometer: number
+  papers: number
+  reminders: number
+  vehicles: number
+}
+
+/** What importing a file would do (DataImport.Preview). Each of its vehicles, with the one here it matches (match). */
+export interface ImportPreview {
+  source: 'RAFTAAR' | 'FUELIO' | 'OTHER'
+  vehicles: { name: string; records: number; described: boolean; match: number | null }[]
+  adding: RecordCounts
+  duplicates: RecordCounts
+  from: string | null
+  to: string | null
+  /** Rows that couldn't be read, and why. */
+  skipped: string[]
+}
+
+export interface ImportResult {
+  batchId: number
+  added: RecordCounts
+  duplicates: RecordCounts
+  skipped: string[]
+}
+
+/** One past import, which can be removed whole. */
+export interface ImportBatch {
+  id: number
+  source: ImportPreview['source']
+  fileName: string | null
+  summary: string | null
+  createdAt: string
+}
+
 /** A record found by its words (Search on the server). {@code on}: its day (a paper's expiry). */
 export interface SearchHit {
   kind: 'FUEL' | 'SERVICE' | 'EXPENSE' | 'PAPER' | 'REMINDER'
