@@ -7,7 +7,7 @@ import { DataSection } from '@/features/data/DataSection'
 import { AccountSection } from './AccountSection'
 import { Connections, META } from './Connections'
 import { FuelPrices } from './FuelPrices'
-import { NotificationChannels } from './NotificationChannels'
+import { NotificationsSection } from './Notifications'
 import { Button, cx, IconBadge, List, PageHeader, rowPress } from '@/ui'
 import { keys, useAccount, useChannels, useFuelPrices, useHealth, useIntegrations, usePush } from '@/lib/queries'
 
@@ -44,7 +44,7 @@ export function SettingsPage() {
         )}
         <h2 className="mb-4 text-2xl font-bold tracking-tight sm:mt-1 sm:text-xl">{open.title}</h2>
         {open.key === 'connections' && <Connections />}
-        {open.key === 'notifications' && <NotificationChannels />}
+        {open.key === 'notifications' && <NotificationsSection />}
         {open.key === 'fuel-prices' && <FuelPrices />}
         {open.key === 'data' && <DataSection />}
         {open.key === 'account' && <AccountSection />}

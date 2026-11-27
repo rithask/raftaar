@@ -1,29 +1,38 @@
-import { DeviceMobile, DownloadSimple, Export, Trash } from '@phosphor-icons/react'
+import { DeviceMobile, DownloadSimple, Export } from '@phosphor-icons/react'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { api } from '@/lib/api'
 import { ago } from '@/lib/format'
 import { canInstall, currentSubscription, deviceLabel, install, isInstalled, isIos, onInstallChange, pushSupport, subscribe, unsubscribe, type PushSupport } from '@/lib/push'
 import { refresh, usePush } from '@/lib/queries'
 import { type PushDevice } from '@/lib/types'
-import { deleteWithUndo, useHidden } from '@/lib/undo'
+import { deleteWithUndo } from '@/lib/undo'
 import { failed, useSave } from '@/lib/useSave'
-import { Badge, Button, Card, ErrorText, IconBadge, List, RowText, Toggle } from '@/ui'
+import { Button, Card, ErrorText, IconBadge, RowText, Toggle } from '@/ui'
+import { DestinationRow, RemoveButton } from './DestinationRow'
 import { TestButton } from './TestButton'
 
 /**
- * Settings → Notifications, first: notifications on this phone or computer itself (Web Push), and installing the
- * app, which an iPhone needs before it can have them. Then the other devices that have them on.
+ * This phone or computer and its notifications by Web Push: what it can do, the server's key, and which of the
+ * devices on the server it is (by its push address).
  */
-export function ThisDevice() {
+export function useThisDevice() {
   const push = usePush()
-  const support = usePushSupport()
+  const [support, setSupport] = useState<PushSupport | null>(null)
   const [endpoint, setEndpoint] = useState<string | null>(null)
+  useEffect(() => { void pushSupport().then(setSupport) }, [])
   useEffect(() => {
     if (support === 'ready') void currentSubscription().then((subscription) => setEndpoint(subscription?.endpoint ?? null))
   }, [support])
   const devices = push.data?.devices ?? []
-  const mine = devices.find((device) => device.endpoint === endpoint)
+  return { push, support, endpoint, setEndpoint, devices, mine: devices.find((device) => device.endpoint === endpoint) }
+}
+type ThisDeviceState = ReturnType<typeof useThisDevice>
 
+/**
+ * Settings → Notifications, first: notifications on this phone or computer itself, and installing the app, which an
+ * iPhone needs before it can have them.
+ */
+export function ThisDevice({ state: { push, support, setEndpoint, mine } }: { state: ThisDeviceState }) {
   const turnOn = useSave(async () => {
     const subscription = await subscribe(push.data!.publicKey)
     if (!subscription) throw new Error('Notifications are blocked for this site. Allow them in the browser\'s settings, then try again.')
@@ -39,27 +48,44 @@ export function ThisDevice() {
   const test = useTestDevice()
 
   return (
-    <div className="space-y-3">
-      <Card padded raised className="space-y-3">
-        <div className="flex items-center gap-3">
-          <IconBadge tone="neutral" square><DeviceMobile size={20} /></IconBadge>
-          <RowText title="This device">{deviceLabel()}</RowText>
-        </div>
-        <InstallHint support={support} />
-        {support === 'ready' && (
-          <>
-            <Toggle checked={mine != null} onChange={(on) => (on ? turnOn.mutate(undefined) : turnOff.mutate(undefined))}
-              label="Notifications here" hint="Reminders and expiring papers, as notifications on this device." />
-            {mine && <TestButton to="this device" busy={test.isPending} onClick={() => test.mutate(mine.id)} />}
-          </>
-        )}
-        {support === 'unsupported' && <p className="text-sm text-stone-500">This browser can't show notifications from a site.</p>}
-        {support === 'no-service-worker' && <p className="text-sm text-stone-500">Notifications on a device work in the app as installed, not here on the development server.</p>}
-        <ErrorText error={turnOn.error ?? turnOff.error ?? test.error ?? push.error} />
-      </Card>
-      <OtherDevices devices={devices.filter((device) => device.endpoint !== endpoint)} />
-    </div>
+    <Card padded raised className="space-y-3">
+      <div className="flex items-center gap-3">
+        <IconBadge tone="neutral" square><DeviceMobile size={20} /></IconBadge>
+        <RowText title="This device">{deviceLabel()}</RowText>
+        {mine && <TestButton to="this device" busy={test.isPending} onClick={() => test.mutate(mine.id)} />}
+      </div>
+      <InstallHint support={support} />
+      {support === 'ready' && (
+        <Toggle checked={mine != null} onChange={(on) => (on ? turnOn.mutate(undefined) : turnOff.mutate(undefined))}
+          label="Notifications here" hint="Reminders and expiring papers, as notifications on this device." />
+      )}
+      {support === 'unsupported' && <p className="text-sm text-stone-500">This browser can't show notifications from a site.</p>}
+      {support === 'no-service-worker' && <p className="text-sm text-stone-500">Notifications on a device work in the app as installed, not here on the development server.</p>}
+      <ErrorText error={turnOn.error ?? turnOff.error ?? test.error ?? push.error} />
+    </Card>
   )
+}
+
+/** Another phone or browser with notifications on: how its last one went, a test, and removing it. */
+export function DeviceRow({ device, test }: { device: PushDevice; test: ReturnType<typeof useTestDevice> }) {
+  return (
+    <DestinationRow icon={<DeviceMobile size={18} />} title={device.label} failed={device.lastOk === false}
+      detail={device.lastError ?? (device.lastSentAt ? `Last sent ${ago(device.lastSentAt)}` : `Added ${ago(device.createdAt)}`)}>
+      <TestButton to={device.label} busy={test.isPending && test.variables === device.id} onClick={() => test.mutate(device.id)} />
+      <RemoveButton what={`notifications on ${device.label}`} onClick={() => deleteWithUndo({
+        text: 'Device removed', what: 'the device', hide: `push:${device.id}`, refresh: refresh.push,
+        run: () => api(`/push/devices/${device.id}`, { method: 'DELETE' }),
+      })} />
+    </DestinationRow>
+  )
+}
+
+/** A test notification to one device. A device's row shows how its last one went, failed or not. */
+export function useTestDevice() {
+  return useSave((id: number) => api<PushDevice>(`/push/devices/${id}/test`, { method: 'POST' }), {
+    refresh: refresh.push,
+    done: (device) => (device.lastOk ? `Test sent to ${device.label}` : failed(`Test to ${device.label} failed: ${device.lastError}`)),
+  })
 }
 
 /** Installing the app: one button where the browser offers it, the steps on an iPhone (needed there for notifications). */
@@ -81,46 +107,4 @@ function InstallHint({ support }: { support: PushSupport | null }) {
     )
   }
   return null
-}
-
-/** The other phones and browsers with notifications on, each with a test and removable. */
-function OtherDevices({ devices }: { devices: PushDevice[] }) {
-  const hidden = useHidden()
-  const test = useTestDevice()
-  const list = devices.filter((device) => !hidden(`push:${device.id}`))
-  if (!list.length) return null
-  return (
-    <List label="Other devices">
-      {list.map((device) => (
-        <div key={device.id} className="flex items-center gap-3 py-3 pr-2 pl-4">
-          <IconBadge tone="neutral" square><DeviceMobile size={18} /></IconBadge>
-          {/* the name shortens before the badge does */}
-          <RowText title={<span className="flex items-center gap-2"><span className="truncate">{device.label}</span>{device.lastOk === false && <Badge tone="bad" className="shrink-0">failed</Badge>}</span>}>
-            {device.lastError ?? (device.lastSentAt ? `Last sent ${ago(device.lastSentAt)}` : `Added ${ago(device.createdAt)}`)}
-          </RowText>
-          <TestButton to={device.label} busy={test.isPending && test.variables === device.id} onClick={() => test.mutate(device.id)} />
-          <button type="button" aria-label={`Stop notifications on ${device.label}`}
-            onClick={() => deleteWithUndo({ text: 'Device removed', what: 'the device', hide: `push:${device.id}`, refresh: refresh.push,
-              run: () => api(`/push/devices/${device.id}`, { method: 'DELETE' }) })}
-            className="shrink-0 rounded-lg p-2 text-stone-400 transition hover:text-red-600 active:scale-90 active:bg-red-500/10 active:text-red-600">
-            <Trash size={16} />
-          </button>
-        </div>
-      ))}
-    </List>
-  )
-}
-
-/** A test notification to one device. A device's row shows how its last one went, failed or not. */
-function useTestDevice() {
-  return useSave((id: number) => api<PushDevice>(`/push/devices/${id}/test`, { method: 'POST' }), {
-    refresh: refresh.push,
-    done: (device) => (device.lastOk ? `Test sent to ${device.label}: it should show in a moment` : failed(`Test to ${device.label} failed: ${device.lastError}`)),
-  })
-}
-
-function usePushSupport() {
-  const [support, setSupport] = useState<PushSupport | null>(null)
-  useEffect(() => { void pushSupport().then(setSupport) }, [])
-  return support
 }
