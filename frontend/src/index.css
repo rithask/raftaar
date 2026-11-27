@@ -37,6 +37,8 @@
     --color-on-accent: #0b0b0d;
     --color-accent-strong: #60a5fa;
     --color-accent-soft: #172554;
+    /* captions and secondary text (text-stone-500) lifted so they stay readable on dark cards: 5.5:1 on stone-900 */
+    --color-stone-500: #8e8e96;
   }
 }
 
