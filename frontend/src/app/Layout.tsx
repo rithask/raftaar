@@ -2,7 +2,7 @@ import { CaretDoubleLeft, Garage, Gear, Scroll, SignOut, Tray } from '@phosphor-
 import { useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { Link, NavLink, useLocation, useOutlet } from 'react-router-dom'
+import { Link, useLocation, useOutlet } from 'react-router-dom'
 import { signOut } from '@/features/auth/session'
 import { KindIcon } from '@/features/vehicle/VehicleArt'
 import { imageUrl } from '@/features/vehicle/photo'
@@ -14,11 +14,15 @@ import { keys, useGarage } from '@/lib/queries'
 import { VehicleLink } from '@/features/vehicle/VehicleLink'
 
 const tabs = [
-  { to: '/', label: 'Garage', Icon: Garage, end: true },
+  { to: '/', label: 'Garage', Icon: Garage },
   { to: '/inbox', label: 'Inbox', Icon: Tray },
   { to: '/papers', label: 'Papers', Icon: Scroll },
   { to: '/settings', label: 'Settings', Icon: Gear },
 ]
+type Tab = (typeof tabs)[number]
+
+/** The section a page belongs to, as its tab's {@code to}: every Settings page is Settings'. */
+const sectionOf = (pathname: string) => (pathname.startsWith('/settings') ? '/settings' : pathname)
 
 const depth = (path: string) => (path.startsWith('/vehicles/') ? 1 : 0)
 
@@ -116,7 +120,7 @@ function Highlight() {
 function Sidebar({ garage, waiting, collapsed, onToggle }: { garage?: GarageData; waiting: number; collapsed: boolean; onToggle: () => void }) {
   const { pathname } = useLocation()
   const queryClient = useQueryClient()
-  const current = pathname.startsWith('/settings') ? '/settings' : pathname
+  const current = sectionOf(pathname)
   const hidden = useHidden()
   const vehicles = (garage?.vehicles ?? []).filter((card) => !card.vehicle.archived && !hidden(`vehicle:${card.vehicle.id}`))
   const leave = async () => {
@@ -214,20 +218,19 @@ function Sidebar({ garage, waiting, collapsed, onToggle }: { garage?: GarageData
 }
 
 /**
- * A floating, frosted pill at the bottom of the phone screen. The current section shows its label in an accent
- * pill that slides between tabs; the others are icons. It tucks away while you scroll down and comes back as
- * soon as you scroll up.
+ * A floating, frosted pill at the bottom of the phone screen: the open section shows its label in an accent pill
+ * that slides between them, the others are icons. It tucks away while you scroll down and comes back as soon as you
+ * scroll up.
  *
- * The bar is one width whichever section is open (room for the longest label): the current one fills what the
- * icons leave. Sized to its contents, it grew and shrank with each label and, being centred, moved on every switch.
- * On the narrowest phones (under 360 px) the icons' slots and the padding are a little smaller, so the longest
- * label still fits.
+ * It's one width whichever section is open (room for the longest label), the open one filling what the icons
+ * leave: sized to its contents, it grew and shrank with each label and, being centred, moved on every switch. Under
+ * 360 px the icons' slots and the padding are a little smaller, so the longest label still fits.
  */
 function BottomBar({ waiting }: { waiting: number }) {
   const hidden = useHideOnScroll()
   const { pathname } = useLocation()
-  // a vehicle's page belongs to the Garage
-  const current = pathname.startsWith('/vehicles/') ? '/' : pathname.startsWith('/settings') ? '/settings' : pathname
+  // a vehicle's page belongs to the Garage (the sidebar shows the vehicle itself instead)
+  const current = pathname.startsWith('/vehicles/') ? '/' : sectionOf(pathname)
   return (
     <motion.nav
       aria-label="Sections"
@@ -237,61 +240,63 @@ function BottomBar({ waiting }: { waiting: number }) {
       className="fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex justify-center px-4 sm:hidden"
     >
       <div className="flex w-80 max-w-full items-center gap-1 rounded-full bg-white/75 p-1.5 shadow-[0_8px_30px_-6px_rgba(0,0,0,0.25)] ring-1 ring-stone-900/[0.07] backdrop-blur-xl backdrop-saturate-150 dark:bg-stone-900/75 dark:ring-white/10">
-        {tabs.map(({ to, label, Icon, end }) => (
-          <NavLink key={to} to={to} end={end} aria-label={label} aria-current={current === to ? 'page' : undefined}
-            className={({ isActive }) => cx('relative select-none rounded-full', isActive || current === to ? 'min-w-0 flex-1' : 'w-12 shrink-0 min-[360px]:w-14')}>
-            {({ isActive: exact }) => {
-              const isActive = exact || current === to
-              return (
-              <motion.span
-                layout
-                transition={spring}
-                whileTap={{ scale: 0.92 }}
-                className={cx('relative flex h-12 w-full items-center justify-center rounded-full', isActive ? 'px-3 text-on-accent min-[360px]:px-4' : 'text-stone-500 dark:text-stone-400')}
-              >
-                {isActive && <motion.span layoutId="bar-pill" transition={spring} className="absolute inset-0 rounded-full bg-accent shadow-sm shadow-black/20" />}
-                <span className="relative">
-                  <Icon size={24} weight={isActive ? 'bold' : 'regular'} />
-                  <AnimatePresence>
-                    {to === '/inbox' && waiting > 0 && (
-                      <motion.span
-                        key="count"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        exit={{ scale: 0 }}
-                        transition={spring}
-                        className={cx(
-                          'num absolute -top-1.5 -right-2 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold ring-2',
-                          isActive ? 'bg-on-accent text-accent ring-accent' : 'bg-red-500 text-white ring-white dark:ring-stone-900',
-                        )}
-                      >
-                        {waiting > 99 ? '99+' : waiting}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </span>
-                <AnimatePresence initial={false}>
-                  {isActive && (
-                    <motion.span
-                      key="label"
-                      className="relative overflow-hidden text-sm font-semibold whitespace-nowrap"
-                      initial={{ width: 0, opacity: 0 }}
-                      animate={{ width: 'auto', opacity: 1 }}
-                      exit={{ width: 0, opacity: 0 }}
-                      transition={spring}
-                    >
-                      {/* the space is inside the label so it shrinks with it; a gap on the row made the icon jump at the end */}
-                      <span className="block pl-2">{label}</span>
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </motion.span>
-              )
-            }}
-          </NavLink>
-        ))}
+        {tabs.map((tab) => <BarItem key={tab.to} tab={tab} open={current === tab.to} count={tab.to === '/inbox' ? waiting : 0} />)}
       </div>
     </motion.nav>
+  )
+}
+
+/** One section in the bottom bar: the open one fills the room left and shows its label; {@code count} is a badge. */
+function BarItem({ tab: { to, label, Icon }, open, count }: { tab: Tab; open: boolean; count: number }) {
+  return (
+    <Link to={to} aria-label={label} aria-current={open ? 'page' : undefined}
+      className={cx('relative select-none rounded-full', open ? 'min-w-0 flex-1' : 'w-12 shrink-0 min-[360px]:w-14')}>
+      <motion.span
+        layout
+        transition={spring}
+        whileTap={{ scale: 0.92 }}
+        className={cx('relative flex h-12 w-full items-center justify-center rounded-full', open ? 'px-3 text-on-accent min-[360px]:px-4' : 'text-stone-500 dark:text-stone-400')}
+      >
+        {open && <motion.span layoutId="bar-pill" transition={spring} className="absolute inset-0 rounded-full bg-accent shadow-sm shadow-black/20" />}
+        <span className="relative">
+          <Icon size={24} weight={open ? 'bold' : 'regular'} />
+          <AnimatePresence>{count > 0 && <CountBadge count={count} onAccent={open} />}</AnimatePresence>
+        </span>
+        <AnimatePresence initial={false}>
+          {open && (
+            <motion.span
+              key="label"
+              className="relative overflow-hidden text-sm font-semibold whitespace-nowrap"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 'auto', opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={spring}
+            >
+              {/* the space is inside the label so it shrinks with it; a gap on the row made the icon jump at the end */}
+              <span className="block pl-2">{label}</span>
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </motion.span>
+    </Link>
+  )
+}
+
+/** A count on a section's icon (what's waiting in the Inbox), popping in and out. */
+function CountBadge({ count, onAccent }: { count: number; onAccent: boolean }) {
+  return (
+    <motion.span
+      initial={{ scale: 0 }}
+      animate={{ scale: 1 }}
+      exit={{ scale: 0 }}
+      transition={spring}
+      className={cx(
+        'num absolute -top-1.5 -right-2 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold ring-2',
+        onAccent ? 'bg-on-accent text-accent ring-accent' : 'bg-red-500 text-white ring-white dark:ring-stone-900',
+      )}
+    >
+      {count > 99 ? '99+' : count}
+    </motion.span>
   )
 }
 
