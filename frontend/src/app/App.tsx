@@ -15,6 +15,7 @@ const Login = lazy(() => import('@/features/auth/LoginPage').then((page) => ({ d
 const VehiclePage = lazy(() => loadVehiclePage().then((page) => ({ default: page.VehiclePage })))
 const InboxPage = lazy(() => import('@/features/inbox/InboxPage').then((page) => ({ default: page.InboxPage })))
 const PapersPage = lazy(() => import('@/features/papers/PapersPage').then((page) => ({ default: page.PapersPage })))
+const SearchPage = lazy(() => import('@/features/search/SearchPage').then((page) => ({ default: page.SearchPage })))
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then((page) => ({ default: page.SettingsPage })))
 
 export function App() {
@@ -39,6 +40,7 @@ export function App() {
         <Route path="vehicles/:id" element={<VehiclePage />} />
         <Route path="inbox" element={<InboxPage />} />
         <Route path="papers" element={<PapersPage />} />
+        <Route path="search" element={<SearchPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/:section" element={<SettingsPage />} />
         <Route path="*" element={<GaragePage />} />

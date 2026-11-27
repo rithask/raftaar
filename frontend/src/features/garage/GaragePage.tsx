@@ -1,4 +1,4 @@
-import { Bell, CaretRight, GasPump, Gauge, Plus, Scroll, Tray, Warning } from '@phosphor-icons/react'
+import { Bell, CaretRight, GasPump, Gauge, MagnifyingGlass, Plus, Scroll, Tray, Warning } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -9,7 +9,7 @@ import { FuelForm } from '@/features/fuel/FuelForm'
 import { KindIcon, VehicleArt } from '@/features/vehicle/VehicleArt'
 import { VehicleForm } from '@/features/vehicle/VehicleForm'
 import { imageUrl } from '@/features/vehicle/photo'
-import { Badge, Button, Card, cx, EmptyState, ErrorText, IconBadge, listItem, listParent, Loading, PageHeader, Section, softSpring, surface } from '@/ui'
+import { Badge, Button, buttonStyle, Card, cx, EmptyState, ErrorText, IconBadge, listItem, listParent, Loading, PageHeader, Section, softSpring, surface } from '@/ui'
 import { useGarage } from '@/lib/queries'
 import { VehicleLink } from '@/features/vehicle/VehicleLink'
 
@@ -30,7 +30,12 @@ export function GaragePage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Garage" action={<Button variant="secondary" onClick={() => setAdding(true)}><Plus size={16} /> Add</Button>} />
+      <PageHeader title="Garage" action={
+        <div className="flex items-center gap-2">
+          <Link to="/search" aria-label="Search" className={buttonStyle('secondary', '!px-3')}><MagnifyingGlass size={18} /></Link>
+          <Button variant="secondary" onClick={() => setAdding(true)}><Plus size={16} /> Add</Button>
+        </div>
+      } />
 
       <AnimatePresence initial={false}>
       {waiting > 0 && (

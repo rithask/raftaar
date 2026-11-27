@@ -21,8 +21,8 @@ const tabs = [
 ]
 type Tab = (typeof tabs)[number]
 
-/** The section a page belongs to, as its tab's {@code to}: every Settings page is Settings'. */
-const sectionOf = (pathname: string) => (pathname.startsWith('/settings') ? '/settings' : pathname)
+/** The section a page belongs to, as its tab's {@code to}: every Settings page is Settings', and Search is the Garage's. */
+const sectionOf = (pathname: string) => (pathname.startsWith('/settings') ? '/settings' : pathname === '/search' ? '/' : pathname)
 
 const depth = (path: string) => (path.startsWith('/vehicles/') ? 1 : 0)
 

@@ -1,7 +1,7 @@
 import { queryOptions, useInfiniteQuery, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { api } from './api'
-import type { AccountView, ChannelList, DocView, FuelPrice, Garage, HandledPage, Inbox, Integration, OdometerReading, Vehicle, VehiclePageData } from './types'
+import type { AccountView, ChannelList, DocView, FuelPrice, Garage, HandledPage, Inbox, SearchHit, Integration, OdometerReading, Vehicle, VehiclePageData } from './types'
 
 /**
  * Every piece of server data the app reads, by name: its cache key and where it comes from. A key that's a prefix
@@ -19,6 +19,8 @@ export const keys = {
   inbox: ['inbox'] as const,
   handled: ['inbox', 'handled'] as const, // under inbox: whatever refreshes the Inbox refreshes this too
   integrations: ['integrations'] as const,
+  searches: ['search'] as const,
+  search: (words: string) => ['search', words] as const,
   channels: ['channels'] as const,
   fuelPrices: ['fuel-prices'] as const,
   account: ['account'] as const,
@@ -30,12 +32,12 @@ export const keys = {
  * screen straight away, the rest when next shown), rather than everything.
  */
 export const refresh = {
-  /** A fill-up, service, reminder, expense or reading: the vehicle's page, the garage's figures, the inbox's issues. */
-  vehicleRecords: [keys.vehiclePages, keys.garage, keys.odometerHistories, keys.inbox],
+  /** A fill-up, service, reminder, expense or reading: the vehicle's page, the garage's figures, the inbox's issues, search results. */
+  vehicleRecords: [keys.vehiclePages, keys.garage, keys.odometerHistories, keys.inbox, keys.searches],
   /** A paper: also the Papers page. */
-  papers: [keys.vehiclePages, keys.garage, keys.documents],
+  papers: [keys.vehiclePages, keys.garage, keys.documents, keys.searches],
   /** A vehicle itself (name, photo, order, removed): everywhere it's shown. */
-  vehicles: [keys.vehicles, keys.garage, keys.vehiclePages, keys.documents, keys.inbox],
+  vehicles: [keys.vehicles, keys.garage, keys.vehiclePages, keys.documents, keys.inbox, keys.searches],
   /** Trips and suggestions sorted in the Inbox: they land on vehicles. */
   inbox: [keys.inbox, keys.garage, keys.vehiclePages],
   integrations: [keys.integrations, keys.inbox, keys.garage],
@@ -55,6 +57,14 @@ export const useOdometerHistory = (vehicleId: number) =>
   useQuery({ queryKey: keys.odometerHistory(vehicleId), queryFn: () => api<OdometerReading[]>(`/vehicles/${vehicleId}/odometer`) })
 export const useDocuments = () => useQuery({ queryKey: keys.documents, queryFn: () => api<DocView[]>('/documents') })
 export const useInbox = () => useQuery({ queryKey: keys.inbox, queryFn: () => api<Inbox>('/inbox') })
+/** Records matching {@code words} (2 letters or more), keeping the last results on screen while the next arrive. */
+export const useSearch = (words: string) =>
+  useQuery({
+    queryKey: keys.search(words),
+    queryFn: () => api<SearchHit[]>(`/search?q=${encodeURIComponent(words)}`),
+    enabled: words.length >= 2,
+    placeholderData: (previous) => previous,
+  })
 /** The Inbox's Done list, a page at a time, newest first. */
 export const useHandled = () =>
   useInfiniteQuery({

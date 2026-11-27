@@ -2,6 +2,7 @@ import { Plus, Scroll } from '@phosphor-icons/react'
 import { AnimatePresence } from 'motion/react'
 import { useState } from 'react'
 import { type DocView } from '@/lib/types'
+import { useOpenParam } from '@/lib/useOpenParam'
 import { useHidden } from '@/lib/undo'
 import { DocumentForm } from './DocumentForm'
 import { needsRenewal, PaperRow, paperSub } from './PaperRow'
@@ -14,6 +15,8 @@ export function PapersPage() {
   const vehicles = useVehicles()
   const [open, setOpen] = useState<{ d?: DocView; renewing?: boolean } | null>(null)
   const hidden = useHidden()
+  // a paper named in the address (from search) opens once the list has loaded
+  useOpenParam(docs.data != null, (kind, id) => (kind === 'doc' ? docs.data!.find((paper) => paper.document.id === id) : null), (d) => setOpen({ d }))
   if (docs.isLoading) return <Loading />
   const list = (docs.data ?? []).filter((paper) => !hidden(`doc:${paper.document.id}`))
   const vs = (vehicles.data ?? []).filter((vehicle) => !vehicle.archived)

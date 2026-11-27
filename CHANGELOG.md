@@ -10,6 +10,9 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 - Reminders due by distance say roughly when, at the vehicle's pace: "Due in 1,200 km, around 3 Jan" on the
   reminder, the vehicle page, the garage and in notifications (which also say the km a day it's based on). A date
   is given only from at least two weeks of readings, and only when it comes before the reminder's own due date.
+- Search, from the button in the Garage's header: fill-ups (pump, place), services (title, workshop), expenses
+  (title, vendor), papers (title, number, provider), reminders, and the notes on any of them. Results come by kind;
+  tapping one opens it on its vehicle's page, on the right tab, with its form open.
 
 ### Changed
 

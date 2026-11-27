@@ -252,6 +252,17 @@ export interface Suggestion {
   dismissReason: string | null
 }
 
+/** A record found by its words (Search on the server). {@code on}: its day (a paper's expiry). */
+export interface SearchHit {
+  kind: 'FUEL' | 'SERVICE' | 'EXPENSE' | 'PAPER' | 'REMINDER'
+  id: number
+  vehicleId: number | null
+  title: string | null
+  detail: string | null
+  on: string | null
+  amount: number | null
+}
+
 /** What became of something in the Inbox (Resolution on the server). */
 export type Resolution = 'ADDED' | 'ADDED_THEN_DELETED' | 'DISMISSED' | 'DISMISSED_BY_SYNC' | 'ON_VEHICLE' | 'NOT_MINE'
 
