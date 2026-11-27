@@ -1,13 +1,16 @@
 import type { ReactNode } from 'react'
 import { cx } from './cx'
 
-/** A small heading above a list, with how many or how much ("12 · ₹4,300") and an action on the right ("+ Add"). */
+/**
+ * A small heading above a list, with how many or how much ("12 · ₹4,300") and an action on the right ("+ Add").
+ * The figures follow the title on its line, and only go to the next one when there isn't room.
+ */
 export function SectionHeader({ title, meta, action }: { title: ReactNode; meta?: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 px-1">
-      <div className="min-w-0">
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
         <h2 className="text-[13px] font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400">{title}</h2>
-        {meta && <p className="num truncate text-xs text-stone-500">{meta}</p>}
+        {meta && <p className="num min-w-0 text-xs text-stone-500">{meta}</p>}
       </div>
       {action}
     </div>
