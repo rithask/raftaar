@@ -22,11 +22,13 @@ public class Notifications {
     private final AppriseClient apprise;
     private final NotificationChannelRepo repo;
     private final AppProperties.Apprise cfg;
+    private final WebPush push;
 
-    public Notifications(AppriseClient apprise, NotificationChannelRepo repo, AppProperties props) {
+    public Notifications(AppriseClient apprise, NotificationChannelRepo repo, AppProperties props, WebPush push) {
         this.apprise = apprise;
         this.repo = repo;
         this.cfg = props.apprise();
+        this.push = push;
     }
 
     /** A channel as the browser sees it. {@code id} is null for one from APPRISE_URLS (read-only). */
@@ -42,8 +44,9 @@ public class Notifications {
         else log.info("Apprise isn't available ({}); notifications are off until it is", cfg.binary());
     }
 
+    /** Somewhere to send to: an enabled channel, one from APPRISE_URLS, or a device with push notifications on. */
     public boolean configured() {
-        return !repo.findByEnabledTrueOrderByIdAsc().isEmpty() || !cfg.envUrls().isEmpty();
+        return !repo.findByEnabledTrueOrderByIdAsc().isEmpty() || !cfg.envUrls().isEmpty() || push.any();
     }
 
     public List<Channel> channels() {
@@ -100,8 +103,11 @@ public class Notifications {
 
     public record Outcome(int sent, int failed, List<String> errors) {}
 
-    /** Sends to every enabled channel. Throws only when nothing at all got through. */
-    public Outcome send(String title, String body, AppriseClient.Level level) {
+    /**
+     * Sends to every enabled channel and every device with push notifications on (where tapping it {@code opens} a page).
+     * Throws only when nothing at all got through.
+     */
+    public Outcome send(String title, String body, AppriseClient.Level level, String opens) {
         int sent = 0, failed = 0;
         List<String> errors = new ArrayList<>();
         for (NotificationChannel channel : repo.findByEnabledTrueOrderByIdAsc()) {
@@ -119,10 +125,14 @@ public class Notifications {
                 errors.add(service(url) + " (APPRISE_URLS): " + result.output());
             }
         }
-        if (sent == 0 && failed == 0) throw new IllegalStateException("No notification channels. Add one in Settings → Notifications.");
+        var pushed = push.send(title, body, opens);
+        sent += pushed.sent();
+        failed += pushed.failed();
+        errors.addAll(pushed.errors());
+        if (sent == 0 && failed == 0) throw new IllegalStateException("No notification channels or devices. Add one in Settings → Notifications.");
         if (sent == 0) throw new IllegalStateException("Every channel failed: " + String.join("; ", errors));
         if (failed > 0) log.warn("Some notification channels failed: {}", errors);
-        log.debug("\"{}\" sent to {}", title, Text.plural(sent, "channel"));
+        log.debug("\"{}\" sent to {} (channels and devices)", title, sent);
         return new Outcome(sent, failed, errors);
     }
 

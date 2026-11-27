@@ -25,10 +25,15 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
   shows what's in the file, which of your vehicles each of its vehicles goes to (or a new one), and what's already
   here and will be left out; nothing is saved until Import. Each import is listed and can be removed whole, and the
   Import toast has Undo.
+- Notifications on your phone or computer itself: Settings → Notifications → This device. Reminders, expiring papers
+  and what's waiting in the Inbox arrive as the device's own notifications (alongside any Apprise channels), and
+  tapping one opens the app. On an iPhone, add Raftaar to the Home Screen first (the steps are shown there); in
+  Chrome and Edge there's an Install button. Other devices with notifications on are listed, each removable.
 
 ### Changed
 
-- The database gets a vehicle's sale, a table of imports and, on each record, which import added it. Nothing about
+- The database gets a vehicle's sale, a table of imports and, on each record, which import added it, and a table of
+  devices with notifications on. Nothing about
   the data already there changes, but this version upgrades the database when it starts, so going back to 0.8.x
   afterwards means restoring the copy of `data/db` taken before upgrading.
 - km a day (on the vehicle page, and behind due-soon warnings) is worked out from at least two weeks of readings

@@ -74,3 +74,30 @@ async function staleWhileRevalidate(req, cacheName) {
   }).catch(() => hit)
   return hit ?? fresh
 }
+
+// Notifications by Web Push (Settings → Notifications → This device): the server sends { title, body, url },
+// encrypted for this browser; it's shown here, and tapping it opens that page in the app (an open window if there is one).
+self.addEventListener('push', (e) => {
+  let message = { title: 'Raftaar', body: '', url: '/' }
+  try {
+    message = { ...message, ...e.data.json() }
+  } catch {
+    if (e.data) message.body = e.data.text()
+  }
+  e.waitUntil(self.registration.showNotification(message.title, {
+    body: message.body,
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    data: { url: message.url },
+  }))
+})
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  const url = new URL(e.notification.data?.url ?? '/', self.location.origin).href
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+    const open = windows.find((w) => new URL(w.url).origin === self.location.origin)
+    if (open) return open.focus().then((w) => w.navigate(url))
+    return self.clients.openWindow(url)
+  }))
+})

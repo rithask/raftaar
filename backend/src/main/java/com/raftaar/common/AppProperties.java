@@ -9,7 +9,7 @@ import com.raftaar.notifications.Alerts;
 
 @ConfigurationProperties("app")
 public record AppProperties(Auth auth, Oidc oidc, Storage storage, GeoPulse geopulse, Hisaab hisaab, Osm osm,
-                            FuelPriceSource fuelPrice, Apprise apprise, Alerts alerts) {
+                            FuelPriceSource fuelPrice, Apprise apprise, Alerts alerts, Push push) {
 
     /**
      * The account itself lives in the database: it's created on the onboarding page the first time the app is
@@ -80,6 +80,9 @@ public record AppProperties(Auth auth, Oidc oidc, Storage storage, GeoPulse geop
     }
 
     public record Alerts(String cron) {}
+
+    /** @param contact who push services may contact about this server's pushes (a mailto: or https: address) */
+    public record Push(String contact) {}
 
     static boolean notBlank(String text) { return text != null && !text.isBlank(); }
 

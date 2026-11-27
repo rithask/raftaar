@@ -10,8 +10,9 @@ import { deleteWithUndo, useHidden } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
 import { signOut } from '@/features/auth/session'
 import { DataSection } from '@/features/data/DataSection'
+import { ThisDevice } from './ThisDevice'
 import { Badge, Button, Card, cx, ErrorText, Field, IconBadge, Input, List, Loading, PageHeader, rowPress, Select, Toggle } from '@/ui'
-import { keys, refresh, useAccount, useChannels, useFuelPrices, useHealth, useIntegrations } from '@/lib/queries'
+import { keys, refresh, useAccount, useChannels, useFuelPrices, useHealth, useIntegrations, usePush } from '@/lib/queries'
 
 const META: Record<Integration['name'], { title: string; icon: ReactNode; off: ReactNode; what: string; run?: string }> = {
   geopulse: { title: 'GeoPulse', icon: <Path size={20} />, off: <>Set <Code>GEOPULSE_URL</Code> and <Code>GEOPULSE_TOKEN</Code> to connect.</>, what: 'Brings in your trips and spots stops at fuel pumps.', run: 'Sync now' },
@@ -75,12 +76,15 @@ function SectionList({ active }: { active?: Key }) {
   const account = useAccount()
   const failing = (integrations.data ?? []).filter((i) => i.status.lastError)
   const on = (integrations.data ?? []).filter((i) => i.configured).length
+  const push = usePush()
   const nChannels = channels.data?.channels.length ?? 0
+  const nDevices = push.data?.devices.length ?? 0
   const summary: Record<Key, ReactNode> = {
     connections: !integrations.data ? '' : failing.length
       ? <span className="text-red-600 dark:text-red-400">{META[failing[0].name].title} is failing</span>
       : `${on} of ${integrations.data.length} on`,
-    notifications: !channels.data ? '' : nChannels === 0 ? 'No channels yet' : nChannels === 1 ? '1 channel' : `${nChannels} channels`,
+    notifications: !channels.data ? '' : nChannels + nDevices === 0 ? 'Not set up yet'
+      : [nDevices ? `${nDevices} device${nDevices === 1 ? '' : 's'}` : null, nChannels ? `${nChannels} channel${nChannels === 1 ? '' : 's'}` : null].filter(Boolean).join(', '),
     'fuel-prices': !prices.data ? '' : prices.data.length === 0 ? 'None yet' : prices.data.length === 1 ? '1 state' : `${prices.data.length} prices`,
     data: 'Export and import',
     account: account.data?.username ?? '',
@@ -215,12 +219,14 @@ function NotificationChannels() {
 
   return (
     <section className="space-y-3">
+      <ThisDevice />
+      <h3 className="pt-3 text-sm font-semibold">Other places, through Apprise</h3>
       <p className="text-sm text-stone-500">
         Add an Apprise URL for each place you want reminders, e.g. <Code>ntfys://ntfy.sh/your-topic</Code>.{' '}
         <a className="underline active:opacity-60" href="https://github.com/caronc/apprise/wiki#notification-services" target="_blank" rel="noreferrer">See all services</a>
       </p>
       {data && !data.apprise && (
-        <p className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">Apprise isn't available, so nothing can be sent. Use the Docker image, or set <Code>APPRISE_BIN</Code>.</p>
+        <p className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">Apprise isn't available, so these channels can't be sent to (notifications on devices still work). Use the Docker image, or set <Code>APPRISE_BIN</Code>.</p>
       )}
       <Card padded raised className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-[1fr_2fr]">

@@ -1,7 +1,7 @@
 import { queryOptions, useInfiniteQuery, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { api } from './api'
-import type { AccountView, ChannelList, DocView, FuelPrice, Garage, HandledPage, ImportBatch, Inbox, SearchHit, Integration, OdometerReading, Vehicle, VehiclePageData } from './types'
+import type { AccountView, ChannelList, DocView, FuelPrice, Garage, HandledPage, ImportBatch, Inbox, PushDevice, SearchHit, Integration, OdometerReading, Vehicle, VehiclePageData } from './types'
 
 /**
  * Every piece of server data the app reads, by name: its cache key and where it comes from. A key that's a prefix
@@ -21,6 +21,7 @@ export const keys = {
   integrations: ['integrations'] as const,
   searches: ['search'] as const,
   imports: ['imports'] as const,
+  push: ['push'] as const,
   search: (words: string) => ['search', words] as const,
   channels: ['channels'] as const,
   fuelPrices: ['fuel-prices'] as const,
@@ -43,6 +44,8 @@ export const refresh = {
   inbox: [keys.inbox, keys.garage, keys.vehiclePages],
   integrations: [keys.integrations, keys.inbox, keys.garage],
   channels: [keys.channels, keys.integrations],
+  /** A device's push notifications: also whether the daily reminders have somewhere to go. */
+  push: [keys.push, keys.integrations],
   fuelPrices: [keys.fuelPrices],
   account: [keys.account, keys.me],
   /** An import, or removing one: records and vehicles anywhere. */
@@ -68,6 +71,7 @@ export const useSearch = (words: string) =>
     enabled: words.length >= 2,
     placeholderData: (previous) => previous,
   })
+export const usePush = () => useQuery({ queryKey: keys.push, queryFn: () => api<{ publicKey: string; devices: PushDevice[] }>('/push') })
 export const useImports = () => useQuery({ queryKey: keys.imports, queryFn: () => api<ImportBatch[]>('/imports') })
 /** The Inbox's Done list, a page at a time, newest first. */
 export const useHandled = () =>

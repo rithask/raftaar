@@ -155,7 +155,8 @@ public class Alerts extends SyncJob {
             lines.add("Inbox: " + toConfirm + " to confirm, " + tripsToSort + " trips to sort");
         }
         var outcome = notifier.send(afterSend.size() == 1 ? "Vehicle reminder" : "Vehicle reminders", String.join("\n", lines),
-                anyOverdue ? AppriseClient.Level.WARNING : AppriseClient.Level.INFO);
+                // tapping it on a phone opens the Garage, which shows what's due on each vehicle
+                anyOverdue ? AppriseClient.Level.WARNING : AppriseClient.Level.INFO, "/");
         afterSend.forEach(Runnable::run);
         return "Sent " + afterSend.size() + " reminder" + (afterSend.size() == 1 ? "" : "s") + (outcome.failed() > 0 ? " (" + outcome.failed() + " channel" + (outcome.failed() == 1 ? "" : "s") + " failed)" : "");
     }

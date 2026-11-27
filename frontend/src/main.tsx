@@ -7,6 +7,7 @@ import { MotionConfig } from 'motion/react'
 import { BrowserRouter } from 'react-router-dom'
 import { App } from '@/app/App'
 import { setUndoClient } from '@/lib/undo'
+import '@/lib/push' // catches the browser's install prompt, which comes as the page loads
 import { ErrorBoundary, Toasts } from '@/ui'
 
 // Offline is handled by the app itself: data loads are still tried (the service worker answers from what it

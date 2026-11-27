@@ -103,6 +103,10 @@ app:
     urls: ${APPRISE_URLS:}
   alerts:
     cron: ${ALERT_CRON:0 0 9 * * *}
+  push:
+    # Phone and browser notifications (Settings → Notifications → This device). Push services may contact whoever
+    # runs the server about its pushes: a mailto: or https: address. The default points at the project, not at you.
+    contact: ${PUSH_CONTACT:https://github.com/rithask/raftaar}
 
 logging:
   level:

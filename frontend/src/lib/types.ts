@@ -275,6 +275,17 @@ export interface Suggestion {
   dismissReason: string | null
 }
 
+/** A phone or browser that gets notifications by Web Push (PushSubscription on the server). */
+export interface PushDevice {
+  id: number
+  endpoint: string
+  label: string
+  lastSentAt: string | null
+  lastOk: boolean | null
+  lastError: string | null
+  createdAt: string
+}
+
 /** Per kind of record, how many (DataImport.Counts): fill-ups, services, expenses, readings, papers, reminders, new vehicles. */
 export interface RecordCounts {
   fuel: number

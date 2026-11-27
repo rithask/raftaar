@@ -6,7 +6,8 @@ and papers (insurance, PUC, RC, road tax, licence) with expiry alerts. It can pu
 
 - **Backend:** Java 25, Spring Boot 4.1, PostgreSQL, Flyway (`backend/`)
 - **Frontend:** React + TypeScript + Vite + Tailwind, mobile-first (`frontend/`)
-- **Notifications:** [Apprise](https://github.com/caronc/apprise) CLI, bundled in the image; channels are managed in Settings
+- **Notifications:** on phones and browsers by Web Push (turned on per device in Settings), and through the
+  [Apprise](https://github.com/caronc/apprise) CLI, bundled in the image, to anywhere else; both are managed in Settings
 
 ## Run with Docker
 
