@@ -1,5 +1,5 @@
 import { animate, motion, motionValue, useMotionValue, type MotionValue, type PanInfo } from 'motion/react'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
 import { Tabs } from './Tabs'
 
@@ -35,7 +35,8 @@ export function TabPager<T extends string>({ tabs, initial }: { tabs: PagerTab<T
   const viewport = useRef<HTMLDivElement>(null)
   const strip = useRef<HTMLDivElement>(null)
   const panels = useRef<(HTMLDivElement | null)[]>([])
-  const width = useWidth(viewport)
+  const width = useMeasure(viewport, elementWidth)
+  const stripHeight = useMeasure(strip, elementHeight)
   const x = useMotionValue(0)
   const height = useMotionValue<number | 'auto'>('auto')
   const offsets = useOffsets(tabs.length)
@@ -132,7 +133,8 @@ export function TabPager<T extends string>({ tabs, initial }: { tabs: PagerTab<T
   }
 
   return (
-    <div className="space-y-5">
+    // --below-strip: where the stuck strip ends, for a heading in a page to stick under it (sticky top-[var(--below-strip)])
+    <div className="space-y-5" style={{ '--below-strip': `calc(var(--sticky-top, 0px) + ${stripHeight}px)` } as CSSProperties}>
       <div ref={strip} className="sticky top-[var(--sticky-top,0px)] z-20">
         <Tabs value={value} onChange={onChange} options={tabs} />
       </div>
@@ -173,20 +175,22 @@ function Panel({ offset, hidden, refCallback, children }: { offset: MotionValue<
   )
 }
 
-/** The element's width, kept current. */
-function useWidth(ref: React.RefObject<HTMLElement | null>) {
-  const [width, setWidth] = useState(0)
+/** A size of the element ({@code measure}: its width, its height), kept current as it changes. */
+function useMeasure(ref: React.RefObject<HTMLElement | null>, measure: (el: HTMLElement) => number) {
+  const [size, setSize] = useState(0)
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    setWidth(el.clientWidth)
+    setSize(measure(el))
     if (typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(() => setWidth(el.clientWidth))
+    const observer = new ResizeObserver(() => setSize(measure(el)))
     observer.observe(el)
     return () => observer.disconnect()
-  }, [ref])
-  return width
+  }, [ref, measure])
+  return size
 }
+const elementWidth = (el: HTMLElement) => el.clientWidth
+const elementHeight = (el: HTMLElement) => el.offsetHeight
 
 /** One vertical offset per page (see TabPager), made once. */
 function useOffsets(count: number): MotionValue<number>[] {
