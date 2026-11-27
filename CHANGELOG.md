@@ -5,6 +5,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-27
+
 ### Added
 
 - Reminders due by distance say roughly when, at the vehicle's pace: "Due in 1,200 km, around 3 Jan" on the
