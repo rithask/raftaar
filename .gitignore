@@ -1,6 +1,6 @@
 # local configuration and data
 .env
-data/
+/data/
 backend/data/
 
 # build output
