@@ -1,7 +1,10 @@
-import { animate, motion, motionValue, useMotionValue, type MotionValue, type PanInfo } from 'motion/react'
+import { animate, motion, motionValue, useDragControls, useMotionValue, type MotionValue, type PanInfo } from 'motion/react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
 import { Tabs } from './Tabs'
+
+/** Marks something whose sideways swipes are its own (a SwipeRow): the pager doesn't start a drag on it. */
+export const OWN_SWIPE = '[data-own-swipe]'
 
 /** Lands without bouncing, like a page in iOS: quick to leave, smooth to arrive. */
 const SETTLE = { type: 'spring', stiffness: 380, damping: 40, mass: 0.9 } as const
@@ -38,6 +41,7 @@ export function TabPager<T extends string>({ tabs, initial }: { tabs: PagerTab<T
   const width = useMeasure(viewport, elementWidth)
   const stripHeight = useMeasure(strip, elementHeight)
   const x = useMotionValue(0)
+  const dragControls = useDragControls()
   const height = useMotionValue<number | 'auto'>('auto')
   const offsets = useOffsets(tabs.length)
   const index = Math.max(0, tabs.findIndex((tab) => tab.value === value))
@@ -144,6 +148,10 @@ export function TabPager<T extends string>({ tabs, initial }: { tabs: PagerTab<T
           className="flex items-start"
           style={{ x, touchAction: 'pan-y' }}
           drag="x"
+          // the pager starts its own drags, so it can leave alone one that begins on a row with a swipe of its own
+          dragListener={false}
+          dragControls={dragControls}
+          onPointerDown={(event) => { if (!(event.target as Element).closest(OWN_SWIPE)) dragControls.start(event) }}
           dragDirectionLock
           dragMomentum={false}
           dragElastic={0.18}
