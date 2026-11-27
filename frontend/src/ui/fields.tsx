@@ -28,6 +28,7 @@ export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea rows={2} {...props} className={cx(control, props.className)} />
 }
 
+/** A switch with what it does beside it ("Send reminders here", and a line of {@code hint}). */
 export function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) {
   return (
     <button
@@ -37,20 +38,35 @@ export function Toggle({ checked, onChange, label, hint }: { checked: boolean; o
       onClick={() => onChange(!checked)}
       className="group flex w-full select-none items-start gap-3 rounded-xl py-1 text-left"
     >
-      <span className={cx('mt-0.5 flex h-6 w-10 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200', checked ? 'bg-accent' : 'bg-stone-300 dark:bg-stone-700')}>
-        {/* the knob springs across; it stretches a little while you hold it */}
-        <motion.span
-          initial={false}
-          animate={{ x: checked ? 16 : 0 }}
-          transition={spring}
-          className={cx('h-5 w-5 rounded-full shadow transition-[width,margin] duration-150 group-active:w-6 group-aria-checked:group-active:-ml-1', checked ? 'bg-on-accent' : 'bg-white')}
-        />
-      </span>
+      <SwitchTrack checked={checked} />
       <span>
         <span className="block text-sm font-medium">{label}</span>
         {hint && <span className="block text-xs text-stone-500 dark:text-stone-400">{hint}</span>}
       </span>
     </button>
+  )
+}
+
+/** The switch alone, for a row that says what it's for by itself; {@code label} names it for screen readers. */
+export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)} className="group shrink-0 select-none rounded-full p-1">
+      <SwitchTrack checked={checked} />
+    </button>
+  )
+}
+
+function SwitchTrack({ checked }: { checked: boolean }) {
+  return (
+    <span className={cx('mt-0.5 flex h-6 w-10 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200', checked ? 'bg-accent' : 'bg-stone-300 dark:bg-stone-700')}>
+      {/* the knob springs across; it stretches a little while you hold it */}
+      <motion.span
+        initial={false}
+        animate={{ x: checked ? 16 : 0 }}
+        transition={spring}
+        className={cx('h-5 w-5 rounded-full shadow transition-[width,margin] duration-150 group-active:w-6 group-aria-checked:group-active:-ml-1', checked ? 'bg-on-accent' : 'bg-white')}
+      />
+    </span>
   )
 }
 
