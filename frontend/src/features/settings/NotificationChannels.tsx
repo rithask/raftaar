@@ -1,4 +1,4 @@
-import { CheckCircle, PaperPlaneTilt, Plus, Trash, XCircle } from '@phosphor-icons/react'
+import { CheckCircle, Plus, Trash, XCircle } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { api } from '@/lib/api'
 import { ago } from '@/lib/format'
@@ -24,21 +24,9 @@ export function NotificationChannels() {
   const hidden = useHidden()
   const remove = (channel: Channel) => deleteWithUndo({ refresh: refresh.channels, text: 'Channel removed', what: 'the channel', hide: `channel:${channel.id}`, run: () => api(`/notifications/channels/${channel.id}`, { method: 'DELETE' }) })
   const data = list.data
-  // one test through every channel and to every device, and what came of it
-  const testAll = useSave(() => api<{ sent: number; failed: number; errors: string[] }>('/notifications/test', { method: 'POST' }), {
-    refresh: [...refresh.channels, ...refresh.push],
-    done: ({ sent, failed }) => `Test sent to ${sent} place${sent === 1 ? '' : 's'}${failed ? `; ${failed} failed` : ''}`,
-  })
 
   return (
     <section className="space-y-3">
-      <Button className="w-full" busy={testAll.isPending} onClick={() => testAll.mutate(undefined)}><PaperPlaneTilt size={16} /> Send a test everywhere</Button>
-      <ErrorText error={testAll.error} />
-      {testAll.data && testAll.data.errors.length > 0 && (
-        <ul className="space-y-1 rounded-xl bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-400">
-          {testAll.data.errors.map((error) => <li key={error}>{error}</li>)}
-        </ul>
-      )}
       <ThisDevice />
       <h3 className="pt-3 text-sm font-semibold">Other places, through Apprise</h3>
       <p className="text-sm text-stone-500">

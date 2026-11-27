@@ -29,8 +29,7 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
   and what's waiting in the Inbox arrive as the device's own notifications (alongside any Apprise channels), and
   tapping one opens the app. On an iPhone, add Raftaar to the Home Screen first (the steps are shown there); in
   Chrome and Edge there's an Install button. Other devices with notifications on are listed, each removable.
-- Test buttons for notifications: "Send a test everywhere" at the top of Settings → Notifications says how many
-  places got it and why any didn't, and each device has its own Test, like each Apprise channel.
+- A Test button on each device with notifications on, like each Apprise channel's; its row shows how it went.
 
 ### Changed
 
