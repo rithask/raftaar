@@ -57,7 +57,8 @@ export function Header({ vehicle, onEdit, onFuel, onPick }: { vehicle: Vehicle; 
       {vehicle.registration}
     </span>
   )
-  const desktopFuel = (look: 'glass' | 'plain') => (
+  // a sold or retired vehicle gets nothing new: no Add fuel, no quick add
+  const desktopFuel = (look: 'glass' | 'plain') => !vehicle.archived && (
     <div className="hidden shrink-0 items-center gap-2 sm:flex">
       <Button variant="primary" onClick={onFuel}><GasPump size={16} /> Add fuel</Button>
       <QuickAddMenu onPick={onPick} look={look} />

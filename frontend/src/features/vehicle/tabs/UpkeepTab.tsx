@@ -28,8 +28,8 @@ export function DueSoonest({ status: st }: { status: ReminderView['status'] }) {
   )
 }
 
-export function RemindersSection({ vehicleId, reminders, odometer, onOpen, onAdd }: {
-  vehicleId: number; reminders: ReminderView[]; odometer: number | null; onOpen: (reminderView: ReminderView) => void; onAdd: () => void
+export function RemindersSection({ vehicleId, reminders, odometer, retired, onOpen, onAdd }: {
+  vehicleId: number; reminders: ReminderView[]; odometer: number | null; retired: boolean; onOpen: (reminderView: ReminderView) => void; onAdd: () => void
 }) {
   const [asking, setAsking] = useState<number | null>(null)
   const hidden = useHidden()
@@ -39,7 +39,8 @@ export function RemindersSection({ vehicleId, reminders, odometer, onOpen, onAdd
     body: { servicedOn: today(), odometer: atKm, title: reminderView.reminder.title, cost: 0, completes: [reminderView.reminder.id] },
   }), { refresh: refresh.vehicleRecords, onDone: () => setAsking(null), done: 'Done. Add the cost or workshop in Service history if you like.' })
   const list = reminders.filter((reminderView) => !hidden(`reminder:${reminderView.reminder.id}`))
-  const due = (reminderView: ReminderView) => reminderView.reminder.active && (reminderView.status.state === 'OVERDUE' || reminderView.status.state === 'DUE_SOON')
+  // Done (log the service now) is for a vehicle in use: a sold one's reminders are only its history
+  const due = (reminderView: ReminderView) => !retired && reminderView.reminder.active && (reminderView.status.state === 'OVERDUE' || reminderView.status.state === 'DUE_SOON')
   return (
     <Section title="Reminders" action={<AddLink label="Add" onClick={onAdd} />}>
       {!list.length ? (

@@ -2,7 +2,7 @@ import { Scroll, Wrench } from '@phosphor-icons/react'
 import { AnimatePresence } from 'motion/react'
 import { useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
-import { economyUnit, money, money2, n1 } from '@/lib/format'
+import { date, economyUnit, money, money2, n1 } from '@/lib/format'
 import { useHidden } from '@/lib/undo'
 import { ExpenseForm } from '@/features/expenses/ExpenseForm'
 import { FuelForm } from '@/features/fuel/FuelForm'
@@ -46,7 +46,9 @@ export function VehiclePage() {
   const due = summary.reminders.filter((reminderView) => (reminderView.status.state === 'OVERDUE' || reminderView.status.state === 'DUE_SOON') && !hidden(`reminder:${reminderView.reminder.id}`))
   const docs = summary.documents.filter((paper) => !hidden(`doc:${paper.document.id}`))
   const papers = docs.filter((paper) => paper.state === 'EXPIRED' || paper.state === 'EXPIRING')
-  const worst = (bad: boolean, any: boolean) => (bad ? 'bad' : any ? 'warn' : undefined)
+  // a sold or retired vehicle: its history to look at, nothing to act on (no chips, dots, Fuel or quick add)
+  const retired = vehicle.archived
+  const worst = (bad: boolean, any: boolean) => (retired ? undefined : bad ? 'bad' : any ? 'warn' : undefined)
 
   return (
     <div className="space-y-5 pb-20 [--sticky-top:3.25rem] sm:pb-0 sm:[--sticky-top:0px]">
@@ -54,6 +56,12 @@ export function VehiclePage() {
         <Header vehicle={vehicle} onEdit={() => setOpen({ kind: 'vehicle' })} onFuel={() => setOpen({ kind: 'fuel' })} onPick={setOpen} />
       </div>
       <CompactBar vehicle={vehicle} visible={!headInView} onEdit={() => setOpen({ kind: 'vehicle' })} />
+      {retired && (
+        <p className="rounded-2xl bg-stone-200/60 px-4 py-3 text-sm text-stone-600 dark:bg-stone-800/60 dark:text-stone-300">
+          <b className="font-semibold text-stone-800 dark:text-stone-100">{vehicle.soldOn ? `Sold or retired on ${date(vehicle.soldOn)}.` : 'Sold or retired.'}</b>{' '}
+          Its history stays here. To use it again, turn off Sold or retired in Edit.
+        </p>
+      )}
 
       {/* phones and tablets: one column. Wide screens: tabs on the left, the numbers and what's due in a column on the right. */}
       <div className="space-y-5 xl:grid xl:grid-cols-[minmax(0,1fr)_19rem] xl:items-start xl:gap-6 xl:space-y-0">
@@ -84,7 +92,7 @@ export function VehiclePage() {
         </p>
       </Card>
 
-      {(due.length > 0 || papers.length > 0) && (
+      {!retired && (due.length > 0 || papers.length > 0) && (
         // what needs doing soon, as one row of chips (the tabs below have the details)
         <section aria-label="Coming up" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 xl:flex-col xl:items-stretch">
           {due.map((reminderView) => (
@@ -108,7 +116,7 @@ export function VehiclePage() {
             value: 'upkeep', label: 'Upkeep', dot: worst(due.some((reminderView) => reminderView.status.state === 'OVERDUE'), due.length > 0),
             content: (
               <>
-                <RemindersSection vehicleId={id} reminders={reminders} odometer={currentKm} onOpen={(reminderView) => setOpen({ kind: 'reminder', reminderView })} onAdd={() => setOpen({ kind: 'reminder' })} />
+                <RemindersSection vehicleId={id} reminders={reminders} odometer={currentKm} retired={retired} onOpen={(reminderView) => setOpen({ kind: 'reminder', reminderView })} onAdd={() => setOpen({ kind: 'reminder' })} />
                 <ServicesSection services={services} onOpen={(service) => setOpen({ kind: 'service', row: service })} onAdd={() => setOpen({ kind: 'service' })} />
               </>
             ),
@@ -123,7 +131,7 @@ export function VehiclePage() {
       </div>
       </div>
 
-      <FuelFab onClick={() => setOpen({ kind: 'fuel' })} onPick={setOpen} hidden={open !== null} />
+      {!retired && <FuelFab onClick={() => setOpen({ kind: 'fuel' })} onPick={setOpen} hidden={open !== null} />}
 
       <AnimatePresence>
         {open?.kind === 'vehicle' && <VehicleForm key="vehicle" open onClose={close} vehicle={vehicle} />}
