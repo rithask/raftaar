@@ -1,4 +1,4 @@
-import { ArrowsClockwise, Bell, CaretLeft, CaretRight, CheckCircle, GasPump, LinkSimple, MapPin, Path, Plus, SignOut, Trash, UserCircle, Wallet, XCircle } from '@phosphor-icons/react'
+import { ArrowsClockwise, Bell, CaretLeft, CaretRight, CheckCircle, Database, GasPump, LinkSimple, MapPin, Path, Plus, SignOut, Trash, UserCircle, Wallet, XCircle } from '@phosphor-icons/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
@@ -9,6 +9,7 @@ import { type Channel, type FuelPrice, type FuelType, type Integration } from '@
 import { deleteWithUndo, useHidden } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
 import { signOut } from '@/features/auth/session'
+import { DataSection } from '@/features/data/DataSection'
 import { Badge, Button, Card, cx, ErrorText, Field, IconBadge, Input, List, Loading, PageHeader, rowPress, Select, Toggle } from '@/ui'
 import { keys, refresh, useAccount, useChannels, useFuelPrices, useHealth, useIntegrations } from '@/lib/queries'
 
@@ -23,11 +24,12 @@ function Code({ children }: { children: ReactNode }) {
   return <code className="rounded bg-stone-100 px-1 text-[11px] dark:bg-stone-800">{children}</code>
 }
 
-type Key = 'connections' | 'notifications' | 'fuel-prices' | 'account'
+type Key = 'connections' | 'notifications' | 'fuel-prices' | 'data' | 'account'
 const SECTIONS: { key: Key; title: string; icon: ReactNode }[] = [
   { key: 'connections', title: 'Connections', icon: <LinkSimple size={20} /> },
   { key: 'notifications', title: 'Notifications', icon: <Bell size={20} /> },
   { key: 'fuel-prices', title: 'Fuel prices', icon: <GasPump size={20} /> },
+  { key: 'data', title: 'Data', icon: <Database size={20} /> },
   { key: 'account', title: 'Account', icon: <UserCircle size={20} /> },
 ]
 
@@ -57,6 +59,7 @@ export function SettingsPage() {
         {open.key === 'connections' && <Connections />}
         {open.key === 'notifications' && <NotificationChannels />}
         {open.key === 'fuel-prices' && <FuelPrices />}
+        {open.key === 'data' && <DataSection />}
         {open.key === 'account' && <AccountSection />}
       </div>
     </div>
@@ -79,6 +82,7 @@ function SectionList({ active }: { active?: Key }) {
       : `${on} of ${integrations.data.length} on`,
     notifications: !channels.data ? '' : nChannels === 0 ? 'No channels yet' : nChannels === 1 ? '1 channel' : `${nChannels} channels`,
     'fuel-prices': !prices.data ? '' : prices.data.length === 0 ? 'None yet' : prices.data.length === 1 ? '1 state' : `${prices.data.length} prices`,
+    data: 'Export your records',
     account: account.data?.username ?? '',
   }
   const logout = async () => {

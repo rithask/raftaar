@@ -29,8 +29,8 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return
   const url = new URL(req.url)
   if (url.origin !== self.location.origin) return
-  // the OIDC sign-in redirects must always reach the server
-  if (url.pathname.startsWith('/oauth2/') || url.pathname.startsWith('/login/')) return
+  // the OIDC sign-in redirects must always reach the server; exports are downloads, not worth keeping a copy of
+  if (url.pathname.startsWith('/oauth2/') || url.pathname.startsWith('/login/') || url.pathname.startsWith('/api/export/')) return
 
   if (req.mode === 'navigate') {
     e.respondWith(networkFirst(req, APP, '/'))

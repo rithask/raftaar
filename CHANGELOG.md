@@ -13,6 +13,9 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 - Search, from the button in the Garage's header: fill-ups (pump, place), services (title, workshop), expenses
   (title, vendor), papers (title, number, provider), reminders, and the notes on any of them. Results come by kind;
   tapping one opens it on its vehicle's page, on the right tab, with its form open.
+- Export to CSV, in Settings → Data: fill-ups, services, expenses, papers, reminders, odometer readings and
+  vehicles, each its own file or all in one zip. One vehicle's records: Export, at the bottom of its Edit screen.
+  Numbers are plain and dates ISO, so the files open cleanly in a spreadsheet.
 
 ### Changed
 

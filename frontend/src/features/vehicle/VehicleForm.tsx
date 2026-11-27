@@ -1,4 +1,4 @@
-import { Camera, Trash } from '@phosphor-icons/react'
+import { Camera, DownloadSimple, Trash } from '@phosphor-icons/react'
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
@@ -8,8 +8,9 @@ import { type FuelType, type Kind, type Vehicle } from '@/lib/types'
 import { deleteWithUndo } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
 import { KindIcon, VehicleArt } from './VehicleArt'
-import { Button, DateInput, ErrorText, Field, FormScreen, Input, Segmented, Select, TextArea, Toggle } from '@/ui'
+import { Button, buttonStyle, DateInput, ErrorText, Field, FormScreen, Input, Segmented, Select, TextArea, Toggle } from '@/ui'
 import { refresh } from '@/lib/queries'
+import { exportUrl } from '@/features/data/exports'
 
 export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose: () => void; vehicle?: Vehicle }) {
   const nav = useNavigate()
@@ -135,6 +136,11 @@ export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose
         <Field label="Notes"><TextArea value={form.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
         <Toggle checked={form.isDefault} onChange={(v) => set('isDefault', v)} label="My usual ride" hint="Suggested first for new trips and fill-ups." />
         {vehicle && <Toggle checked={form.archived} onChange={(v) => set('archived', v)} label="Sold or retired" hint="Its history stays; it's left out of new entries." />}
+        {vehicle && (
+          <a href={exportUrl('all', vehicle.id)} download className={buttonStyle('secondary', 'w-full')}>
+            <DownloadSimple size={16} /> Export this vehicle's records
+          </a>
+        )}
         <ErrorText error={save.error ?? removePhoto.error} />
       </div>
     </FormScreen>
