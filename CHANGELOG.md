@@ -5,6 +5,11 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+### Fixed
+
+- Bottom bar on phones: it no longer shifts sideways and changes size when you switch sections. It's now one
+  width whichever section is open, and only the highlight moves.
+
 ## [0.8.0] - 2026-11-24
 
 ### Added

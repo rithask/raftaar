@@ -217,6 +217,11 @@ function Sidebar({ garage, waiting, collapsed, onToggle }: { garage?: GarageData
  * A floating, frosted pill at the bottom of the phone screen. The current section shows its label in an accent
  * pill that slides between tabs; the others are icons. It tucks away while you scroll down and comes back as
  * soon as you scroll up.
+ *
+ * The bar is one width whichever section is open (room for the longest label): the current one fills what the
+ * icons leave. Sized to its contents, it grew and shrank with each label and, being centred, moved on every switch.
+ * On the narrowest phones (under 360 px) the icons' slots and the padding are a little smaller, so the longest
+ * label still fits.
  */
 function BottomBar({ waiting }: { waiting: number }) {
   const hidden = useHideOnScroll()
@@ -231,9 +236,10 @@ function BottomBar({ waiting }: { waiting: number }) {
       transition={slideSpring}
       className="fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex justify-center px-4 sm:hidden"
     >
-      <div className="flex items-center gap-1 rounded-full bg-white/75 p-1.5 shadow-[0_8px_30px_-6px_rgba(0,0,0,0.25)] ring-1 ring-stone-900/[0.07] backdrop-blur-xl backdrop-saturate-150 dark:bg-stone-900/75 dark:ring-white/10">
+      <div className="flex w-80 max-w-full items-center gap-1 rounded-full bg-white/75 p-1.5 shadow-[0_8px_30px_-6px_rgba(0,0,0,0.25)] ring-1 ring-stone-900/[0.07] backdrop-blur-xl backdrop-saturate-150 dark:bg-stone-900/75 dark:ring-white/10">
         {tabs.map(({ to, label, Icon, end }) => (
-          <NavLink key={to} to={to} end={end} aria-label={label} aria-current={current === to ? 'page' : undefined} className="relative select-none rounded-full">
+          <NavLink key={to} to={to} end={end} aria-label={label} aria-current={current === to ? 'page' : undefined}
+            className={({ isActive }) => cx('relative select-none rounded-full', isActive || current === to ? 'min-w-0 flex-1' : 'w-12 shrink-0 min-[360px]:w-14')}>
             {({ isActive: exact }) => {
               const isActive = exact || current === to
               return (
@@ -241,7 +247,7 @@ function BottomBar({ waiting }: { waiting: number }) {
                 layout
                 transition={spring}
                 whileTap={{ scale: 0.92 }}
-                className={cx('relative flex h-12 items-center justify-center rounded-full', isActive ? 'px-4 text-on-accent' : 'w-14 text-stone-500 dark:text-stone-400')}
+                className={cx('relative flex h-12 w-full items-center justify-center rounded-full', isActive ? 'px-3 text-on-accent min-[360px]:px-4' : 'text-stone-500 dark:text-stone-400')}
               >
                 {isActive && <motion.span layoutId="bar-pill" transition={spring} className="absolute inset-0 rounded-full bg-accent shadow-sm shadow-black/20" />}
                 <span className="relative">
