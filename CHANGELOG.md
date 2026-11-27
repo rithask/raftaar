@@ -5,6 +5,17 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+### Added
+
+- Reminders due by distance say roughly when, at the vehicle's pace: "Due in 1,200 km, around 3 Jan" on the
+  reminder, the vehicle page, the garage and in notifications (which also say the km a day it's based on). A date
+  is given only from at least two weeks of readings, and only when it comes before the reminder's own due date.
+
+### Changed
+
+- km a day (on the vehicle page, and behind due-soon warnings) is worked out from at least two weeks of readings
+  or trips, instead of a few days, so it isn't thrown off by a single long ride.
+
 ### Fixed
 
 - Bottom bar on phones: it no longer shifts sideways and changes size when you switch sections. It's now one

@@ -2,24 +2,28 @@ import { Bell, Check, Wrench } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
 import { api } from '@/lib/api'
-import { date, km, money, today } from '@/lib/format'
+import { date, dayOf, km, money, today } from '@/lib/format'
 import { type ReminderView, type ServiceRow } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
 import { useSave } from '@/lib/useSave'
 import { AddLink, Badge, Button, cx, EmptyState, ErrorText, IconBadge, List, listItem, ListRow, RowMeta, rowPress, Section, softSpring } from '@/ui'
 import { refresh } from '@/lib/queries'
 
-/** When a reminder is due, compactly: km left on top, days below (whichever exist), coloured by urgency. */
+/**
+ * When a reminder is due, compactly: km left on top, coloured by urgency, and below it roughly when that is at the
+ * vehicle's pace ("around 14 Dec"), or else the days left on its date.
+ */
 export function DueSoonest({ status: st }: { status: ReminderView['status'] }) {
   const kmLine = st.kmLeft == null ? null : st.kmLeft >= 0 ? `${km(st.kmLeft)} left` : `${km(-st.kmLeft)} over`
   const dayLine = st.daysLeft == null ? null
     : st.daysLeft > 1 ? `${st.daysLeft} days` : st.daysLeft === 1 ? 'tomorrow' : st.daysLeft === 0 ? 'today' : `${-st.daysLeft} days late`
   const color = st.state === 'OVERDUE' ? 'text-red-600' : st.state === 'DUE_SOON' ? 'text-amber-600' : 'text-emerald-600'
   if (!kmLine && !dayLine) return <Badge className="shrink-0">set last done</Badge>
+  const below = st.projectedOn ? `around ${dayOf(st.projectedOn)}` : kmLine && dayLine ? `or ${dayLine}` : null
   return (
     <div className="num shrink-0 text-right">
       <div className={cx('text-sm font-semibold', color)}>{kmLine ?? dayLine}</div>
-      {kmLine && dayLine && <div className="mt-0.5 text-[13px] text-stone-500">or {dayLine}</div>}
+      {below && <div className="mt-0.5 text-[13px] text-stone-500">{below}</div>}
     </div>
   )
 }

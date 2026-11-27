@@ -44,4 +44,16 @@ class VehicleStatsTest {
         assertEquals("2025-12", withOld.getFirst().month());
         assertTrue(VehicleStats.monthly(List.of(), List.of(), List.of(), today, zone).isEmpty());
     }
+
+    @Test
+    void kmPerDayNeedsTwoWeeksOfReadings() {
+        Instant now = Instant.now();
+        var tenDays = List.of(new VehicleStats.Reading(now.minus(java.time.Duration.ofDays(10)), new BigDecimal("1000"), "FUEL", 1L),
+                new VehicleStats.Reading(now, new BigDecimal("1400"), "FUEL", 2L));
+        assertNull(VehicleStats.kmPerDay(tenDays), "10 days is too few to predict from");
+
+        var twentyDays = List.of(new VehicleStats.Reading(now.minus(java.time.Duration.ofDays(20)), new BigDecimal("1000"), "FUEL", 1L),
+                new VehicleStats.Reading(now, new BigDecimal("1400"), "FUEL", 2L));
+        assertEquals(new BigDecimal("20.0"), VehicleStats.kmPerDay(twentyDays));
+    }
 }

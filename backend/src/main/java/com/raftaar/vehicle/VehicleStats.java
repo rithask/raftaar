@@ -35,6 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class VehicleStats {
     private static final Duration TRIP_RATE_WINDOW = Duration.ofDays(60);
+    /** The fewest days of readings (or trips) a km-per-day figure is worked out from: fewer, and it's too rough to predict a date with. */
+    static final int MIN_RATE_DAYS = 14;
 
     private final FuelEntryRepo fills;
     private final ServiceRecordRepo services;
@@ -275,28 +277,29 @@ public class VehicleStats {
         return new Odometer(top.odometer(), top.at(), top.source(), estimated, tripKm.signum() > 0 ? tripKm : null, perDay);
     }
 
-    /** km per day over the last ~4 months of readings (at least a week of them), else over all of them. */
+    /** km per day over the last ~4 months of readings (if they span {@link #MIN_RATE_DAYS}), else over all of them. */
     static BigDecimal kmPerDay(List<Reading> all) {
         if (all.size() < 2) return null;
         Instant cutoff = Instant.now().minus(Duration.ofDays(120));
         List<Reading> recent = all.stream().filter(reading -> reading.at().isAfter(cutoff)).toList();
-        List<Reading> use = recent.size() >= 2 && Duration.between(recent.getFirst().at(), recent.getLast().at()).toDays() >= 7 ? recent : all;
+        List<Reading> use = recent.size() >= 2 && Duration.between(recent.getFirst().at(), recent.getLast().at()).toDays() >= MIN_RATE_DAYS ? recent : all;
         Reading first = use.getFirst(), last = use.getLast();
         double days = Duration.between(first.at(), last.at()).toHours() / 24.0;
-        if (days < 3) return null;
+        if (days < MIN_RATE_DAYS) return null;
         BigDecimal km = last.odometer().subtract(first.odometer());
         if (km.signum() <= 0) return null;
         return km.divide(BigDecimal.valueOf(days), 1, RoundingMode.HALF_UP);
     }
 
-    /** km per day from the trips of the last 60 days, for a vehicle without enough odometer readings. */
+    /** km per day from the trips of the last 60 days, for a vehicle without enough odometer readings (once they span {@link #MIN_RATE_DAYS}). */
     private static BigDecimal tripKmPerDay(VehicleHistory history) {
         Instant since = Instant.now().minus(TRIP_RATE_WINDOW);
         var recent = history.assignedTrips().stream().filter(trip -> trip.endedAt.isAfter(since)).toList();
         if (recent.isEmpty()) return null;
         BigDecimal km = sum(recent.stream().map(trip -> trip.distanceM).toList()).divide(BigDecimal.valueOf(1000), 1, RoundingMode.HALF_UP);
         Instant first = recent.stream().map(trip -> trip.startedAt).min(Comparator.naturalOrder()).orElse(since);
-        long days = Math.max(7, Duration.between(first, Instant.now()).toDays());
+        long days = Duration.between(first, Instant.now()).toDays();
+        if (days < MIN_RATE_DAYS) return null;
         return km.divide(BigDecimal.valueOf(days), 1, RoundingMode.HALF_UP);
     }
 

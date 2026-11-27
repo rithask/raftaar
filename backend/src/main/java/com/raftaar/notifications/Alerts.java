@@ -116,7 +116,9 @@ public class Alerts extends SyncJob {
                     && reminder.lastNotifiedAt.isBefore(Instant.now().minus(Duration.ofDays(7)));
             if (!changed && !weeklyAgain) continue;
             anyOverdue |= state == ReminderState.State.OVERDUE;
-            lines.add("• " + vehicle.name + ": " + reminder.title + " — " + status.summary());
+            // a date worked out from the distance says what it rests on
+            String basis = status.projectedOn() != null ? " (at " + odometer.kmPerDay().stripTrailingZeros().toPlainString() + " km a day)" : "";
+            lines.add("• " + vehicle.name + ": " + reminder.title + " — " + status.summary() + basis);
             log.debug("Reminder {} on vehicle {} is {}{}", reminder.id, vehicle.id, state, changed ? "" : " (weekly repeat)");
             afterSend.add(() -> {
                 reminder.lastNotifiedState = state.name();

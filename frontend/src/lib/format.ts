@@ -20,6 +20,12 @@ export function date(iso: string | null | undefined, withYear = true) {
   return when.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) })
 }
 
+/** A day, with the year only when it isn't this one: "14 Dec", "3 Feb 2027". */
+export function dayOf(iso: string | null | undefined) {
+  if (!iso) return '—'
+  return date(iso, new Date(iso.length === 10 ? iso + 'T00:00:00' : iso).getFullYear() !== new Date().getFullYear())
+}
+
 export function dateTime(iso: string | null | undefined) {
   if (!iso) return '—'
   return new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
