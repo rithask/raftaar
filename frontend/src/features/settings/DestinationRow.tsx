@@ -1,10 +1,11 @@
 import { Trash } from '@phosphor-icons/react'
 import type { ReactNode } from 'react'
-import { Badge, IconBadge, RowText } from '@/ui'
+import { Badge, IconBadge } from '@/ui'
 
 /**
- * One place notifications go (another device, an Apprise channel), in the list of them: what it is, a line about it
- * (how the last one went), badges ("failed", "paused"), and its controls on the right.
+ * One place notifications go (another device, an Apprise channel), in the list of them: what it is, then its badges
+ * ("failed", "paused") and a line about it (how the last one went), and its controls on the right. The badges sit
+ * under the name, not beside it, so a name keeps the room it has between the icon and the controls.
  */
 export function DestinationRow({ icon, title, detail, failed, badges, children }: {
   icon: ReactNode; title: string; detail?: ReactNode; failed?: boolean; badges?: ReactNode; children?: ReactNode
@@ -12,10 +13,14 @@ export function DestinationRow({ icon, title, detail, failed, badges, children }
   return (
     <div className="flex items-center gap-3 py-3 pr-2 pl-4">
       <IconBadge tone="neutral" square>{icon}</IconBadge>
-      {/* the name shortens before a badge does */}
-      <RowText title={<span className="flex items-center gap-2"><span className="truncate">{title}</span>{badges}{failed && <Badge tone="bad" className="shrink-0">failed</Badge>}</span>}>
-        {detail}
-      </RowText>
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-medium">{title}</div>
+        <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+          {failed && <Badge tone="bad" className="shrink-0">failed</Badge>}
+          {badges}
+          {detail && <span className="num truncate text-[13px] text-stone-500">{detail}</span>}
+        </div>
+      </div>
       {children}
     </div>
   )
