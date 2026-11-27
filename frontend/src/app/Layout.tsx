@@ -1,8 +1,8 @@
-import { CaretDoubleLeft, Garage, Gear, Scroll, SignOut, Tray } from '@phosphor-icons/react'
+import { CaretDoubleLeft, Garage, Gear, MagnifyingGlass, Scroll, SignOut, Tray } from '@phosphor-icons/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useOutlet } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import { signOut } from '@/features/auth/session'
 import { KindIcon } from '@/features/vehicle/VehicleArt'
 import { imageUrl } from '@/features/vehicle/photo'
@@ -21,12 +21,13 @@ const tabs = [
 ]
 type Tab = (typeof tabs)[number]
 
-/** The section a page belongs to, as its tab's {@code to}: every Settings page is Settings', and Search is the Garage's. */
-const sectionOf = (pathname: string) => (pathname.startsWith('/settings') ? '/settings' : pathname === '/search' ? '/' : pathname)
+/** The section a page belongs to, as its tab's {@code to}: every Settings page is Settings'. */
+const sectionOf = (pathname: string) => (pathname.startsWith('/settings') ? '/settings' : pathname)
 
 const depth = (path: string) => (path.startsWith('/vehicles/') ? 1 : 0)
 
 export function Layout() {
+  useSearchShortcut()
   const garage = useGarage()
   const waiting = (garage.data?.tripsToSort ?? 0) + (garage.data?.toConfirm ?? 0)
   const location = useLocation()
@@ -89,8 +90,7 @@ function useCollapsed(): [boolean, () => void] {
   }, [])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const typing = e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable]')
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b' && !typing) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b' && !isTyping(e.target)) {
         e.preventDefault()
         toggle()
       }
@@ -99,6 +99,25 @@ function useCollapsed(): [boolean, () => void] {
     return () => window.removeEventListener('keydown', onKey)
   }, [toggle])
   return [collapsed, toggle]
+}
+
+/** Whether a key went to something you type in (a field), so it isn't taken as a shortcut. */
+const isTyping = (target: EventTarget | null) => target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable]') != null
+
+/** "/" (not while typing) opens Search, or puts the cursor back in its box when you're already there. */
+function useSearchShortcut() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return
+      e.preventDefault()
+      const box = document.querySelector<HTMLInputElement>('input[type=search]')
+      if (box) box.focus()
+      else navigate('/search')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [navigate])
 }
 
 /**
@@ -142,6 +161,14 @@ function Sidebar({ garage, waiting, collapsed, onToggle }: { garage?: GarageData
       <Link to="/" title="Raftaar" className={cx('mb-4 flex items-center justify-center gap-2.5 rounded-2xl p-1.5 transition active:scale-95', wide('lg:justify-start lg:px-2'))}>
         <Logo size={40} />
         <span className={cx('hidden text-[22px] leading-none font-bold tracking-tight whitespace-nowrap', wide('lg:inline'))}>Raftaar</span>
+      </Link>
+
+      <Link to="/search" title="Search (/)" aria-current={pathname === '/search' ? 'page' : undefined}
+        className={cx(item, 'mb-1 transition-colors', pathname === '/search' ? chosen : quiet)}>
+        {pathname === '/search' && <Highlight />}
+        <MagnifyingGlass size={20} weight={pathname === '/search' ? 'bold' : 'regular'} className="relative" />
+        <span className={cx(label, 'flex-1')}>Search</span>
+        <kbd className={cx('relative hidden rounded-md px-1.5 font-sans text-xs text-stone-400 ring-1 ring-stone-900/10 dark:ring-white/15', wide('lg:inline'))}>/</kbd>
       </Link>
 
       <nav aria-label="Sections" className="flex flex-col gap-1">
@@ -229,8 +256,9 @@ function Sidebar({ garage, waiting, collapsed, onToggle }: { garage?: GarageData
 function BottomBar({ waiting }: { waiting: number }) {
   const hidden = useHideOnScroll()
   const { pathname } = useLocation()
-  // a vehicle's page belongs to the Garage (the sidebar shows the vehicle itself instead)
-  const current = pathname.startsWith('/vehicles/') ? '/' : sectionOf(pathname)
+  // a vehicle's page belongs to the Garage (the sidebar shows the vehicle itself instead), and so does Search, which
+  // the bar reaches from the Garage (the sidebar has its own)
+  const current = pathname.startsWith('/vehicles/') || pathname === '/search' ? '/' : sectionOf(pathname)
   return (
     <motion.nav
       aria-label="Sections"
