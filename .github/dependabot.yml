@@ -1,0 +1,42 @@
+# Dependency updates as pull requests, which CI tests before anything is merged (see workflows/docker.yml).
+#
+# - Weekly, on Monday morning (India time).
+# - A version is offered only once it's been out for 14 days (cooldown), so a release that's pulled or patched
+#   within days never reaches Raftaar. Security fixes skip the wait.
+# - Minor and patch updates come together, one pull request per ecosystem; a major version gets its own.
+version: 2
+
+updates:
+  - package-ecosystem: maven
+    directory: /backend
+    schedule: { interval: weekly, day: monday, time: "06:00", timezone: Asia/Kolkata }
+    cooldown: { default-days: 14 }
+    groups:
+      backend:
+        update-types: [minor, patch]
+    commit-message: { prefix: "Backend deps" }
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly, day: monday, time: "06:00", timezone: Asia/Kolkata }
+    cooldown: { default-days: 14 }
+    groups:
+      frontend:
+        update-types: [minor, patch]
+    commit-message: { prefix: "Frontend deps" }
+
+  # the base images (Node, Temurin JDK and JRE)
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly, day: monday, time: "06:00", timezone: Asia/Kolkata }
+    cooldown: { default-days: 14 }
+    commit-message: { prefix: "Image" }
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday, time: "06:00", timezone: Asia/Kolkata }
+    cooldown: { default-days: 14 }
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message: { prefix: "CI" }
