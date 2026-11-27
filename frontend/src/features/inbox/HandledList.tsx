@@ -6,7 +6,7 @@ import { type Handled, type Vehicle } from '@/lib/types'
 import { useSave } from '@/lib/useSave'
 import { vehicleNames } from '@/lib/vehicles'
 import { VehicleLink } from '@/features/vehicle/VehicleLink'
-import { Button, EmptyState, ErrorText, IconBadge, List, ListSkeleton, RowText, rowPress } from '@/ui'
+import { Button, EmptyState, ErrorText, IconBadge, List, ListSkeleton, RowText, rowPress, SwipeRow } from '@/ui'
 import { byDay } from './byDay'
 import { inboxRequests } from './inboxRequests'
 import { suggestionTitle, tripTitle } from './labels'
@@ -82,16 +82,19 @@ function HandledRow({ item, vehicleName, restoring, onRestore }: {
   )
 
   return (
-    <div className="flex items-center">
-      {vehicleId != null
-        ? <VehicleLink vehicleId={vehicleId} className={`flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 ${item.restorable ? 'pr-2' : 'pr-4'} ${rowPress}`}>{text}</VehicleLink>
-        : <div className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 pr-2">{text}</div>}
-      {item.restorable && (
-        <Button variant="ghost" className="mr-2 shrink-0 !px-2.5 !py-1.5 text-xs" busy={restoring} onClick={onRestore} aria-label={`Put ${title} back in To do`}>
-          <ArrowCounterClockwise size={14} /> To do
-        </Button>
-      )}
-    </div>
+    // swiped left, it goes back to To do, as its button does
+    <SwipeRow enabled={item.restorable} onSwipe={onRestore} action={<><ArrowCounterClockwise size={16} /> To do</>}>
+      <div className="flex items-center">
+        {vehicleId != null
+          ? <VehicleLink vehicleId={vehicleId} className={`flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 ${item.restorable ? 'pr-2' : 'pr-4'} ${rowPress}`}>{text}</VehicleLink>
+          : <div className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 pr-2">{text}</div>}
+        {item.restorable && (
+          <Button variant="ghost" className="mr-2 shrink-0 !px-2.5 !py-1.5 text-xs" busy={restoring} onClick={onRestore} aria-label={`Put ${title} back in To do`}>
+            <ArrowCounterClockwise size={14} /> To do
+          </Button>
+        )}
+      </div>
+    </SwipeRow>
   )
 }
 
