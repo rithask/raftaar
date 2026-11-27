@@ -30,7 +30,7 @@ public class Garage {
 
     public record Card(Vehicle vehicle, VehicleStats.Odometer odometer, BigDecimal averageEconomy, BigDecimal lastEconomy, String unit,
                        FuelEntry lastFill, BigDecimal spentThisMonth, BigDecimal costPerKm,
-                       List<VehicleStats.ReminderView> attention, List<VehicleStats.DocumentView> papers) {}
+                       List<VehicleStats.ReminderView> attention, List<VehicleStats.DocumentView> papers, Ownership ownership) {}
 
     public record Overview(List<Card> vehicles, long tripsToSort, long toConfirm) {}
 
@@ -46,6 +46,6 @@ public class Garage {
                 && reminder.status().state() != ReminderState.State.UNKNOWN).toList();
         var papers = summary.documents().stream().filter(paper -> !"VALID".equals(paper.state()) && !"NO_EXPIRY".equals(paper.state())).toList();
         return new Card(vehicle, summary.odometer(), summary.averageEconomy(), summary.lastEconomy(), summary.unit(), summary.lastFill(),
-                summary.costs().thisMonth(), summary.costs().perKm(), attention, papers);
+                summary.costs().thisMonth(), summary.costs().perKm(), attention, papers, summary.ownership());
     }
 }

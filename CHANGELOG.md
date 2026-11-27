@@ -16,9 +16,15 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 - Export to CSV, in Settings → Data: fill-ups, services, expenses, papers, reminders, odometer readings and
   vehicles, each its own file or all in one zip. One vehicle's records: Export, at the bottom of its Edit screen.
   Numbers are plain and dates ISO, so the files open cleanly in a spreadsheet.
+- What a vehicle costs to own, at the top of its Spend tab: what you paid, plus everything spent running it, less
+  what you sold it for; per km over the distance you had it, and per month ("so far" for one you still have). Mark
+  a vehicle sold or retired and its Edit screen asks what it sold for, the odometer then and the date. Sold cards in
+  the Garage show their cost per km. Anything missing is named instead of the figure guessing.
 
 ### Changed
 
+- The database gets three new columns for a vehicle's sale. This version upgrades the database when it starts, so
+  going back to 0.8.x afterwards means restoring the copy of `data/db` taken before upgrading.
 - km a day (on the vehicle page, and behind due-soon warnings) is worked out from at least two weeks of readings
   or trips, instead of a few days, so it isn't thrown off by a single long ride.
 

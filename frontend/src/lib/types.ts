@@ -33,6 +33,10 @@ export interface Vehicle {
   purchaseDate?: string | null
   purchaseOdometer?: number | null
   purchasePrice?: number | null
+  /** Set once it's sold or retired. */
+  soldOn?: string | null
+  salePrice?: number | null
+  saleOdometer?: number | null
   imageFile?: string | null
   imageVersion: number
   isDefault: boolean
@@ -193,6 +197,24 @@ export interface Summary {
   economyHistory: Stretch[]
   /** Up to the last twelve months, oldest first; month as "2026-11" */
   monthly: { month: string; fuel: number; service: number; other: number }[]
+  ownership: Ownership
+}
+
+/**
+ * What a vehicle has cost to own (Ownership on the server): purchase + running − sale, per km and per month;
+ * "so far" while it isn't sold. {@code missing} names what isn't known ("purchase price").
+ */
+export interface Ownership {
+  sold: boolean
+  purchase: number | null
+  running: number
+  sale: number | null
+  total: number
+  distance: number | null
+  perKm: number | null
+  months: number | null
+  perMonth: number | null
+  missing: string[]
 }
 
 /** A vehicle as the garage shows it: the figures for its card and what needs attention. */
@@ -207,6 +229,7 @@ export interface GarageCard {
   costPerKm: number | null
   attention: ReminderView[]
   papers: DocView[]
+  ownership: Ownership
 }
 
 export interface Garage {

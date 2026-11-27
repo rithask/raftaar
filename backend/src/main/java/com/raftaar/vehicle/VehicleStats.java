@@ -76,7 +76,8 @@ public class VehicleStats {
 
     public record Summary(Vehicle vehicle, Odometer odometer, BigDecimal averageEconomy, BigDecimal lastEconomy, String unit,
                           FuelEntry lastFill, Costs costs, List<ReminderView> reminders, List<DocumentView> documents,
-                          List<Economy.Stretch> economyHistory, Map<Long, Economy.Stretch> economyByFill, List<MonthCost> monthly) {}
+                          List<Economy.Stretch> economyHistory, Map<Long, Economy.Stretch> economyByFill, List<MonthCost> monthly,
+                          Ownership ownership) {}
 
     /** What one calendar month cost, {@code month} as "2026-11". */
     public record MonthCost(String month, BigDecimal fuel, BigDecimal service, BigDecimal other) {}
@@ -185,7 +186,8 @@ public class VehicleStats {
 
         return new Summary(vehicle, odometer, economy.average(), lastStretch == null ? null : lastStretch.kmPerUnit(), vehicle.fuelType.unit,
                 vehicleFills.isEmpty() ? null : vehicleFills.getLast(), new Costs(fuelCost, serviceCost, expenseCost, total, perKm, thisMonth),
-                due, papersDue, economy.stretches(), economy.byEndId(), monthly(vehicleFills, vehicleServices, vehicleExpenses, today, zone));
+                due, papersDue, economy.stretches(), economy.byEndId(), monthly(vehicleFills, vehicleServices, vehicleExpenses, today, zone),
+                Ownership.of(vehicle, total, firstOdometer, odometer.known(), today));
     }
 
     /** The last twelve months (or fewer, back to the first month with any spending), oldest first, empty months as zero. */

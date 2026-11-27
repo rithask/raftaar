@@ -29,6 +29,9 @@ export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose
     purchasePrice: vehicle?.purchasePrice?.toString() ?? '',
     isDefault: vehicle?.isDefault ?? false,
     archived: vehicle?.archived ?? false,
+    soldOn: vehicle?.soldOn ?? '',
+    salePrice: vehicle?.salePrice?.toString() ?? '',
+    saleOdometer: vehicle?.saleOdometer?.toString() ?? '',
     notes: vehicle?.notes ?? '',
   }))
   const [photo, setPhoto] = useState<Blob | null>(null)
@@ -44,6 +47,9 @@ export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose
         purchaseOdometer: num(form.purchaseOdometer),
         purchasePrice: num(form.purchasePrice),
         purchaseDate: form.purchaseDate || null,
+        soldOn: form.soldOn || null,
+        salePrice: num(form.salePrice),
+        saleOdometer: num(form.saleOdometer),
       }
       const saved = vehicle ? await api<Vehicle>(`/vehicles/${vehicle.id}`, { method: 'PUT', body }) : await api<Vehicle>('/vehicles', { body })
       if (photo) {
@@ -136,6 +142,14 @@ export function VehicleForm({ open, onClose, vehicle }: { open: boolean; onClose
         <Field label="Notes"><TextArea value={form.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
         <Toggle checked={form.isDefault} onChange={(v) => set('isDefault', v)} label="My usual ride" hint="Suggested first for new trips and fill-ups." />
         {vehicle && <Toggle checked={form.archived} onChange={(v) => set('archived', v)} label="Sold or retired" hint="Its history stays; it's left out of new entries." />}
+        {vehicle && form.archived && (
+          // for what it cost to own (Spend tab); all optional
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Sold for (₹)"><Input inputMode="decimal" value={form.salePrice} onChange={(e) => set('salePrice', e.target.value)} placeholder="Optional" /></Field>
+            <Field label="Odometer then"><Input inputMode="decimal" value={form.saleOdometer} onChange={(e) => set('saleOdometer', e.target.value)} placeholder="km" /></Field>
+            <Field label="Sold or retired on" className="col-span-2"><DateInput value={form.soldOn} onChange={(v) => set('soldOn', v)} allowEmpty placeholder="Optional" /></Field>
+          </div>
+        )}
         {vehicle && (
           <a href={exportUrl('all', vehicle.id)} download className={buttonStyle('secondary', 'w-full')}>
             <DownloadSimple size={16} /> Export this vehicle's records

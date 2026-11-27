@@ -1,7 +1,7 @@
 import { Receipt } from '@phosphor-icons/react'
 import { motion } from 'motion/react'
-import { date, expenseLabel, money, money2 } from '@/lib/format'
-import { type Expense, type Summary } from '@/lib/types'
+import { date, expenseLabel, km, money, money2 } from '@/lib/format'
+import { type Expense, type Ownership, type Summary } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
 import { MonthlyChart } from '../LazyCharts'
 import { AddLink, Card, cx, EmptyState, IconBadge, List, ListRow, RowMeta, Section, softSpring } from '@/ui'
@@ -20,6 +20,7 @@ export function SpendTab({ summary, expenses, onOpen, onAdd }: { summary: Summar
   const monthAvg = months.reduce((t, m) => t + m.fuel + m.service + m.other, 0) / Math.max(1, months.length)
   return (
     <>
+      <OwnershipSection ownership={summary.ownership} />
       <Section title="Where it went">
         <Card padded>
           <div className="flex items-baseline justify-between">
@@ -67,3 +68,45 @@ export function SpendTab({ summary, expenses, onOpen, onAdd }: { summary: Summar
     </>
   )
 }
+
+/**
+ * What it has cost to own: bought for, running costs, sold for, and the total per km and per month ("so far" while
+ * it isn't sold). Shown once there's more to it than the running costs below; until then, a line saying what to add.
+ */
+function OwnershipSection({ ownership: o }: { ownership: Ownership }) {
+  if (o.purchase == null && !o.sold) {
+    return <p className="px-1 text-sm text-stone-500">Add what you paid for it (Edit) to see what it costs to own.</p>
+  }
+  const lines = [
+    { label: 'Bought for', value: o.purchase != null ? money(o.purchase) : 'not set' },
+    { label: 'Running costs', value: money(o.running) },
+    ...(o.sold ? [{ label: 'Sold for', value: o.sale != null ? `− ${money(o.sale)}` : 'not set' }] : []),
+  ]
+  const rates = [
+    o.perKm != null && o.distance != null ? `${money2(o.perKm)} per km over ${km(o.distance)}` : null,
+    o.perMonth != null && o.months != null ? `${money(o.perMonth)} a month over ${o.months} month${o.months === 1 ? '' : 's'}` : null,
+  ].filter(Boolean)
+  return (
+    <Section title={o.sold ? 'Cost of owning it' : 'Cost of owning it so far'}>
+      <Card padded>
+        <dl className="space-y-1.5 text-sm">
+          {lines.map(({ label, value }) => (
+            <div key={label} className="flex justify-between gap-3">
+              <dt className="text-stone-500">{label}</dt>
+              <dd className="num">{value}</dd>
+            </div>
+          ))}
+          <div className="flex items-baseline justify-between gap-3 border-t border-stone-900/5 pt-2 dark:border-white/10">
+            <dt className="font-medium">Total</dt>
+            <dd className="num text-xl font-bold tracking-tight">{money(o.total)}</dd>
+          </div>
+        </dl>
+        {rates.length > 0 && <p className="num mt-2 text-sm text-stone-600 dark:text-stone-300">{rates.join(' · ')}</p>}
+        {o.missing.length > 0 && <p className="mt-2 text-xs text-stone-500">Add the {joinWords(o.missing)} (Edit) to count {o.missing.length === 1 ? 'it' : 'them'}.</p>}
+      </Card>
+    </Section>
+  )
+}
+
+/** "a", "a and b", "a, b and c". */
+const joinWords = (words: string[]) => (words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`)

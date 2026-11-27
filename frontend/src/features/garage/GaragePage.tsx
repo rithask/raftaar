@@ -2,7 +2,7 @@ import { Bell, CaretRight, GasPump, Gauge, MagnifyingGlass, Plus, Scroll, Tray, 
 import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { date, economyUnit, km, money, n1 } from '@/lib/format'
+import { date, economyUnit, km, money, money2, n1 } from '@/lib/format'
 import { type GarageCard, type Vehicle } from '@/lib/types'
 import { useHidden } from '@/lib/undo'
 import { FuelForm } from '@/features/fuel/FuelForm'
@@ -74,8 +74,12 @@ export function GaragePage() {
             {retired.map((card) => (
               <VehicleLink key={card.vehicle.id} vehicleId={card.vehicle.id} className={cx('flex items-center gap-3 rounded-2xl p-3 opacity-70 transition duration-100 active:scale-[0.99] active:opacity-100', surface)}>
                 <VehicleArt vehicle={card.vehicle} className="size-12 rounded-xl" iconSize={22} small />
-                <span className="font-medium">{card.vehicle.name}</span>
-                <span className="num ml-auto text-sm text-stone-500">{km(card.odometer.known)}</span>
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{card.vehicle.name}</span>
+                  {/* what it cost to own, once that's known */}
+                  {card.ownership.perKm != null && <span className="num block text-xs text-stone-500">{money2(card.ownership.perKm)} per km to own</span>}
+                </span>
+                <span className="num ml-auto shrink-0 text-sm text-stone-500">{km(card.odometer.known)}</span>
               </VehicleLink>
             ))}
           </div>

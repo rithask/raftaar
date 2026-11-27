@@ -45,7 +45,7 @@ public class DataExport {
     /** The kinds of record, each a file with these columns (also what DataImport reads back). */
     public enum Table {
         VEHICLES("vehicles", "name", "kind", "fuel_type", "make", "model", "year", "registration", "color", "tank_capacity",
-                "purchase_date", "purchase_odometer", "purchase_price", "archived", "notes"),
+                "purchase_date", "purchase_odometer", "purchase_price", "archived", "sold_on", "sale_price", "sale_odometer", "notes"),
         FUEL("fuel", "vehicle", "filled_at", "odometer", "volume", "unit", "price_per_unit", "total_cost", "full_tank", "missed_previous",
                 "station", "brand", "district", "region", "latitude", "longitude", "source", "notes"),
         SERVICES("services", "vehicle", "serviced_on", "odometer", "title", "workshop", "cost", "notes"),
@@ -152,7 +152,7 @@ public class DataExport {
 
     private static List<?> vehicleRow(Vehicle v) {
         return Arrays.asList(v.name, v.kind, v.fuelType, v.make, v.model, v.year, v.registration, v.color, v.tankCapacity,
-                v.purchaseDate, v.purchaseOdometer, v.purchasePrice, v.archived, v.notes);
+                v.purchaseDate, v.purchaseOdometer, v.purchasePrice, v.archived, v.soldOn, v.salePrice, v.saleOdometer, v.notes);
     }
 
     private static List<?> fuelRow(FuelEntry fill, String vehicle, String unit) {

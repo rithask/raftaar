@@ -31,7 +31,8 @@ public class Vehicles {
 
     public record Input(String name, Vehicle.Kind kind, FuelType fuelType, String make, String model, Integer year,
                         String registration, String color, BigDecimal tankCapacity, LocalDate purchaseDate,
-                        BigDecimal purchaseOdometer, BigDecimal purchasePrice, Boolean isDefault, Boolean archived, String notes) {}
+                        BigDecimal purchaseOdometer, BigDecimal purchasePrice, Boolean isDefault, Boolean archived, String notes,
+                        LocalDate soldOn, BigDecimal salePrice, BigDecimal saleOdometer) {}
 
     @Transactional(readOnly = true)
     public List<Vehicle> list() {
@@ -141,6 +142,10 @@ public class Vehicles {
         vehicle.purchaseOdometer = input.purchaseOdometer();
         vehicle.purchasePrice = input.purchasePrice();
         vehicle.archived = Boolean.TRUE.equals(input.archived());
+        // the sale belongs to a vehicle that's gone: one back in use keeps none
+        vehicle.soldOn = vehicle.archived ? input.soldOn() : null;
+        vehicle.salePrice = vehicle.archived ? input.salePrice() : null;
+        vehicle.saleOdometer = vehicle.archived ? input.saleOdometer() : null;
         vehicle.notes = Text.trimToNull(input.notes());
         boolean makeDefault = Boolean.TRUE.equals(input.isDefault()) && !vehicle.archived;
         if (makeDefault) clearOtherDefaults(vehicle);

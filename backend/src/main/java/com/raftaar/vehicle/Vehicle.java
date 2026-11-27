@@ -26,6 +26,9 @@ public class Vehicle {
     public LocalDate purchaseDate;
     public BigDecimal purchaseOdometer;
     public BigDecimal purchasePrice;
+    public LocalDate soldOn;
+    public BigDecimal salePrice;
+    public BigDecimal saleOdometer;
     public String imageFile;
     public int imageVersion;
     public boolean isDefault;
