@@ -5,6 +5,17 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+### Added
+
+- GeoPulse trips are titled by where they went: "Home → Office", from the names of the places you stayed at
+  either side of the trip in GeoPulse ("From Home" or "To Office" when only one end has a name). The time and
+  distance are on the line under. Trips already imported get their places on the first sync after upgrading.
+
+### Changed
+
+- The database gets two new columns, for a trip's places. Nothing about the data already there changes, but going
+  back to 0.9.0 after upgrading means restoring the copy of `data/db` taken before.
+
 ## [0.9.0] - 2026-11-27
 
 ### Added

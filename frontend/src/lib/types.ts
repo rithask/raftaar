@@ -245,6 +245,9 @@ export interface Trip {
   endedAt: string
   distanceM: number
   movementType: string | null
+  /** The places it went between, from GeoPulse's stays ("Home", "Office"); null where there's no name. */
+  startPlace: string | null
+  endPlace: string | null
   status: 'PENDING' | 'ASSIGNED' | 'IGNORED'
   vehicleId: number | null
   suggestedVehicleId: number | null

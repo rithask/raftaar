@@ -9,7 +9,8 @@ import { VehicleLink } from '@/features/vehicle/VehicleLink'
 import { Button, EmptyState, ErrorText, IconBadge, List, ListSkeleton, RowText, rowPress, SwipeRow } from '@/ui'
 import { byDay } from './byDay'
 import { inboxRequests } from './inboxRequests'
-import { suggestionTitle, tripTitle } from './labels'
+import { suggestionTitle } from './labels'
+import { tripPlaces, tripTitle, tripWhen } from '@/lib/trips'
 
 /**
  * The Inbox's Done tab: what's been added, dismissed or sorted, newest first and by day. Each row says what became
@@ -69,7 +70,8 @@ function HandledRow({ item, vehicleName, restoring, onRestore }: {
     ? <IconBadge tone="emerald"><Path size={18} /></IconBadge>
     : fuel ? <IconBadge><GasPump size={18} /></IconBadge> : <IconBadge tone="violet"><Receipt size={18} /></IconBadge>
   const title = trip ? tripTitle(trip) : suggestionTitle(suggestion!)
-  const details = trip ? null : [time(item.at), suggestion!.amount != null ? money(suggestion!.amount) : null].filter(Boolean).join(' · ')
+  // a trip titled by its places says when it was under them
+  const details = trip ? (tripPlaces(trip) ? tripWhen(trip) : null) : [time(item.at), suggestion!.amount != null ? money(suggestion!.amount) : null].filter(Boolean).join(' · ')
   // what became of it gets a line of its own, wrapping rather than cut short
   const text = (
     <>

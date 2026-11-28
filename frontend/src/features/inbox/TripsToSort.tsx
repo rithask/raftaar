@@ -10,7 +10,7 @@ import { Button, Card, Chip, ErrorText, popSpring, Section, softSpring } from '@
 import { byDay } from './byDay'
 import { cardMotion } from './cardMotion'
 import { inboxRequests } from './inboxRequests'
-import { tripTitle } from './labels'
+import { tripPlaces, tripTitle, tripWhen } from '@/lib/trips'
 
 const MODE: Record<string, string> = { CAR: 'Car', MOTORCYCLE: 'Motorcycle', UNKNOWN: 'Unknown mode' }
 
@@ -76,8 +76,11 @@ export function TripsToSort({ trips, vehicles }: { trips: Trip[]; vehicles: Vehi
                 </button>
                 <Path size={18} className="text-stone-400" />
                 <div className="min-w-0 flex-1">
-                  <div className="num text-sm font-medium">{tripTitle(trip)}</div>
-                  <div className="text-xs text-stone-500">{MODE[trip.movementType ?? 'UNKNOWN'] ?? 'Unknown mode'}</div>
+                  <div className="num truncate text-sm font-medium">{tripTitle(trip)}</div>
+                  <div className="num truncate text-xs text-stone-500">
+                    {/* with its places as the title, when it was moves to this line */}
+                    {[tripPlaces(trip) ? tripWhen(trip) : null, MODE[trip.movementType ?? 'UNKNOWN'] ?? 'Unknown mode'].filter(Boolean).join(' · ')}
+                  </div>
                 </div>
               </div>
               {picked.length === 0 && (

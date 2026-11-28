@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import com.raftaar.places.Dwells;
 import com.raftaar.common.Failures;
 import com.raftaar.hisaab.HisaabSync;
@@ -33,6 +34,8 @@ public class GeoPulseSync extends SyncJob {
     public static final String NAME = "geopulse";
     private static final Duration OVERLAP = Duration.ofDays(2); // GeoPulse can rebuild recent timeline
     private static final long MAX_STAY_SECONDS = 30 * 60;
+    /** Set once trips imported before trips had places have had them filled in (see fillPlacesOnce). */
+    private static final String PLACES_FILLED = "geopulse.placesFilledAt";
 
     private final GeoPulseClient client;
     private final AppProperties.GeoPulse cfg;
@@ -95,8 +98,9 @@ public class GeoPulseSync extends SyncJob {
             if (trip.id() == null || trip.timestamp() == null) continue;
             String type = trip.movementType() == null ? "UNKNOWN" : trip.movementType().toUpperCase();
             if (!types.contains(type)) continue;
-            if (upsertTrip(trip, type)) added++;
+            if (upsertTrip(trip, type, TripPlaces.of(trip, timeline.stays()))) added++;
         }
+        fillPlacesOnce(to);
         for (var stay : timeline.stays()) {
             if (stay.timestamp() == null || stay.latitude() == null || stay.stayDuration() == null || stay.stayDuration() > MAX_STAY_SECONDS) continue;
             if (suggestions.fromStop(stay.timestamp(), stay.stayDuration(), stay.latitude(), stay.longitude()).isPresent()) stops++;
@@ -110,8 +114,38 @@ public class GeoPulseSync extends SyncJob {
         return Text.plural(added, "new trip") + ", " + Text.plural(stops, "fuel stop");
     }
 
+    /**
+     * Trips imported before trips had places get them once: the timeline since the import window began is read
+     * again, only for the names of the stays either side of each trip (trips and fuel stops aren't touched).
+     */
+    private void fillPlacesOnce(Instant to) {
+        if (settings.get(PLACES_FILLED).isPresent()) return;
+        var timeline = client.timeline(to.minus(Duration.ofDays(cfg.importDays())), to);
+        int named = 0;
+        for (var found : timeline.trips()) {
+            if (found.id() == null || found.timestamp() == null) continue;
+            Trip trip = trips.findByGeopulseId(found.id()).orElse(null);
+            if (trip != null && setPlaces(trip, TripPlaces.of(found, timeline.stays()))) {
+                trips.save(trip);
+                named++;
+            }
+        }
+        settings.set(PLACES_FILLED, Instant.now());
+        log.info("GeoPulse: named the places of {}", Text.plural(named, "earlier trip"));
+    }
+
+    /** Sets the trip's places where the timeline names them (a place it doesn't name keeps the one it had); true if any changed. */
+    private static boolean setPlaces(Trip trip, TripPlaces.Places places) {
+        String start = places.start() != null ? places.start() : trip.startPlace;
+        String end = places.end() != null ? places.end() : trip.endPlace;
+        boolean changed = !Objects.equals(start, trip.startPlace) || !Objects.equals(end, trip.endPlace);
+        trip.startPlace = start;
+        trip.endPlace = end;
+        return changed;
+    }
+
     /** True when the trip is new. */
-    private boolean upsertTrip(GeoPulseClient.Trip found, String type) {
+    private boolean upsertTrip(GeoPulseClient.Trip found, String type, TripPlaces.Places places) {
         Trip trip = trips.findByGeopulseId(found.id()).orElse(null);
         if (trip == null) {
             // A rebuilt timeline gives trips new ids: the same start time is the same trip.
@@ -128,6 +162,7 @@ public class GeoPulseSync extends SyncJob {
         trip.startLon = found.longitude();
         trip.endLat = found.endLatitude();
         trip.endLon = found.endLongitude();
+        setPlaces(trip, places);
         if (isNew) {
             Trip created = trip;
             suggestions.vehicleForMovement(type).ifPresent(v -> created.suggestedVehicleId = v.id);

@@ -22,6 +22,9 @@ public class Trip {
     public Double startLon;
     public Double endLat;
     public Double endLon;
+    /** The places it went between, from GeoPulse's stays either side ("Home", "Office"); null where there's no name. */
+    public String startPlace;
+    public String endPlace;
     @Enumerated(EnumType.STRING) public Status status = Status.PENDING;
     public Long vehicleId;
     public Long suggestedVehicleId;
