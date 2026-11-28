@@ -12,7 +12,6 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Objects;
 import com.raftaar.places.Dwells;
 import com.raftaar.common.Failures;
 import com.raftaar.hisaab.HisaabSync;
@@ -100,7 +99,7 @@ public class GeoPulseSync extends SyncJob {
             if (!types.contains(type)) continue;
             if (upsertTrip(trip, type, TripPlaces.of(trip, timeline.stays()))) added++;
         }
-        fillPlacesOnce(to);
+        fillPlacesOnce(from, to);
         for (var stay : timeline.stays()) {
             if (stay.timestamp() == null || stay.latitude() == null || stay.stayDuration() == null || stay.stayDuration() > MAX_STAY_SECONDS) continue;
             if (suggestions.fromStop(stay.timestamp(), stay.stayDuration(), stay.latitude(), stay.longitude()).isPresent()) stops++;
@@ -116,32 +115,26 @@ public class GeoPulseSync extends SyncJob {
 
     /**
      * Trips imported before trips had places get them once: the timeline since the import window began is read
-     * again, only for the names of the stays either side of each trip (trips and fuel stops aren't touched).
+     * again, only for the names of the stays either side of each trip (trips and fuel stops aren't touched). A sync
+     * that already read the whole window (the first one) has named them all, so then there's nothing to read again.
      */
-    private void fillPlacesOnce(Instant to) {
+    private void fillPlacesOnce(Instant syncedFrom, Instant to) {
         if (settings.get(PLACES_FILLED).isPresent()) return;
-        var timeline = client.timeline(to.minus(Duration.ofDays(cfg.importDays())), to);
+        Instant windowStart = to.minus(Duration.ofDays(cfg.importDays()));
         int named = 0;
-        for (var found : timeline.trips()) {
-            if (found.id() == null || found.timestamp() == null) continue;
-            Trip trip = trips.findByGeopulseId(found.id()).orElse(null);
-            if (trip != null && setPlaces(trip, TripPlaces.of(found, timeline.stays()))) {
-                trips.save(trip);
-                named++;
+        if (syncedFrom.isAfter(windowStart)) {
+            var timeline = client.timeline(windowStart, to);
+            for (var found : timeline.trips()) {
+                if (found.id() == null || found.timestamp() == null) continue;
+                Trip trip = trips.findByGeopulseId(found.id()).orElse(null);
+                if (trip != null && TripPlaces.of(found, timeline.stays()).applyTo(trip)) {
+                    trips.save(trip);
+                    named++;
+                }
             }
         }
         settings.set(PLACES_FILLED, Instant.now());
-        log.info("GeoPulse: named the places of {}", Text.plural(named, "earlier trip"));
-    }
-
-    /** Sets the trip's places where the timeline names them (a place it doesn't name keeps the one it had); true if any changed. */
-    private static boolean setPlaces(Trip trip, TripPlaces.Places places) {
-        String start = places.start() != null ? places.start() : trip.startPlace;
-        String end = places.end() != null ? places.end() : trip.endPlace;
-        boolean changed = !Objects.equals(start, trip.startPlace) || !Objects.equals(end, trip.endPlace);
-        trip.startPlace = start;
-        trip.endPlace = end;
-        return changed;
+        if (named > 0) log.info("GeoPulse: named the places of {}", Text.plural(named, "earlier trip"));
     }
 
     /** True when the trip is new. */
@@ -162,7 +155,7 @@ public class GeoPulseSync extends SyncJob {
         trip.startLon = found.longitude();
         trip.endLat = found.endLatitude();
         trip.endLon = found.endLongitude();
-        setPlaces(trip, places);
+        places.applyTo(trip);
         if (isNew) {
             Trip created = trip;
             suggestions.vehicleForMovement(type).ifPresent(v -> created.suggestedVehicleId = v.id);

@@ -1,9 +1,12 @@
 package com.raftaar.geopulse;
 
+import com.raftaar.inbox.Trip;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -19,7 +22,17 @@ final class TripPlaces {
     /** How far apart a trip and the stay beside it may be (GeoPulse leaves gaps where it had no signal). */
     static final Duration NEAR = Duration.ofMinutes(30);
 
-    record Places(String start, String end) {}
+    record Places(String start, String end) {
+        /** Gives the trip these places where they're named (an end not named keeps the one it had); true if it changed. */
+        boolean applyTo(Trip trip) {
+            String newStart = start != null ? start : trip.startPlace;
+            String newEnd = end != null ? end : trip.endPlace;
+            boolean changed = !Objects.equals(newStart, trip.startPlace) || !Objects.equals(newEnd, trip.endPlace);
+            trip.startPlace = newStart;
+            trip.endPlace = newEnd;
+            return changed;
+        }
+    }
 
     static Places of(GeoPulseClient.Trip trip, List<GeoPulseClient.Stay> stays) {
         Instant started = trip.timestamp();

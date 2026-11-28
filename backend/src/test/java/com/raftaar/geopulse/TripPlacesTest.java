@@ -40,4 +40,15 @@ class TripPlacesTest {
         var places = TripPlaces.of(TRIP, List.of(stay("  ", NINE.minusSeconds(3600), 3600), stay(null, NINE.plusSeconds(25 * 60), 600)));
         assertEquals(new TripPlaces.Places(null, null), places);
     }
+
+    @Test
+    void anEndTheTimelineDoesntNameKeepsTheOneItHad() {
+        var trip = new com.raftaar.inbox.Trip();
+        trip.startPlace = "Home";
+        trip.endPlace = "Office";
+        assertTrue(new TripPlaces.Places("Parents' place", null).applyTo(trip));
+        assertEquals("Parents' place", trip.startPlace);
+        assertEquals("Office", trip.endPlace, "not named this time: kept");
+        assertFalse(new TripPlaces.Places("Parents' place", "Office").applyTo(trip), "nothing new: unchanged");
+    }
 }
