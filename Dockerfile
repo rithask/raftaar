@@ -6,7 +6,7 @@
 # own platform ($BUILDPLATFORM), at full speed. Only the small runtime stage is assembled per target platform.
 
 # ---- 1. frontend ------------------------------------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM node:22-alpine AS web
+FROM --platform=$BUILDPLATFORM node:26-alpine AS web
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
