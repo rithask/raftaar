@@ -5,6 +5,8 @@ see [docs/versioning.md](docs/versioning.md) for what each kind of change means 
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-28
+
 ### Added
 
 - GeoPulse trips are titled by where they went: "Home → Office", from the names of the places you stayed at
